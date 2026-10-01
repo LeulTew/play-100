@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { loadAppTools } from '../lib/app-tool-preload';
+import { scheduleDiscoverPrefetch } from '../lib/discover-page-preload';
 import { scheduleIdlePrefetch } from '../lib/idle-prefetch';
 import { effectiveMotionPreference, motionPreferencePending, startupMotionHint } from '../lib/motion-hint';
 import type { MotionPreference } from '../lib/types';
@@ -7,7 +8,7 @@ import type { LibraryScope } from '../lib/cloud-types';
 import type { useLibrary } from './useLibrary';
 import { useCapabilities } from './useCapabilities';
 
-/** The motion preference App applies, the device's capabilities under it, and the idle tool prefetch they allow. */
+/** The motion preference App applies, the device's capabilities under it, and the idle prefetches they allow. */
 export function useAppCapabilities(
   libraryScope: LibraryScope,
   libraryStatus: ReturnType<typeof useLibrary>['status'],
@@ -27,5 +28,12 @@ export function useAppCapabilities(
     if (!capabilities.animate || capabilities.constrained || capabilities.hidden) return;
     return scheduleIdlePrefetch(loadAppTools, 1200);
   }, [capabilities.animate, capabilities.constrained, capabilities.hidden]);
+  // Discover's code and catalog load at idle on constrained devices too, unless the reader keeps the app light: Lite
+  // or reduced motion here, Save-Data or 2G when the idle callback runs (scheduleDiscoverPrefetch).
+  const lite = effectiveMotion === 'lite';
+  useEffect(() => {
+    if (lite || capabilities.reducedMotion || capabilities.hidden) return;
+    return scheduleDiscoverPrefetch();
+  }, [lite, capabilities.reducedMotion, capabilities.hidden]);
   return { effectiveMotion, motionPending, capabilities };
 }

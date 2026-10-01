@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { isConstrainedDevice } from './device-capabilities';
+import { isConstrainedDevice, prefersLightData } from './device-capabilities';
 import type { DeviceHints } from './device-capabilities';
 import { scheduleIdlePrefetch } from './idle-prefetch';
 
@@ -225,5 +225,80 @@ describe('background-only module prefetch', () => {
     expect(warn).toHaveBeenCalledOnce();
     await expect(load()).rejects.toThrow('Module unavailable');
     cancel();
+  });
+});
+
+describe('likely-next-page prefetch', () => {
+  it.each<{ input: DeviceHints; light: boolean }>([
+    { input: {}, light: false },
+    { input: { connection: { saveData: true } }, light: true },
+    { input: { connection: { effectiveType: '2g' } }, light: true },
+    { input: { connection: { effectiveType: 'slow-2g' } }, light: true },
+    { input: { connection: { saveData: false, effectiveType: '3g' } }, light: false },
+    { input: { deviceMemory: 2, hardwareConcurrency: 2 }, light: false },
+  ])('counts only Save-Data and 2G as keeping data light: %j', ({ input, light }) => {
+    expect(prefersLightData(input)).toBe(light);
+  });
+
+  it.each([{ deviceMemory: 2 }, { deviceMemory: 4, hardwareConcurrency: 2 }])(
+    'loads at idle on a constrained device that background prefetch skips: %j',
+    (constrained) => {
+      Object.assign(hints, constrained);
+      const load = vi.fn().mockResolvedValue({});
+      const skipped = scheduleIdlePrefetch(load);
+      expect(requestIdle).not.toHaveBeenCalled();
+      skipped();
+      const stop = scheduleIdlePrefetch(load, undefined, 'navigation');
+      expect(requestIdle).toHaveBeenCalledWith(expect.any(Function));
+      expect(load).not.toHaveBeenCalled();
+      idle?.();
+      expect(load).toHaveBeenCalledOnce();
+      stop();
+    },
+  );
+
+  it.each([
+    { connection: { saveData: true } },
+    { connection: { effectiveType: '2g' } },
+    { connection: { effectiveType: 'slow-2g' } },
+  ])('does not schedule or load while the reader keeps data light: %j', (light) => {
+    Object.assign(hints, { deviceMemory: 2 }, light);
+    const load = vi.fn().mockResolvedValue({});
+    const cancel = scheduleIdlePrefetch(load, undefined, 'navigation');
+    expect(requestIdle).not.toHaveBeenCalled();
+    expect(load).not.toHaveBeenCalled();
+    cancel();
+  });
+
+  it.each(['hidden', 'reduced motion', 'offline'])('does not schedule while initially %s', (policy) => {
+    documentState.hidden = policy === 'hidden';
+    reducedMotion = policy === 'reduced motion';
+    vi.stubGlobal('navigator', { ...hints, onLine: policy !== 'offline' });
+    const load = vi.fn().mockResolvedValue({});
+    const cancel = scheduleIdlePrefetch(load, undefined, 'navigation');
+    expect(requestIdle).not.toHaveBeenCalled();
+    expect(load).not.toHaveBeenCalled();
+    cancel();
+  });
+
+  it('rechecks data saving, reduced motion and visibility when idle comes', () => {
+    const load = vi.fn().mockResolvedValue({});
+    const cancel = scheduleIdlePrefetch(load, undefined, 'navigation');
+    hints.connection = { effectiveType: '2g' };
+    idle?.();
+    expect(load).not.toHaveBeenCalled();
+    cancel();
+    hints.connection = undefined;
+    const stop = scheduleIdlePrefetch(load, undefined, 'navigation');
+    reducedMotion = true;
+    idle?.();
+    expect(load).not.toHaveBeenCalled();
+    stop();
+    reducedMotion = false;
+    const finish = scheduleIdlePrefetch(load, undefined, 'navigation');
+    documentState.hidden = true;
+    idle?.();
+    expect(load).not.toHaveBeenCalled();
+    finish();
   });
 });

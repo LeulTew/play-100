@@ -614,14 +614,15 @@ Route costs (R10 configured build), gzip9 bytes. `budgets.json` caps the largest
 
 ### Optional prefetch
 
-Four fetches can start without an explicit request. Bytes are gzip9 per file
-(R8 configured build).
+Five fetches can start without an explicit request. Bytes are gzip9 per file
+(R8 configured build; Discover's, the integrated R24 build).
 
 | Prefetch | When | Fetches | Use on a guest landing | Decision |
 | --- | --- | --- | --- | --- |
 | App tools ([app-tool-preload.ts](../src/lib/app-tool-preload.ts), `App.tsx`) | After load, at idle (1.2 s timeout); only while motion is on and the page is visible, without reduced motion or a constrained device (Save-Data, 2G, ≤ 4 GB memory or ≤ 2 cores) | Was catalog details 7.6 KB, the catalog parser 2.4 KB, sign-in 1.7 KB, friend comparison 2.3 KB, About 3.3 KB and Settings 4.9 KB. Now only the first two, 10.0 KB | Search opens catalog details and uses the parser. Sign-in and comparison follow only the Account and Friends links, which only online builds show and which warm them on intent; the online bridge also imports both statically. The dialogs open only from the Menu or the footer's buttons, which warm them on intent | **Narrowed**: 12.2 KB less on every capable page load. An offline build could never use the 4.0 KB of sign-in and comparison, and the dialogs still warm on their intent |
 | Secondary dialogs ([useAppPanel.ts](../src/hooks/useAppPanel.ts)) | On intent: pointer, focus or press on a Menu button, the menu, or the footer's About and Effects buttons (not its other links), and when the Menu opens; never while hidden or with Save-Data | About 3.3 KB and Settings 4.9 KB, plus the PWA client 3.3 KB if not loaded yet | Only after that intent | **Narrowed** from the whole footer to its two dialog buttons |
 | PWA controls ([deferred-controller.ts](../src/pwa/deferred-controller.ts), `'essential'`) | After load, at idle, on every device class | The PWA client, 3.4 KB | An installed or offline user's page learns about updates and offline state; a first-time guest needs it only in Settings or to install | Kept: the one warm-up constrained devices need, and small. Skipping it for guests would need a service-worker registration probe before the client, which is the client's own first step |
+| Discover ([discover-page-preload.ts](../src/lib/discover-page-preload.ts), `useAppCapabilities.ts`, `'navigation'`) | After load, at idle, unless Discover has started its own loads; on every device class while the page is visible and online, without Save-Data, 2G, reduced motion or Lite motion | Discover's page 6.1 KB, its three modules 4.8 KB and two stylesheets 1.1 KB, the catalog parser 2.4 KB and the catalog 77.3 KB: 91.7 KB | Discover is in the header of every page, and its catalog was the route's longest wait: about 3 s on the Test Lab phone, 1.6 s in the low-end replay ([performance.md](performance.md#low-end-phones)) | **Added (R24)**, for constrained devices too, since they wait longest. A guest who never opens Discover spends the 91.7 KB anyway, unless the browser asks to save data |
 | 3D scene ([CollectionArtifact.tsx](../src/components/CollectionArtifact.tsx)) | At idle while the artifact is on screen, with motion allowed (Auto or Full without reduced motion; Auto also not on a constrained device); in Auto with a coarse pointer only after Fan out | The scene, 143 KB | It is the hero artifact on screen, not a guess | Kept, with its gates |
 
 ### Feature-only eager CSS

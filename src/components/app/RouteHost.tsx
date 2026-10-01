@@ -7,6 +7,7 @@ import { RouteFallback } from './RouteFallback';
 import type { RouteFallbackProps } from './RouteFallback';
 import { createMemoizedModule } from '../../lib/memoized-module';
 import { warmDiscoveryCatalog } from '../../lib/discovery-loader';
+import { discoverPageModule } from '../../lib/discover-page-preload';
 import { ChunkBoundary } from '../ChunkBoundary';
 import { ChunkRecovery } from '../ChunkRecovery';
 import { routeBoundaryKey } from './route-boundary';
@@ -15,7 +16,7 @@ import { OnlineRoute } from './OnlineRoute';
 import type { OnlineControllerProps } from './OnlineRoute';
 
 const MyGamesPage = lazy(createMemoizedModule(() => import('../personal/MyGamesPage')).load);
-const DiscoverPage = lazy(createMemoizedModule(() => import('../catalog/DiscoverPage')).load);
+const DiscoverPage = lazy(() => discoverPageModule.load());
 
 type PublicContent =
   | { kind: 'private-library' }

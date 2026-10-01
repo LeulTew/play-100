@@ -60,6 +60,10 @@ What changed for those phones (R24):
   (`scheduleTrayMetrics` in [`tray-metrics.ts`](../src/components/compare-tray/tray-metrics.ts)).
 - **Discover loads in one round trip.** Its catalog and parser start with the page's chunk, not after it
   ([`discovery-loader.ts`](../src/lib/discovery-loader.ts)), and the loaded catalog renders as a transition.
+- **Discover loads before it is opened.** Once a page is idle, Discover's code and catalog load in the background
+  ([`discover-page-preload.ts`](../src/lib/discover-page-preload.ts)), on constrained devices too, since they wait
+  longest, but not with Save-Data, on 2G, with reduced or Lite motion, or offline. Opening Discover joins those loads.
+  The figures below predate this.
 - **No ResizeObserver loop.** Card lists estimate a skipped card's height without `auto`
   ([`render-containment.css`](../src/render-containment.css)). To remember sizes, Chromium observes every such card with
   a ResizeObserver of its own. Chrome 106 delivered that observer in the page's observer loop, after the page's own
