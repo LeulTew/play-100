@@ -1049,6 +1049,23 @@ keeps). `scripts/dependency-overrides.test.ts` fails if the lock resolves a
 vulnerable version again. Remove an override once its consumer depends on the
 patched version itself.
 
+A third scoped override closes the grpc-js advisories GHSA-m9gg-hp2v-232j
+(high) and GHSA-f596-whhp-79r4 (low), fixed in 1.13.6 and 1.14.5. The newest
+`@firebase/firestore` (4.17.2, in firebase 12.19.0) still pins
+`@grpc/grpc-js` to `~1.9.0`, and 1.9.16 is the last 1.9 release, so
+`@firebase/firestore` gets `@grpc/grpc-js@^1.14.5`. The lock then holds a single
+grpc-js 1.14.5, which the emulator tree's google-gax and Cloud SQL connector
+already accept within their own ranges. Both advisories concern grpc-js servers
+(peer certificates from `getAuthContext`, handler errors in status messages);
+Play 100 only uses grpc-js as a Firestore client, and only in Node. The browser
+bundle never loads it, because Firestore's browser build uses WebChannel, and
+no API function imports Firestore. It runs only for the Firestore Node SDK under
+Vitest's Node environment and `tests-cloud`, and in the emulator tooling.
+grpc-js keeps its 1.x API, and Firestore still loads its protos with its own
+`@grpc/proto-loader` 0.7. The `tests-cloud` emulator run is the end-to-end
+check of that path. Remove the override once `@firebase/firestore` depends on a
+patched grpc-js itself.
+
 **Install scripts (R9).** `package.json` `allowScripts` records the reviewed
 dependency lifecycle scripts at their exact locked versions. Only npm 12 and
 later enforce it by blocking scripts that are not approved. The recorded
