@@ -1066,6 +1066,18 @@ grpc-js keeps its 1.x API, and Firestore still loads its protos with its own
 check of that path. Remove the override once `@firebase/firestore` depends on a
 patched grpc-js itself.
 
+A fourth scoped override closes basic-ftp GHSA-c475-qrg2-pj4r (high, published
+2026-10-01: quadratic-time parsing of a Unix directory listing in
+`Client.list()`), fixed only in 6.2.1. basic-ftp is dev-only, reached through
+firebase-tools' proxy support (`proxy-agent`, `pac-proxy-agent`, then
+`get-uri` 6.0.5, which declares `^5.0.2`), and even the newest get-uri (8.0.1)
+stays on 5.x, so `get-uri` gets `basic-ftp@^6.2.1`. get-uri only calls
+`access`, `lastMod`, `list`, `downloadTo` and `close`, which 6.x keeps; the only
+breaking change in 6.0.0 refuses a separate data-transfer host unless a client
+allows it, as protection against FTP bounce attacks. The code runs only if the
+emulator tooling fetches a proxy auto-configuration file from an `ftp://` URL.
+Remove the override once get-uri depends on a patched basic-ftp.
+
 **Install scripts (R9).** `package.json` `allowScripts` records the reviewed
 dependency lifecycle scripts at their exact locked versions. Only npm 12 and
 later enforce it by blocking scripts that are not approved. The recorded

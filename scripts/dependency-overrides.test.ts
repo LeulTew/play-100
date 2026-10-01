@@ -50,4 +50,10 @@ describe('dependency advisories fixed by overrides', () => {
     });
     expect(vulnerable).toEqual([]);
   });
+
+  it('resolves no basic-ftp inside GHSA-c475-qrg2-pj4r (patched in 6.2.1)', () => {
+    const found = versions('basic-ftp');
+    expect(found.length).toBeGreaterThan(0);
+    expect(found.filter((entry) => !atLeast(parts(entry), [6, 2, 1]))).toEqual([]);
+  });
 });
