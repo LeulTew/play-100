@@ -183,13 +183,15 @@ async function click(selector) {
   `, `visible ${selector}`);
   const id = element['element-6066-11e4-a52e-4f735466cecf'];
   assert.ok(id, `No WebDriver element for ${selector}`);
-  await nativeTap(id);
+  await tap(id);
   return element;
 }
 
-async function nativeTap(id) {
-  await execute('mobile: calibrateWebToRealCoordinatesTranslation');
+async function tap(id) {
+  const before = await execute('return window.__iosSmoke.clicks.length;');
   await wd('POST', `/element/${id}/click`, {});
+  await waitFor(`return window.__iosSmoke.clicks.slice(${before}).some(event => event.trusted);`,
+    'trusted touch click reached the document', 5000);
 }
 
 async function navigation(label) {
@@ -197,7 +199,7 @@ async function navigation(label) {
     return [...document.querySelectorAll('.mobile-nav a')]
       .find(element => visible(element) && element.textContent.trim() === ${JSON.stringify(label)}) || null;
   `, `bottom navigation ${label}`);
-  await nativeTap(element['element-6066-11e4-a52e-4f735466cecf']);
+  await tap(element['element-6066-11e4-a52e-4f735466cecf']);
 }
 
 await mkdir(output, { recursive: true });
@@ -229,8 +231,7 @@ try {
       'appium:udid': results.udid,
       'appium:deviceName': results.device,
       'appium:platformVersion': results.runtime,
-      'appium:nativeWebTap': true,
-      'appium:nativeWebTapStrict': true,
+      'appium:noReset': true,
       'appium:webviewConnectTimeout': 60_000,
       'appium:newCommandTimeout': 120,
       'appium:wdaLaunchTimeout': 180_000,
@@ -247,6 +248,8 @@ try {
   results.capabilities = created.capabilities;
   assert.ok(session, 'The automation server must return a session ID.');
   await wd('POST', '/timeouts', { implicit: 0, script: 30_000, pageLoad: 60_000 });
+  await execute('mobile: startAutomationSession');
+  results.interactionMode = 'WebKit Automation real touch';
   await step('01-cold-home', async () => {
     await wd('POST', '/url', { url: `${site}/` });
     await installCollector();

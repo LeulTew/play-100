@@ -56,11 +56,15 @@ because current preinstalled-agent startup requires iOS 17+.
 The first runner trials used Apple's `safaridriver` with `platformName: iOS`
 and `safari:useSimulator`. Navigation and screenshots worked, but element
 clicks returned success without activating Discover on all four simulator
-configurations. This workflow therefore uses XCUITest's `nativeWebTap: true`,
-not JavaScript-generated clicks, to exercise bottom navigation and dialogs.
-Native tap coordinates are explicitly recalibrated before each click to
-account for Safari's search-field zoom and browser chrome changes. The search
-evidence records `visualViewport` scale and offsets rather than hiding zoom.
+configurations. XCUITest native taps subsequently reached Discover and search,
+but coordinate translation missed The 100 after Safari's input zoom, even
+with explicit recalibration. This workflow therefore starts the pinned driver's
+[WebKit automation session](https://appium.github.io/appium-xcuitest-driver/latest/reference/execute-methods/#mobile-startautomationsession),
+which sends real WebKit touch interactions against each element's on-page
+position, not JavaScript-generated clicks or calibrated screen coordinates.
+The search evidence records `visualViewport` scale and offsets rather than
+hiding zoom. Appium's redundant Safari reset is skipped: every job already
+creates a fresh simulator with no browsing history or production cache.
 
 The image changes over time. The workflow therefore records its actual
 runtime inventory instead of claiming a permanently fixed device matrix.
