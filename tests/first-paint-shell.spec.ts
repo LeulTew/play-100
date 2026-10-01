@@ -26,6 +26,7 @@ declare global {
     p100Commit?: Box[];
     p100CspViolations: string[];
     p100TakeLayoutShift?: () => number;
+    p100LayoutShiftSources?: () => string[];
     p100Captions: string[];
   }
 }
@@ -451,9 +452,29 @@ test("a shell shown once the web fonts load equals React's first commit", async 
         : box;
     };
     let total = 0;
+    // Chromium reports only moves of about 3 px or more, so any shift here names a real mover; record it for the failure message.
+    const movers: string[] = [];
+    const describe = (node: Node | null) =>
+      node instanceof Element
+        ? `${node.tagName.toLowerCase()}${node.id ? `#${node.id}` : ''}${[...node.classList].map((name) => `.${name}`).join('')}`
+        : String(node?.nodeName);
+    const rect = (box: DOMRectReadOnly) =>
+      [box.x, box.y, box.width, box.height].map((value) => Math.round(value * 10) / 10).join(',');
     const add = (entries: PerformanceEntryList) => {
       for (const entry of entries) {
-        if ('value' in entry && typeof entry.value === 'number') total += entry.value;
+        if (!('value' in entry) || typeof entry.value !== 'number') continue;
+        total += entry.value;
+        const sources =
+          (
+            entry as PerformanceEntry & {
+              sources?: { node: Node | null; previousRect: DOMRectReadOnly; currentRect: DOMRectReadOnly }[];
+            }
+          ).sources ?? [];
+        movers.push(
+          `${entry.value} at ${Math.round(entry.startTime)} ms (boot ${document.documentElement.dataset.boot}): ${sources
+            .map((source) => `${describe(source.node)} ${rect(source.previousRect)} -> ${rect(source.currentRect)}`)
+            .join('; ')}`,
+        );
       }
     };
     const observer = new PerformanceObserver((list) => add(list.getEntries()));
@@ -462,6 +483,7 @@ test("a shell shown once the web fonts load equals React's first commit", async 
       add(observer.takeRecords());
       return total;
     };
+    window.p100LayoutShiftSources = () => movers;
   }, motionHintKey('guest'));
   await serveWithPolicy(page);
   const built = await (await page.request.get('/')).text();
@@ -507,7 +529,9 @@ test("a shell shown once the web fonts load equals React's first commit", async 
       "React's first commit renders exactly what the shell painted",
     ).toEqual([]);
     await frames(page);
-    expect(await page.evaluate(() => window.p100TakeLayoutShift?.() ?? Number.NaN), 'layout shift').toBe(0);
+    const shift = await page.evaluate(() => window.p100TakeLayoutShift?.() ?? Number.NaN);
+    const movers = await page.evaluate(() => window.p100LayoutShiftSources?.() ?? []);
+    expect(shift, `layout shift; moved: ${movers.join(' | ') || 'none'}`).toBe(0);
   } finally {
     releaseScript();
     releaseCollection();
