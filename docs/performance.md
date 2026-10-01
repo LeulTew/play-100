@@ -38,6 +38,43 @@ differ from `PWA_BUDGET`.
   and no import exists only to steer chunking. [`scripts/app-shared-chunk.ts`](../scripts/app-shared-chunk.ts) lists
   the modules that anchor it; dynamic imports stay separate, and the eager-module guard checks that boundary.
 
+## Low-end phones
+
+Firebase Test Lab ran Release 7 on a Galaxy A03s (2 GB, WebView Chrome 106, 412×785 at DPR 1.75, `deviceMemory` 2)
+([docs/releases.md](releases.md)): React's first paint came at 8.0 and 8.2 s, scrolling ran at 32–45 fps, Discover
+took about 3 s to open, and every route change logged a ResizeObserver loop error. `npx tsx scripts/low-end-profile.ts`
+replays that visit locally ([`scripts/low-end-profile.ts`](../scripts/low-end-profile.ts)): Chromium at 412×785 and
+DPR 1.75 with touch, 6× CPU throttling, `deviceMemory` 2 and DevTools' Slow 4G, against builds served over HTTP/2 with
+Brotli and `vercel.json`'s headers. Its fallback-font probes fail, as two of the phone's did, so React's first paint
+is the first contentful paint. Each visit is a first visit that follows the Test Lab harness, and visits alternate
+between the builds it compares.
+
+What changed for those phones (R24):
+
+- **The first commit renders the first screen.** The decorative artifact still, a separate chunk now, and the
+  landing's films, workbook and footer render once the first paint is out
+  ([`AfterFirstPaint`](../src/components/AfterFirstPaint.tsx)); the collection's loading state, which the first-paint
+  shell shares, stays in the first commit.
+- **One style pass before the first paint.** With no tray to place, Compare's chrome heights are measured in the frame
+  after the first paint instead of forcing a layout inside React's first commit and restyling the page for it
+  (`scheduleTrayMetrics` in [`tray-metrics.ts`](../src/components/compare-tray/tray-metrics.ts)).
+- **Discover loads in one round trip.** Its catalog and parser start with the page's chunk, not after it
+  ([`discovery-loader.ts`](../src/lib/discovery-loader.ts)), and the loaded catalog renders as a transition.
+- **No ResizeObserver loop.** Card lists estimate a skipped card's height without `auto`
+  ([`render-containment.css`](../src/render-containment.css)). To remember sizes, Chromium observes every such card with
+  a ResizeObserver of its own. Chrome 106 delivered that observer in the page's observer loop, after the page's own
+  observers, and the loop reports "ResizeObserver loop limit exceeded" for any observation it has to skip
+  (`LocalFrameView::NotifyResizeObservers` in Chromium 106.0.5249). Later versions deliver it first, and a current
+  Chromium does not report the error, so the replay checks it in a Chromium 106 build.
+- **Lighter paint where it costs most.** A constrained device draws game covers without their blurred shadow.
+- **Game details on older browsers.** On the Test Lab phone a game card's link opened nothing. Its click handler had
+  prevented the link's own navigation, and the detail's URL came out unchanged, because the app built queries with
+  `URLSearchParams.size`. Browsers gained that only in Chrome 113, Firefox 112 and Safari 17, above the floor in the
+  [README](../README.md), and it reads `undefined` in older ones. Discover's filters, My games' tabs and pages, the
+  Friends views and the Google sign-in return path lost their queries the same way. `querySuffix`
+  ([`query-suffix.ts`](../src/lib/query-suffix.ts)) builds them from the parameters' text instead, and
+  `resize-observer-loop.spec.ts` replays the visit without `URLSearchParams.size`.
+
 ## R22 figures
 
 Configured build of the R22 candidate (commit `5b6dadd8`, tree `63c5500d`), the release figures, which `budgets.json`
