@@ -75,6 +75,9 @@ for (const action of ['restore', 'cancel'] as const) {
       name: action === 'restore' ? 'Replace with this backup' : 'Cancel import',
       exact: true,
     });
+    // The deep-linked dialog can take the file before the library has loaded: the preview shows at once, and its
+    // actions wait for the library (SettingsDialog.browser.test.ts).
+    await expect(control).not.toHaveAttribute('aria-disabled', 'true');
     const held = action === 'restore' ? await holdWrite(page, false) : null;
     try {
       await control.focus();

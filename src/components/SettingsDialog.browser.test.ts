@@ -427,6 +427,34 @@ for (const mobile of [false, true]) {
       });
     });
 
+    // A deep-linked Settings dialog can take a file before the library has loaded (frequent-action-focus.spec.ts).
+    it('reads a backup chosen while the library is busy and restores it once the library is free', async () => {
+      await withPage(async (page) => {
+        const panel = page.locator('.backup-panel');
+        const input = panel.getByLabel('Import personal library backup file');
+        await page.evaluate(() => window.settingsRadioFixture.externalBusy(true));
+        await input.setInputFiles({
+          name: 'early-backup.json',
+          mimeType: 'application/json',
+          buffer: Buffer.from(JSON.stringify(createLibraryBackup(emptyPersonalLibrary()))),
+        });
+        await browserExpect(panel.locator('.restore-preview')).toBeVisible();
+        await browserExpect(input).toHaveValue('');
+        const restore = panel.getByRole('button', { name: 'Replace with this backup', exact: true });
+        await browserExpect(restore).toHaveAttribute('aria-disabled', 'true');
+        await restore.focus();
+        await restore.press('Enter');
+        expect(await page.evaluate(() => window.settingsRadioFixture.restoreCalls)).toBe(0);
+        await page.evaluate(() => window.settingsRadioFixture.externalBusy(false));
+        await browserExpect(restore).not.toHaveAttribute('aria-disabled', 'true');
+        await restore.press('Enter');
+        expect(await page.evaluate(() => window.settingsRadioFixture.restoreCalls)).toBe(1);
+        await page.evaluate(() => window.settingsRadioFixture.finishRestore(true));
+        await browserExpect(panel.getByRole('status')).toHaveText('Your backup was restored and saved on this device.');
+        await browserExpect(panel.locator('.restore-preview')).toHaveCount(0);
+      });
+    });
+
     it.each([true, false, 'reject'] as const)(
       'keeps restore focus and guards repeats while completing with %s',
       async (result) => {

@@ -259,7 +259,11 @@ after freeing space can commit it, clear the failure and report
 “Your backup was restored and saved on this device.” Reloading before retry
 requires selecting the backup file again; it must not replace the old library.
 Restore and Cancel import stay focusable while a write is pending and ignore
-repeat activation. Successful replacement and cancellation return focus to the
+repeat activation. A backup file chosen while the library is still loading or
+saving, as a deep-linked Settings dialog allows, is read and previewed at once;
+its Restore and Cancel import wait until the library is free. A file chosen
+during a replacement is ignored, and the file input clears so the same file can
+be chosen again. Successful replacement and cancellation return focus to the
 Import backup trigger after the preview disappears. Failed replacement keeps
 the preview and its focused action. A closed or superseded Settings dialog
 never takes focus back when an old replacement finishes.
