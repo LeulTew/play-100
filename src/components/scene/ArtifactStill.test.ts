@@ -26,7 +26,8 @@ describe('decorative sleeve illustration', () => {
     expect(html).toContain('data-activation="static"');
     expect(html).toContain('data-fanned="false"');
     expect(html).not.toContain('class="artifact-control"');
-    expect(html).toContain('class="artifact-still"');
+    // The still itself is a lazy chunk that loads once the first paint is out (AfterFirstPaint); its stage holds its place.
+    expect(html).toContain('class="artifact-stage" aria-hidden="true"');
     expect(html).not.toMatch(/<text\b/);
   });
 });

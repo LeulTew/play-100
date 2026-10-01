@@ -234,8 +234,9 @@ not a `style=`.
     `inert`, and opacity is the only style that changes at the handoff.
   - The artifact caption holds every state, `reduced`, `lite`, `pending`, `saving`, `tap` and
     `ready`, and shell.css shows the one `data-boot-art` names. The artifact omits
-    `data-scene-status`, `data-activation` and the React-only decorative still (absolutely
-    positioned), and the Magnet wrapper omits its inline transition.
+    `data-scene-status` and `data-activation`, and the Magnet wrapper omits its inline transition.
+    Neither paints the decorative still at first: React loads it after its first commit has
+    painted (`AfterFirstPaint`), and it is absolutely positioned.
   - None changes layout.
 - Until the library opens, App takes the guest motion hint from the snapshot
   `src/main.tsx` makes before the library load starts (`snapshotMotionHint()` in

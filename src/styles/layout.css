@@ -468,3 +468,7 @@
   margin: -3px 0 17px;
   line-height: 1.5;
 }
+/* The landing's scroll height until its films and workbook render, after the first paint (AfterFirstPaint). */
+.first-paint-reserve {
+  min-height: 100vh;
+}

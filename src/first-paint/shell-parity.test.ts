@@ -125,10 +125,10 @@ function shellArtifact(state: string): string {
 function firstCommitArtifact(props: CollectionArtifactProps): string {
   const react = renderToStaticMarkup(createElement(CollectionArtifact, props));
   const caption = captured(/aria-describedby="([^"]+)"/, react);
-  // Only React paints the decorative still; it is absolutely positioned and moves nothing.
-  expect(react).toMatch(STILL);
+  // Neither paints the decorative still at first: React loads it once its first commit has painted (AfterFirstPaint), and
+  // it is absolutely positioned, so it moves nothing when it arrives.
+  expect(react).not.toMatch(STILL);
   return react
-    .replace(STILL, '')
     .replace(/ data-scene-status="[^"]*"| data-activation="[^"]*"/g, '')
     .split(`"${caption}"`)
     .join('"caption"');

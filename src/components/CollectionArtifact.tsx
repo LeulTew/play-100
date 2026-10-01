@@ -1,10 +1,16 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import ArtifactStill from './scene/ArtifactStill';
+import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react';
+import type { ComponentType } from 'react';
+import { AfterFirstPaint } from './AfterFirstPaint';
 import type { CollectionSceneHandle } from './scene/CollectionScene';
 import { createMemoizedModule } from '../lib/memoized-module';
 import './scene/artifact.css';
 
 const sceneModule = createMemoizedModule(() => import('./scene/CollectionScene'));
+// The decorative still is a chunk of its own, loaded once the first paint is out (AfterFirstPaint). Without it the
+// stage shows only its own background, so a failed load leaves it at that.
+const ArtifactStill = lazy<ComponentType<{ fanned: boolean }>>(() =>
+  import('./scene/ArtifactStill').catch(() => ({ default: () => null })),
+);
 const REQUESTED_SCENE_IDLE_TIMEOUT_MS = 150;
 
 export interface CollectionArtifactProps {
@@ -300,7 +306,12 @@ export default function CollectionArtifact({
       aria-describedby={captionId}
     >
       <div ref={stageRef} className="artifact-stage" aria-hidden="true">
-        <ArtifactStill fanned={canInteract && stillFanned} />
+        {/* Decorative and absolutely positioned: it paints after the first screen's text, and moves nothing. */}
+        <AfterFirstPaint>
+          <Suspense fallback={null}>
+            <ArtifactStill fanned={canInteract && stillFanned} />
+          </Suspense>
+        </AfterFirstPaint>
         <div ref={hostRef} className="artifact-canvas" />
       </div>
       <figcaption ref={footerRef} className="artifact-footer">
