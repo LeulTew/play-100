@@ -1,3 +1,5 @@
+import { afterNextPaint } from '../../lib/after-paint';
+
 /** The heights CompareTray keeps as custom properties on <html>, for layout that must clear the fixed chrome. */
 export const TRAY_METRIC_PROPERTIES = [
   '--site-header-height',
@@ -61,4 +63,35 @@ export function measureTrayMetrics({ style, header, navigation, toast, tray }: T
       style.setProperty(property, value);
     }
   });
+}
+
+/**
+ * When CompareTray measures. Before anything is measured, with no tray to place, the first resize notification waits
+ * until the page has painted (afterNextPaint): the metrics then set after the first paint, whose style and layout run
+ * once instead of twice for heights that page has no use for yet. From then on a notification measures at once, as
+ * does `now()`.
+ */
+export function scheduleTrayMetrics(
+  measure: () => void,
+  measured: { current: boolean },
+  schedule: (run: () => void) => () => void = afterNextPaint,
+) {
+  let pending: (() => void) | null = null;
+  const cancel = () => {
+    pending?.();
+    pending = null;
+  };
+  const now = () => {
+    cancel();
+    measured.current = true;
+    measure();
+  };
+  return {
+    now,
+    resized() {
+      if (measured.current) now();
+      else pending ??= schedule(now);
+    },
+    cancel,
+  };
 }

@@ -8,7 +8,7 @@ import { GameArtwork, GameArtworkCredit } from '../games/GameArtwork';
 import type { GameArtworkProps } from '../games/GameArtwork';
 import { useCompareTray } from './compare-tray-context';
 import { CompareDragSourceContext } from './compare-drag-source-context';
-import { measureTrayMetrics, TRAY_METRIC_PROPERTIES } from './tray-metrics';
+import { measureTrayMetrics, scheduleTrayMetrics, TRAY_METRIC_PROPERTIES } from './tray-metrics';
 import './compare-tray.css';
 
 export interface CompareTrayProps {
@@ -49,6 +49,7 @@ function ScopedCompareTray({
   const list = useRef<HTMLUListElement>(null);
   const dock = useRef<HTMLElement | null>(null);
   const inlineRevealed = useRef(false);
+  const measuredMetrics = useRef(false);
   const newestId = items.at(-1)?.id;
   const dockRef = useCallback(
     (node: HTMLElement | null) => {
@@ -70,18 +71,22 @@ function ScopedCompareTray({
     const header = document.querySelector('.site-header');
     const navigation = document.querySelector('.mobile-nav');
     const toast = document.querySelector('.toast');
-    const measure = () =>
-      measureTrayMetrics({
-        style: document.documentElement.style,
-        header,
-        navigation,
-        toast,
-        tray: node && !hidden && hasTray ? node : null,
-      });
-    // Measuring now forces the first layout of the page React has just inserted inside the commit's
-    // own task, which stays short, instead of the frame after it, which also lays out and paints the
-    // rest of the page. The reads come before the writes, so it forces that layout once.
-    measure();
+    const metrics = scheduleTrayMetrics(
+      () =>
+        measureTrayMetrics({
+          style: document.documentElement.style,
+          header,
+          navigation,
+          toast,
+          tray: node && !hidden && hasTray ? node : null,
+        }),
+      measuredMetrics,
+    );
+    // Once a tray shows or the heights are set, measuring now forces the layout of what React has just
+    // inserted inside the commit's own task, which stays short, instead of the frame after it, which
+    // also paints. The reads come before the writes, so it forces that layout once. The app's first
+    // commit, with no tray, leaves its heights to the observer instead (scheduleTrayMetrics).
+    if (hasTray || measuredMetrics.current) metrics.now();
     const focused = document.activeElement;
     if (!hasContent || layout !== 'inline') inlineRevealed.current = false;
     if (layout === 'inline' && hasContent && !hidden && !dragging && node && !inlineRevealed.current) {
@@ -123,7 +128,7 @@ function ScopedCompareTray({
       node
         ?.querySelector('.compare-tray-error')
         ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
-    const observer = new ResizeObserver(measure);
+    const observer = new ResizeObserver(metrics.resized);
     [header, navigation, toast, node].forEach((element) => {
       if (element) observer.observe(element);
     });
@@ -131,7 +136,10 @@ function ScopedCompareTray({
       ?.querySelectorAll('.compare-tray-error, .compare-tray-storage-mark')
       .forEach((element) => observer.observe(element));
     // The heights stay set while the effect re-runs, so the next measurement writes only what moved.
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      metrics.cancel();
+    };
   }, [hasTray, hasContent, hidden, compact, error, warning, layout, dragging]);
   useLayoutEffect(
     () => () => {
