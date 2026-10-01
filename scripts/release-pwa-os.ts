@@ -78,13 +78,16 @@ async function waitFor<T>(read: () => Promise<T>, accept: (value: T) => boolean,
 }
 async function appPage(browser: Browser, session: CDPSession, manifestId: string) {
   const { targetId } = await session.send('PWA.launch', { manifestId });
+  const observed: string[] = [];
   return waitFor(
     async () => {
       for (const context of browser.contexts()) {
         for (const page of context.pages()) {
           const cdp = await context.newCDPSession(page);
           try {
-            if ((await cdp.send('Target.getTargetInfo')).targetInfo.targetId === targetId) return page;
+            const info = (await cdp.send('Target.getTargetInfo')).targetInfo;
+            if (!observed.includes(info.targetId)) observed.push(info.targetId);
+            if (info.targetId === targetId) return page;
           } finally {
             await cdp.detach();
           }
@@ -93,10 +96,22 @@ async function appPage(browser: Browser, session: CDPSession, manifestId: string
       return undefined;
     },
     (page) => !!page,
-  ).then((page) => {
-    assert.ok(page, 'Launched app target was not attached.');
-    return page;
-  });
+  )
+    .then((page) => {
+      assert.ok(page, 'Launched app target was not attached.');
+      return page;
+    })
+    .catch(async (error: unknown) => {
+      const targets = (await session.send('Target.getTargets')).targetInfos.map(({ targetId: id, type, url }) => ({
+        id,
+        type,
+        url,
+      }));
+      throw new Error(
+        `App target ${targetId} not attached; observed ${JSON.stringify(observed)}; targets ${JSON.stringify(targets)}`,
+        { cause: error },
+      );
+    });
 }
 async function windowState(page: Page) {
   await page.locator('#root > .site-header').waitFor({ timeout: 60000 });
