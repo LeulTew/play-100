@@ -14,10 +14,14 @@ async function readVisibleSizes(page: Page) {
         const bounds = control.getBoundingClientRect();
         return bounds.width > 0 && bounds.height > 0 && getComputedStyle(control).visibility !== 'hidden';
       })
-      .map((control) => ({
-        control: `${control.tagName.toLowerCase()}${control.getAttribute('type') ? `[${control.getAttribute('type')}]` : ''}${control.className ? `.${control.className.split(' ').join('.')}` : ''} "${control.getAttribute('aria-label') ?? control.getAttribute('name') ?? ''}"`,
-        size: Number.parseFloat(getComputedStyle(control).fontSize),
-      })),
+      .map((control) => {
+        const type = control.getAttribute('type');
+        const classes = (control.getAttribute('class') ?? '').trim();
+        return {
+          control: `${control.tagName.toLowerCase()}${type ? `[${type}]` : ''}${classes ? `.${classes.split(/\s+/).join('.')}` : ''} "${control.getAttribute('aria-label') ?? control.getAttribute('name') ?? ''}"`,
+          size: Number.parseFloat(getComputedStyle(control).fontSize),
+        };
+      }),
   );
 }
 
