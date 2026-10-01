@@ -9,14 +9,6 @@ const untypedFiles = ['**/*.{js,mjs,cjs}'];
 
 const testFiles = ['**/*.{test,spec}.{ts,tsx}', '**/*fixture*.{ts,tsx}', 'tests/**/*.ts', 'tests-cloud/**/*.ts', 'tests-cloud-ui/**/*.ts'];
 
-const pendingTypedRules = [
-  'no-unsafe-assignment',
-  'no-unsafe-member-access',
-  'no-unsafe-return',
-  'no-unsafe-argument',
-  'no-unsafe-call',
-];
-
 export default tseslint.config(
   { ignores: ['dist', 'node_modules', 'third-party', 'test-results', 'playwright-report', '.vercel', 'data'] },
   js.configs.recommended,
@@ -40,11 +32,9 @@ export default tseslint.config(
     },
   },
   {
-    // Type-aware rules still being brought to zero (CODE-03); each is removed from this list once it is clean.
     rules: {
       // Forwarding an abort reason or a caught value keeps its identity; literal non-Error rejections are still refused.
       '@typescript-eslint/prefer-promise-reject-errors': ['error', { allowThrowingAny: true, allowThrowingUnknown: true }],
-      ...Object.fromEntries(pendingTypedRules.map((rule) => [`@typescript-eslint/${rule}`, 'off'])),
     },
   },
   {
@@ -52,6 +42,34 @@ export default tseslint.config(
     // Async doubles stand in for promise-returning APIs, so a throw inside one rejects as the real call would.
     files: testFiles,
     rules: { '@typescript-eslint/unbound-method': 'off', '@typescript-eslint/require-await': 'off' },
+  },
+  {
+    // Vitest asymmetric matchers (expect.any, expect.stringContaining, ...) are typed any, so placing one inside an
+    // expected object literal is reported as an unsafe assignment; these files do that and nothing else unsafe.
+    files: [
+      'scripts/first-paint/plugin.test.ts',
+      'scripts/release-manifest.test.ts',
+      'src/cloud/friend-publication-race.test.ts',
+      'src/hooks/useLibrary.test.ts',
+      'src/lib/catalog-admission.test.ts',
+      'src/lib/catalog-api.test.ts',
+      'src/lib/catalog-client.test.ts',
+      'src/lib/catalog-detail-api.test.ts',
+      'src/lib/chunk-recovery.test.ts',
+      'src/lib/compare-tray.test.ts',
+      'src/lib/comparison-game-filter.test.ts',
+      'src/lib/friend-all.test.ts',
+      'src/lib/personal-db.test.ts',
+      'src/lib/personal-library.test.ts',
+      'src/pwa/client.test.ts',
+      'src/pwa/worker.test.ts',
+    ],
+    rules: { '@typescript-eslint/no-unsafe-assignment': 'off' },
+  },
+  {
+    // The first-paint tests run the generated inline boot script through new Function, which is untyped by design.
+    files: ['scripts/first-paint/boot.test.ts', 'scripts/first-paint/plugin.test.ts'],
+    rules: { '@typescript-eslint/no-unsafe-call': 'off' },
   },
   {
     files: untypedFiles,

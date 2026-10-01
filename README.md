@@ -302,9 +302,9 @@ ESLint is type-aware: `typescript-eslint`'s `recommendedTypeChecked` rules run
 with the project service, so every TypeScript file is linted against the
 tsconfig project that builds it (`no-floating-promises` and
 `no-misused-promises` included). Plain JavaScript files, which no project
-covers, are linted without type information. `eslint.config.js` names each
-type-aware rule not yet brought to zero, and the few test-only exceptions with
-their reasons. `tsconfig.node.json`, and the cloud and cloud-UI projects that
+covers, are linted without type information. Every rule in the set is on,
+including the `no-unsafe-*` rules, so no `any` value reaches production code.
+`eslint.config.js` lists the few test-only exceptions with their reasons. `tsconfig.node.json`, and the cloud and cloud-UI projects that
 extend it, are as strict as the app's.
 The supported application runtime is **Node 24.x**, matching the Vercel build
 and Functions runtime and `package.json` engines. The release verification
