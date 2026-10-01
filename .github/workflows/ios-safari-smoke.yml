@@ -76,6 +76,7 @@ jobs:
           echo "IOS_UDID=$udid" >> "$GITHUB_ENV"
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
+          xcrun simctl launch "$udid" com.apple.mobilesafari
           sudo /usr/bin/safaridriver --enable
       - name: Exercise production in Mobile Safari
         shell: bash

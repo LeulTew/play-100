@@ -18,7 +18,7 @@ test('numeric versions and runtime/device compatibility select the exact coverag
   assert.ok(compareVersions('26.2', '18.6') > 0);
   assert.ok(compareVersions('18.10', '18.6') > 0);
   const { include } = selectDevices({
-    devicetypes,
+    devicetypes: [...devicetypes].reverse(),
     runtimes: [runtime('16.3'), runtime('18.5', ['se', 'max16']), runtime('26.2'), runtime('18.6')],
   }, '/Xcode/Contents/Developer');
   assert.deepEqual(include.map(({ version, deviceType }) => [version, deviceType]), [

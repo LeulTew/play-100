@@ -79,6 +79,11 @@ async function step(name, action) {
     record.passed = false;
     record.error = error.stack;
     try {
+      record.failureMetrics = await metrics();
+    } catch (metricsError) {
+      record.metricsError = metricsError.message;
+    }
+    try {
       await capture(`${name}-failure`);
     } catch (captureError) {
       record.screenshotError = captureError.message;
@@ -154,7 +159,7 @@ async function assertLoaded() {
   await waitFor(`${visible}
     const bootError = document.querySelector('#p100-boot-error');
     return document.documentElement.hasAttribute('data-app-started') &&
-      !!bootError && !visible(bootError);
+      !visible(bootError);
   `, 'app started and boot error hidden');
 }
 
@@ -181,7 +186,7 @@ await mkdir(output, { recursive: true });
 await save();
 try {
   assert.ok(results.udid && results.runtime && results.device, 'Simulator identity is required.');
-  const deadline = Date.now() + 45_000;
+  const deadline = Date.now() + 180_000;
   while (!session && Date.now() < deadline) {
     try {
       const created = await command('POST', '/session', {

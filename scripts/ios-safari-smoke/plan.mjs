@@ -27,7 +27,9 @@ export function selectDevices(inventory, developerDir) {
     const small = phones.find((type) => type.name === 'iPhone SE (3rd generation)')
       ?? phones.find((type) => type.name.includes('mini'))
       ?? phones.filter((type) => !/Plus|Max/.test(type.name)).at(-1);
-    const large = phones.filter((type) => /Pro Max/.test(type.name)).at(-1);
+    const large = phones.filter((type) => /Pro Max/.test(type.name))
+      .sort((a, b) => Number(/iPhone (\d+)/.exec(a.name)?.[1]) - Number(/iPhone (\d+)/.exec(b.name)?.[1]))
+      .at(-1);
     if (!small || !large || small.identifier === large.identifier) {
       throw new Error(`Cannot select both small and large iPhones for iOS ${runtime.version}.`);
     }
