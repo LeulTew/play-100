@@ -270,17 +270,17 @@ without private notes or queues. A project database operator can technically
 access stored data; the privacy copy does not promise otherwise.
 
 The Firebase browser key is public routing configuration, not an authorization
-secret. Its intended API restrictions are Identity Toolkit API, Token Service
+secret. Its API restrictions are exactly Identity Toolkit API, Token Service
 API and Cloud Firestore API (plus Firebase App Check API only once App Check is
-enabled). The owner-authorised console readback on **2026-09-28** found four
-allowed APIs: those three plus **Firebase Installations**, which the client
-does not call. **Owner decision pending:** remove Installations or retain it as
-a justified, documented exception. The key is restricted: its Websites
-(HTTP referrers) list contains `https://play-100-collection.vercel.app/*`,
-`https://play100-online-48823b32.firebaseapp.com/*`, and
-`https://play100-online-48823b32.web.app/*`. The last is Firebase's default hosting
-domain, not used by the app's production origin; its removal is also an owner
-decision. No key restriction was changed automatically.
+enabled). The owner-authorised console readback on **2026-09-28** found a fourth,
+**Firebase Installations**, which the client does not call; the owner removed it
+on **2026-10-01**. The key is restricted: its Websites (HTTP referrers) list
+contains `https://play-100-collection.vercel.app/*` and
+`https://play100-online-48823b32.firebaseapp.com/*`. The owner removed
+`https://play100-online-48823b32.web.app/*`, Firebase's default hosting domain,
+on the same day because the app is not served from it. `firebaseapp.com` stays
+because the default email action handler (verification and password reset)
+calls Identity Toolkit from that origin.
 A black-box `SERVICE_DISABLED` answer establishes only that a service is off
 in the project, not the key's API list
 ([dated evidence](security.md#dated-h14-black-box-evidence-and-accepted-risks)).

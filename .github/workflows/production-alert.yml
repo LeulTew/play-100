@@ -1,0 +1,82 @@
+name: Production alert
+
+# Daily check of the live site and its operational probe, after the 06:00 UTC Vercel cron.
+# A failure opens (or comments on) one alert issue and fails the run, so GitHub notifies the
+# owner by email; the next passing run closes the issue. Runs only on this public repository.
+on:
+  schedule:
+    - cron: '30 6 * * *'
+  workflow_dispatch:
+    inputs:
+      drill:
+        description: Report a simulated failure to test the alert channel
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: production-alert
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.repository == 'LeulTew/play-100'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SITE: https://play-100-collection.vercel.app
+      TITLE: 'Production alert: the daily check failed'
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Check the live site
+        id: site
+        shell: bash
+        env:
+          DRILL: ${{ inputs.drill == true }}
+        run: |
+          set -uo pipefail
+          problems=''
+          home=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$SITE/" || true)
+          [ "$home" = 200 ] || problems+="- The home page answered HTTP ${home:-nothing}."$'\n'
+          probe=$(curl -sS -w $'\n%{http_code}' --max-time 60 "$SITE/api/operational-probe" || true)
+          code=${probe##*$'\n'}
+          body=$(printf '%s' "${probe%$'\n'*}" | tr -cd '[:alnum:][:space:]{}":,_-' | head -c 200)
+          [ "$code" = 200 ] || problems+="- /api/operational-probe answered HTTP ${code:-nothing}: ${body:-no body}."$'\n'
+          [ "$DRILL" != true ] || problems+='- Drill: a simulated failure to test this alert channel.'$'\n'
+          printf 'problems<<ALERT_EOF\n%sALERT_EOF\n' "$problems" >> "$GITHUB_OUTPUT"
+          printf '%s' "${problems:-All checks passed.}"
+
+      - name: Open or update the alert issue
+        if: steps.site.outputs.problems != ''
+        shell: bash
+        env:
+          PROBLEMS: ${{ steps.site.outputs.problems }}
+        run: |
+          set -euo pipefail
+          existing=$(gh issue list --state open --limit 20 --json number,title \
+            --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")
+          body=$(printf 'The production check at %s UTC failed:\n\n%s\nRun: %s\n' \
+            "$(date -u '+%Y-%m-%d %H:%M')" "$PROBLEMS" "$RUN_URL")
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+          fi
+          echo "::error::Production check failed"
+          exit 1
+
+      - name: Close a resolved alert
+        if: steps.site.outputs.problems == ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          existing=$(gh issue list --state open --limit 20 --json number,title \
+            --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")
+          if [ -n "$existing" ]; then
+            gh issue close "$existing" --comment "Resolved: the check at $(date -u '+%Y-%m-%d %H:%M') UTC passed. Run: $RUN_URL"
+          fi

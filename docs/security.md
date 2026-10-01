@@ -223,11 +223,16 @@ required for email/password reCAPTCHA protection. No setting was changed.
 owner-authorised readback of **Browser key (auto created by Firebase)** recorded
 **Restrict key, 4 APIs**: Cloud Firestore, Firebase Installations, Identity
 Toolkit and Token Service. The key is restricted, not unrestricted. The intended
-least-privilege list remains the three APIs above. **Owner decision pending:**
-remove Firebase Installations or retain it as a justified, documented exception.
-No key setting was changed. The operator-held receipt is
-`firebase-predeploy-console-20260928.json`; follow the
-[readback runbook](security-release-runbook.md#firebase-browser-key-readback).
+least-privilege list remains the three APIs above. No key setting was changed
+then. The operator-held receipt is `firebase-predeploy-console-20260928.json`;
+follow the [readback runbook](security-release-runbook.md#firebase-browser-key-readback).
+
+**2026-10-01 owner decision (04:25:52Z).** Firebase Installations was removed,
+leaving exactly Cloud Firestore, Identity Toolkit and Token Service. The console
+readback shows "HTTP referrers, 3 APIs". With the production origin as Referer,
+an Installations request now returns `403` ("Requests to this API … are
+blocked"), Identity Toolkit returns 200 and Token Service rejects an invalid
+refresh token with `400 INVALID_REFRESH_TOKEN`, so the key still serves the app.
 
 **Risk owner: project owner. Review by 2026-10-02 with the planned WAF switch,
 or on any abuse signal, whichever comes first.** This review covers App Check
@@ -290,8 +295,11 @@ API-key referrer allowlist. The 2026-09-28 console readback recorded a
 `https://play100-online-48823b32.firebaseapp.com/*`, and
 `https://play100-online-48823b32.web.app/*`. The first is the production origin;
 the second is the existing Firebase helper origin. The third is Firebase's
-default hosting domain, not used by the app's production origin; removing it is
-an **owner decision pending**, not an automatic edit. This restriction is distinct
+default hosting domain, not used by the app's production origin. **The owner
+removed it on 2026-10-01 (04:25:52Z)**, leaving the first two. A request with the
+`web.app` Referer now returns `403` ("Requests from referer … are blocked"); the
+production and `firebaseapp.com` Referers still return 200. The previous
+three-entry list above is the rollback value. This restriction is distinct
 from the Auth authorized-domain list above. A blocked preview request is expected,
 not a reason to broaden the key's restrictions or record an online/Auth pass.
 Real online and Auth smoke tests therefore run on production only, after

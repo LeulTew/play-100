@@ -980,8 +980,19 @@ with the owner's readback.
 
 Owner: project owner; check daily and after each authorized production deployment,
 and review by 2026-10-02 with the WAF decision or immediately on an abuse signal.
-This is a manual first-party dashboard check, not a third-party alerting service
-or a claim that an operator is automatically notified.
+
+**Automatic alert (owner's choice, 2026-10-01).** The `Production alert`
+workflow (`.github/workflows/production-alert.yml`) runs daily at 06:30 UTC,
+after the 06:00 cron. It requests the home page and the fixed
+`/api/operational-probe` once each, without retries or query parameters. If
+either fails, it opens one issue titled "Production alert: the daily check
+failed" (or comments on the open one) and fails the run, so GitHub emails the
+owner. The next passing run closes the issue. To test the channel, run it
+manually with **drill** checked; that reports a simulated failure. The repository
+is public, so the run uses no Actions quota. GitHub pauses scheduled workflows
+after 60 days without repository activity; if that happens, re-enable the
+workflow in the Actions tab. The alert covers availability and the probe's
+three checks only; the manual checks below still apply.
 
 1. In the Vercel project, open **Settings → Cron Jobs**. Confirm the job is
    enabled and `/api/operational-probe` is scheduled at `0 6 * * *` (UTC; allow

@@ -489,6 +489,15 @@ block (ruling WAF-01-CRS). Remaining step: review the Log hits, then switch
 `api-per-ip` to 429 no earlier than 2026-10-02 and record the switch time in
 [releases.md](releases.md).
 
+**Review (2026-10-01, 04:3xZ).** The active configuration is still version 1
+(updated 2026-09-25 09:49:22Z): `api-per-ip` is active in Log mode, and the four
+OWASP groups log only. The firewall events API returned no actions for the
+previous 7 days, either for this rule or for any other. The owner approved the
+switch. It is scheduled for 2026-10-02 06:05Z: it re-reads the events, stops if
+more than three IPs hit the rule, then changes only this rule to 429 and adds
+HEAD to the `/api/` condition. It reads the configuration back, smoke-tests the
+probe and the auth helper, and restores Log mode on any mismatch.
+
 **HEAD (R12).** The live conditions omit HEAD for `/api/`, unlike the table
 above. No function now does upstream work for HEAD: the catalog functions answer
 it with 405, and `api/auth-helper.ts` answers it with the helper's headers and a
@@ -534,10 +543,17 @@ referrers)** entries were `https://play-100-collection.vercel.app/*`,
 `https://play100-online-48823b32.firebaseapp.com/*`, and
 `https://play100-online-48823b32.web.app/*`. No key setting was changed.
 
-**Owner decisions pending:** remove Firebase Installations, which the client
-does not call, or retain it as a justified, documented exception; separately
-decide whether to remove the `web.app` referrer, Firebase's default hosting
-domain not used by the app's production origin. Do not edit either automatically.
+**Owner decisions, made 2026-10-01 (04:25:52Z):** Firebase Installations was
+removed from the allowed APIs, and the `web.app` referrer was removed. The
+console readback after saving shows Cloud Firestore, Identity Toolkit and Token
+Service, with the Websites entries `https://play-100-collection.vercel.app/*`
+and `https://play100-online-48823b32.firebaseapp.com/*`. Black-box probes at
+04:28Z matched: Identity Toolkit answered 200 for the production and
+`firebaseapp.com` Referers and 403 for the `web.app` Referer; Installations
+answered 403 for the production Referer; Token Service answered
+`400 INVALID_REFRESH_TOKEN` for a deliberately invalid token. A signed-in
+production session still loaded its online library afterwards. To roll back,
+restore the 2026-09-28 lists above.
 Preview/candidate origins remain excluded. The HTTP-referrer restriction is
 distinct from Firebase Auth's authorized domains; the key is not unrestricted.
 

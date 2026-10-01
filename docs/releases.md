@@ -161,6 +161,39 @@ previously published rules were the 270f baseline
 the repository. Indexes are unchanged. Pending action 3 is done; don't publish
 any other rules hash.
 
+**Post-release owner actions (2026-10-01).** The owner delegated these
+actions on 2026-10-01:
+- **Owner UID: confirmed.** In Authentication > Users, the owner's Google
+  account (created 2026-09-16) has a UID exactly equal to the `_owner/config`
+  `uid` field, and that document's `email` field matches the account. Read back
+  in the console; the UID is not reproduced here.
+- **Real Google sign-in, desktop: passed** (04:20Z).
+  - Account chooser → `/__/auth/handler` → back on `/account`, signed in to the
+    owner's account, with the online library restored.
+  - Still signed in after a reload.
+  - No buffered CSP violation reports in either document, and
+    `/__/auth/iframe` answered 200.
+  - Both helper documents send exactly one CSP with a fresh nonce and
+    `frame-ancestors 'self'`, plus `X-Frame-Options: SAMEORIGIN` and `no-store`.
+    `POST /__/auth/handler` answers 405 with `Allow: GET, HEAD`.
+  - **Not run:** linking and reauthentication. They exist only inside
+    email-account linking and deletion flows, which would put the owner's real
+    account at risk.
+  - **Not covered:** a real mobile sign-in, which needs a phone signed in to
+    Google.
+- **Browser key: tightened** (04:25:52Z). Firebase Installations and the
+  `web.app` referrer were removed. The key now allows Cloud Firestore,
+  Identity Toolkit and Token Service, from the production origin and
+  `firebaseapp.com` (see
+  [the runbook](security-release-runbook.md#firebase-browser-key-readback)).
+  The signed-in production session kept working afterwards.
+- **Alert channel: chosen.** The daily `Production alert` workflow opens an
+  issue and fails its run, so GitHub emails the owner (see
+  [operations](release-operations.md#11-daily-and-post-deploy-operational-checks)).
+- **WAF: reviewed, switch scheduled.** No firewall events in the previous
+  7 days. The switch to 429 runs on 2026-10-02 06:05Z (see
+  [the runbook](security-release-runbook.md#vercel-waf-rate-limit-for-api-and-the-auth-helper)).
+
 **Waivers.** As for Release 6: no physical-device, iOS Safari, screen-reader or
 OS install and launch runs; the release coordinator waived them. The real
 Google smoke is still pending action 5.
@@ -875,7 +908,9 @@ is in the next release.
 
 Do these in runbook order and record each readback.
 
-1. **Owner UID.** In Firestore > Data > `_owner/config`, add the string field
+1. **Owner UID.** Done: confirmed 2026-10-01 (see
+   [Release 7](#release-7-2026-09-30)). The instruction: in Firestore > Data >
+   `_owner/config`, add the string field
    `uid` set to the verified owner UID from Authentication > Users. Keep the
    `email` field. Readback: reopen the document and confirm both fields.
 2. **Composite indexes.** Create the 3 composite indexes exactly as listed in the
@@ -928,12 +963,15 @@ Do these in runbook order and record each readback.
    Readback: copy the published text back and confirm its SHA-256 equals that
    value, then record the version timestamp. The pre-release rollback archive
    is `971b0fe6c7ec654bb21e72b70f7a431f71deff00612a9934ba02e851ae99243a`.
-4. **WAF.** Switch `api-per-ip` (`rule_api_per_ip_xpgBNf`, in **Log** mode since
+4. **WAF.** Reviewed 2026-10-01 with no events; the switch is scheduled for
+   2026-10-02 06:05Z. Switch `api-per-ip` (`rule_api_per_ip_xpgBNf`, in **Log** mode since
    2026-09-25 09:49:22Z; see
    [Release 2](#release-2-2026-09-25) and the
    [runbook](security-release-runbook.md#vercel-waf-rate-limit-for-api-and-the-auth-helper))
    from Log to 429 after 7 clean days, no earlier than 2026-10-02. Readback:
    record the reviewed Log hits and the switch time.
-5. **Google smoke.** Run a real Google sign-in, link and reauthentication on
-   production, on desktop and mobile. Readback: each flow returns to the app
-   signed in, and the Console shows no CSP violation.
+5. **Google smoke.** Desktop sign-in passed on 2026-10-01 (see
+   [Release 7](#release-7-2026-09-30)). Mobile sign-in, linking and
+   reauthentication remain. Run a real Google sign-in, link and
+   reauthentication on production, on desktop and mobile. Readback: each flow
+   returns to the app signed in, and the Console shows no CSP violation.
