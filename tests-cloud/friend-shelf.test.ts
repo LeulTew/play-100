@@ -42,6 +42,10 @@ import { friendPairId } from '../src/lib/friend-types';
 import { untilSignInNewerThan } from './fixtures/auth-time';
 import type { RunTransaction } from './fixtures/modular-firestore';
 
+type Stored<T> = Record<string, unknown> & T;
+type Registry = Stored<{ ids: string[]; revision: number }>;
+type HeadDoc = Stored<{ epoch: number; revision: number; updatedAt: { toMillis(): number } }>;
+
 vi.mock('firebase/firestore', async (original) => {
   const actual = await original<typeof import('firebase/firestore')>();
   return { ...actual, runTransaction: vi.fn(actual.runTransaction) };
@@ -180,8 +184,8 @@ async function stage(a: Client, config: FriendShelfConfig, count: number, source
   const registry = doc(a.db, 'friendShelfRegistry', a.uid);
   await runTransaction(a.db, async (tx) => {
     const current = await tx.get(registry);
-    const ids: string[] = current.exists() ? current.data().ids : [];
-    tx.set(registry, { ids: [...ids, id], revision: current.exists() ? current.data().revision + 1 : 1 });
+    const ids: string[] = current.exists() ? (current.data() as Registry).ids : [];
+    tx.set(registry, { ids: [...ids, id], revision: current.exists() ? (current.data() as Registry).revision + 1 : 1 });
     tx.set(doc(a.db, 'friendShelves', a.uid, 'generations', id), {
       epoch: config.epoch,
       settingsRevision: config.revision,
@@ -518,7 +522,7 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     await connect(a, b);
     const shared = await publish(a);
     const headRef = doc(a.db, 'syncHeads', a.uid);
-    const old = (await getDocFromServer(headRef)).data()!;
+    const old = (await getDocFromServer(headRef)).data() as HeadDoc;
     await assertSucceeds(
       setDoc(headRef, {
         ...old,
@@ -529,7 +533,7 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
       }),
     );
     expect((await b.store.shelf(a.uid)).entries).toEqual([entry]);
-    const paused = (await getDocFromServer(headRef)).data()!;
+    const paused = (await getDocFromServer(headRef)).data() as HeadDoc;
     await assertSucceeds(
       setDoc(headRef, {
         ...paused,
@@ -552,7 +556,7 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     expect((await b.friends.identity(a.uid))?.displayName).toBe('Shelf test nickname');
     // This session signed in before the deletion: it can neither pause the deleted copy back to life nor, through that,
     // make the shelf the deletion hid readable again.
-    const tombstone = (await getDocFromServer(headRef)).data()!;
+    const tombstone = (await getDocFromServer(headRef)).data() as HeadDoc;
     await assertFails(
       setDoc(headRef, {
         ...tombstone,
@@ -571,7 +575,7 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
       'Emulator-only-passphrase-4382',
     );
     await getIdToken(signedIn.user, true);
-    const deleted = (await getDocFromServer(headRef)).data()!;
+    const deleted = (await getDocFromServer(headRef)).data() as HeadDoc;
     await assertSucceeds(
       setDoc(headRef, {
         ...deleted,
@@ -582,7 +586,7 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
         updatedAt: serverTimestamp(),
       }),
     );
-    const resumed = (await getDocFromServer(headRef)).data()!;
+    const resumed = (await getDocFromServer(headRef)).data() as HeadDoc;
     const newSource = { syncEpoch: resumed.epoch, remoteRevision: resumed.revision };
     const previousConsent = (await a.store.config(a.uid))!;
     await assertFails(b.store.head(a.uid));

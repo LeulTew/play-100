@@ -3,6 +3,8 @@ import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { candidateRules, live270fRules } from '../tests-cloud/fixtures/migration-rules';
 import {
+  type RestDocumentList,
+  type RestError,
   authOrigin,
   createAccount,
   emailFor,
@@ -72,7 +74,7 @@ for (const policy of ['live-270f', 'candidate'] as const)
             },
           );
           expect(result.ok()).toBe(true);
-          return ((await result.json()).documents ?? []).length;
+          return (((await result.json()) as RestDocumentList).documents ?? []).length;
         };
         const before = [await countPayload('accounts'), await countPayload('creatorRanks')];
         expect(before[0]).toBeGreaterThan(0);
@@ -165,7 +167,7 @@ for (const policy of ['live-270f', 'candidate'] as const)
           `${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/publicProfiles/${peer}`,
         );
         expect(missing.status()).toBe(403);
-        expect((await missing.json()).error.status).toBe('PERMISSION_DENIED');
+        expect(((await missing.json()) as RestError).error.status).toBe('PERMISSION_DENIED');
       }
       await page.goto('/friends?view=sent');
       await expect(page.getByRole('button', { name: 'Sent', exact: true })).toHaveAttribute('aria-current', 'page');

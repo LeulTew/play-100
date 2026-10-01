@@ -207,12 +207,10 @@ test('late canonical props retain the already-owned candidate and its searchable
         (value) => new URL(value).pathname === '/node_modules/.vite/deps/react-dom_client.js',
       );
       if (!reactPath || !domPath) throw new Error('The actual app React modules were not loaded.');
-      const { default: React }: { default: typeof import('react') } = await import(reactPath);
-      const { default: ReactDom }: { default: typeof import('react-dom/client') } = await import(domPath);
+      const { default: React } = (await import(reactPath)) as { default: typeof import('react') };
+      const { default: ReactDom } = (await import(domPath)) as { default: typeof import('react-dom/client') };
       const panelPath = '/src/components/personal/AddGamesPanel.tsx';
-      const {
-        default: Panel,
-      }: {
+      const { default: Panel } = (await import(panelPath)) as {
         default: ComponentType<{
           records: LibraryRecord[];
           ownedRecords: Record<string, LibraryRecord>;
@@ -221,7 +219,7 @@ test('late canonical props retain the already-owned candidate and its searchable
           onDiscover: () => void;
           onAdd: (records: LibraryRecord[]) => Promise<boolean>;
         }>;
-      } = await import(panelPath);
+      };
       const container = document.createElement('div');
       container.id = 'late-picker-fixture';
       document.body.append(container);

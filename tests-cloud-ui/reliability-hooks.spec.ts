@@ -56,13 +56,13 @@ async function mountSync(page: Page) {
   await page.goto('/data-use');
   await page.evaluate(async () => {
     const hookPath = '/src/cloud/useCloudSync.ts';
-    const hook: typeof import('../src/cloud/useCloudSync') = await import(hookPath);
+    const hook = (await import(hookPath)) as typeof import('../src/cloud/useCloudSync');
     const clientPath = '/src/cloud/firebase-client.ts';
-    const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
+    const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
     const libraryPath = '/src/lib/scoped-library.ts';
-    const library: typeof import('../src/lib/scoped-library') = await import(libraryPath);
+    const library = (await import(libraryPath)) as typeof import('../src/lib/scoped-library');
     const storePath = '/src/cloud/cloud-store.ts';
-    const store: typeof import('../src/cloud/cloud-store') = await import(storePath);
+    const store = (await import(storePath)) as typeof import('../src/cloud/cloud-store');
     const loaded = (pathname: string) => {
       const url = performance
         .getEntriesByType('resource')
@@ -71,12 +71,12 @@ async function mountSync(page: Page) {
       if (!url) throw new Error(`Loaded dependency missing: ${pathname}`);
       return url;
     };
-    const { default: React }: { default: typeof import('react') } = await import(
-      loaded('/node_modules/.vite/deps/react.js')
-    );
-    const { default: DOM }: { default: typeof import('react-dom/client') } = await import(
-      loaded('/node_modules/.vite/deps/react-dom_client.js')
-    );
+    const { default: React } = (await import(loaded('/node_modules/.vite/deps/react.js'))) as {
+      default: typeof import('react');
+    };
+    const { default: DOM } = (await import(loaded('/node_modules/.vite/deps/react-dom_client.js'))) as {
+      default: typeof import('react-dom/client');
+    };
     await client.cloudAuth.authStateReady();
     const uid = client.cloudAuth.currentUser?.uid;
     if (!uid) throw new Error('The synthetic account is missing.');
@@ -211,19 +211,19 @@ async function mountRemoteHead(page: Page, identical: boolean) {
   await page.goto('/data-use');
   await page.evaluate(async (identical) => {
     const hookPath = '/src/cloud/useCloudSync.ts';
-    const hook: typeof import('../src/cloud/useCloudSync') = await import(hookPath);
+    const hook = (await import(hookPath)) as typeof import('../src/cloud/useCloudSync');
     const accountPath = '/src/hooks/useAccountLibrary.ts';
-    const account: typeof import('../src/hooks/useAccountLibrary') = await import(accountPath);
+    const account = (await import(accountPath)) as typeof import('../src/hooks/useAccountLibrary');
     const clientPath = '/src/cloud/firebase-client.ts';
-    const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
+    const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
     const libraryPath = '/src/lib/scoped-library.ts';
-    const library: typeof import('../src/lib/scoped-library') = await import(libraryPath);
+    const library = (await import(libraryPath)) as typeof import('../src/lib/scoped-library');
     const personalPath = '/src/lib/personal-library.ts';
-    const personal: typeof import('../src/lib/personal-library') = await import(personalPath);
+    const personal = (await import(personalPath)) as typeof import('../src/lib/personal-library');
     const transportPath = '/src/lib/snapshot-transport.ts';
-    const transport: typeof import('../src/lib/snapshot-transport') = await import(transportPath);
+    const transport = (await import(transportPath)) as typeof import('../src/lib/snapshot-transport');
     const storePath = '/src/cloud/cloud-store.ts';
-    const store: typeof import('../src/cloud/cloud-store') = await import(storePath);
+    const store = (await import(storePath)) as typeof import('../src/cloud/cloud-store');
     const loaded = (pathname: string) => {
       const url = performance
         .getEntriesByType('resource')
@@ -232,12 +232,12 @@ async function mountRemoteHead(page: Page, identical: boolean) {
       if (!url) throw new Error(`Loaded dependency missing: ${pathname}`);
       return url;
     };
-    const { default: React }: { default: typeof import('react') } = await import(
-      loaded('/node_modules/.vite/deps/react.js')
-    );
-    const { default: DOM }: { default: typeof import('react-dom/client') } = await import(
-      loaded('/node_modules/.vite/deps/react-dom_client.js')
-    );
+    const { default: React } = (await import(loaded('/node_modules/.vite/deps/react.js'))) as {
+      default: typeof import('react');
+    };
+    const { default: DOM } = (await import(loaded('/node_modules/.vite/deps/react-dom_client.js'))) as {
+      default: typeof import('react-dom/client');
+    };
     await client.cloudAuth.authStateReady();
     const uid = client.cloudAuth.currentUser?.uid;
     if (!uid) throw new Error('The synthetic account is missing.');
@@ -357,19 +357,19 @@ async function mountStaleHead(page: Page) {
   await page.goto('/data-use');
   await page.evaluate(async () => {
     const hookPath = '/src/cloud/useCloudSync.ts';
-    const hook: typeof import('../src/cloud/useCloudSync') = await import(hookPath);
+    const hook = (await import(hookPath)) as typeof import('../src/cloud/useCloudSync');
     const accountPath = '/src/hooks/useAccountLibrary.ts';
-    const account: typeof import('../src/hooks/useAccountLibrary') = await import(accountPath);
+    const account = (await import(accountPath)) as typeof import('../src/hooks/useAccountLibrary');
     const clientPath = '/src/cloud/firebase-client.ts';
-    const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
+    const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
     const libraryPath = '/src/lib/scoped-library.ts';
-    const library: typeof import('../src/lib/scoped-library') = await import(libraryPath);
+    const library = (await import(libraryPath)) as typeof import('../src/lib/scoped-library');
     const personalPath = '/src/lib/personal-library.ts';
-    const personal: typeof import('../src/lib/personal-library') = await import(personalPath);
+    const personal = (await import(personalPath)) as typeof import('../src/lib/personal-library');
     const transportPath = '/src/lib/snapshot-transport.ts';
-    const transport: typeof import('../src/lib/snapshot-transport') = await import(transportPath);
+    const transport = (await import(transportPath)) as typeof import('../src/lib/snapshot-transport');
     const storePath = '/src/cloud/cloud-store.ts';
-    const store: typeof import('../src/cloud/cloud-store') = await import(storePath);
+    const store = (await import(storePath)) as typeof import('../src/cloud/cloud-store');
     const loaded = (pathname: string) => {
       const url = performance
         .getEntriesByType('resource')
@@ -378,12 +378,12 @@ async function mountStaleHead(page: Page) {
       if (!url) throw new Error(`Loaded dependency missing: ${pathname}`);
       return url;
     };
-    const { default: React }: { default: typeof import('react') } = await import(
-      loaded('/node_modules/.vite/deps/react.js')
-    );
-    const { default: DOM }: { default: typeof import('react-dom/client') } = await import(
-      loaded('/node_modules/.vite/deps/react-dom_client.js')
-    );
+    const { default: React } = (await import(loaded('/node_modules/.vite/deps/react.js'))) as {
+      default: typeof import('react');
+    };
+    const { default: DOM } = (await import(loaded('/node_modules/.vite/deps/react-dom_client.js'))) as {
+      default: typeof import('react-dom/client');
+    };
     await client.cloudAuth.authStateReady();
     const uid = client.cloudAuth.currentUser?.uid;
     if (!uid) throw new Error('The synthetic account is missing.');
@@ -492,17 +492,17 @@ async function mountSharing(page: Page) {
   await page.goto('/data-use');
   await page.evaluate(async () => {
     const hookPath = '/src/cloud/useFriendSharing.ts';
-    const hook: typeof import('../src/cloud/useFriendSharing') = await import(hookPath);
+    const hook = (await import(hookPath)) as typeof import('../src/cloud/useFriendSharing');
     const clientPath = '/src/cloud/firebase-client.ts';
-    const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
+    const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
     const libraryPath = '/src/lib/scoped-library.ts';
-    const library: typeof import('../src/lib/scoped-library') = await import(libraryPath);
+    const library = (await import(libraryPath)) as typeof import('../src/lib/scoped-library');
     const storePath = '/src/cloud/friend-store.ts';
-    const store: typeof import('../src/cloud/friend-store') = await import(storePath);
+    const store = (await import(storePath)) as typeof import('../src/cloud/friend-store');
     const dbPath = '/src/lib/personal-db.ts';
-    const db: typeof import('../src/lib/personal-db') = await import(dbPath);
+    const db = (await import(dbPath)) as typeof import('../src/lib/personal-db');
     const cachePath = '/src/lib/friend-selection-cache.ts';
-    const cache: typeof import('../src/lib/friend-selection-cache') = await import(cachePath);
+    const cache = (await import(cachePath)) as typeof import('../src/lib/friend-selection-cache');
     const loaded = (pathname: string) => {
       const url = performance
         .getEntriesByType('resource')
@@ -511,12 +511,12 @@ async function mountSharing(page: Page) {
       if (!url) throw new Error(`Loaded dependency missing: ${pathname}`);
       return url;
     };
-    const { default: React }: { default: typeof import('react') } = await import(
-      loaded('/node_modules/.vite/deps/react.js')
-    );
-    const { default: DOM }: { default: typeof import('react-dom/client') } = await import(
-      loaded('/node_modules/.vite/deps/react-dom_client.js')
-    );
+    const { default: React } = (await import(loaded('/node_modules/.vite/deps/react.js'))) as {
+      default: typeof import('react');
+    };
+    const { default: DOM } = (await import(loaded('/node_modules/.vite/deps/react-dom_client.js'))) as {
+      default: typeof import('react-dom/client');
+    };
     await client.cloudAuth.authStateReady();
     const uid = client.cloudAuth.currentUser?.uid;
     if (!uid) throw new Error('The synthetic account is missing.');

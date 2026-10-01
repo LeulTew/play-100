@@ -41,7 +41,7 @@ async function visitRanking(page: Page, count = 3) {
 async function heldEditor(page: Page) {
   await page.evaluate(
     async (path) => {
-      const { registerPendingEditor }: typeof import('../src/hooks/useExitSave') = await import(path);
+      const { registerPendingEditor } = (await import(path)) as typeof import('../src/hooks/useExitSave');
       document.documentElement.dataset.libraryEditorModule = path;
       let dirty = true;
       let resolve: (value: boolean) => void = () => {
@@ -105,7 +105,7 @@ async function releaseEditor(page: Page) {
       page.evaluate(async () => {
         const path = document.documentElement.dataset.libraryEditorModule;
         if (!path) throw new Error('The held editor module identity is missing.');
-        const { hasPendingEdits }: typeof import('../src/hooks/useExitSave') = await import(path);
+        const { hasPendingEdits } = (await import(path)) as typeof import('../src/hooks/useExitSave');
         return hasPendingEdits();
       }),
     )
@@ -273,7 +273,7 @@ test('first-run add choices yield to useful tools without remounting a draft or 
   });
   await page.evaluate(async (record) => {
     const path = '/src/lib/personal-db.ts';
-    const { commitPersonalAction }: typeof import('../src/lib/personal-db') = await import(path);
+    const { commitPersonalAction } = (await import(path)) as typeof import('../src/lib/personal-db');
     await commitPersonalAction({ type: 'add-records', records: [record] });
   }, rankedRecords[0]!);
   await expect(query(page)).toBeVisible();
@@ -363,7 +363,7 @@ test('selection survives pages and the explicit all-matching action covers all 5
   const beforePeerDelete = await readLibrary(page);
   await page.evaluate(async (id) => {
     const path = '/src/lib/personal-db.ts';
-    const { commitPersonalAction }: typeof import('../src/lib/personal-db') = await import(path);
+    const { commitPersonalAction } = (await import(path)) as typeof import('../src/lib/personal-db');
     await commitPersonalAction({ type: 'remove-records', ids: [id] });
   }, chosen[0]!);
   await expect(selection.getByRole('status')).toHaveText('1 selected');
@@ -615,7 +615,7 @@ test('confirmed last-row deletion clamps the final page and focuses results; pas
   await query(page).focus();
   await page.evaluate(async (id) => {
     const path = '/src/lib/personal-db.ts';
-    const { commitPersonalAction }: typeof import('../src/lib/personal-db') = await import(path);
+    const { commitPersonalAction } = (await import(path)) as typeof import('../src/lib/personal-db');
     await commitPersonalAction({ type: 'remove-records', ids: [id] });
   }, removedId);
   await expect(pager(page)).toHaveCount(0);

@@ -7,6 +7,25 @@ import { DB_NAME, DB_VERSION } from '../src/lib/personal-db';
 export const password = 'Local-emulator-passphrase-8426';
 export const authOrigin = 'http://127.0.0.1:9199';
 export const firestoreOrigin = 'http://127.0.0.1:8188';
+
+/** A value in a Firestore REST document, with only the variants these tests read. */
+export interface RestValue {
+  stringValue?: string;
+  integerValue?: string;
+  booleanValue?: boolean;
+}
+export interface RestDocument<Field extends string = string> {
+  fields: Record<Field, RestValue>;
+}
+export interface RestDocumentList {
+  documents?: RestDocument[];
+}
+export interface RestError {
+  error: { status: string };
+}
+export interface AuthLookup {
+  users?: Array<{ localId: string }>;
+}
 /**
  * Keeps every resource timing entry in the context's pages. A test that patches a module the app loaded finds its exact
  * URL there. Chrome keeps 250 entries by default, fewer than the development server's module requests on an online
@@ -94,7 +113,7 @@ export async function readAccount(page: Page, uid: string): Promise<ScopedLibrar
           const transaction = db.transaction('library', 'readonly');
           const request = transaction.objectStore('library').get(key);
           request.onsuccess = () => {
-            if (request.result) resolve(request.result);
+            if (request.result) resolve(request.result as ScopedLibrary);
             else reject(new Error('Account cache is missing.'));
           };
           transaction.oncomplete = () => db.close();

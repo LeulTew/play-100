@@ -17,6 +17,8 @@ import {
 import { readLibrary } from '../tests/library-helpers';
 import { openBrowsingFilters } from '../tests/browsing-helpers';
 
+type Box = Omit<DOMRectReadOnly, 'toJSON'>;
+
 const kcd = 'wikidata:Q15408545';
 const title = 'Kingdom Come: Deliverance';
 const card = (page: Page, id = kcd) => page.locator(`[data-catalog-id="${id}"]`);
@@ -307,8 +309,8 @@ test('pinning and deliberate drag are UI-only, capped at six, persistent and saf
       const border = parseFloat(style.borderInlineEndWidth);
       const slotLeft = style.direction === 'rtl' ? band.left + border : band.right - border - padding;
       return {
-        tray: tray.toJSON(),
-        band: band.toJSON(),
+        tray: tray.toJSON() as Box,
+        band: band.toJSON() as Box,
         slotLeft,
         slotRight: slotLeft + padding,
         items: [...nav.children].map((item) => {
@@ -483,7 +485,7 @@ test('an explicit unranked shelf stays independent, updates after removal, stops
     await page.evaluate(
       async ({ uid, id }) => {
         const modulePath = '/src/lib/scoped-library.ts';
-        const source: typeof import('../src/lib/scoped-library') = await import(modulePath);
+        const source = (await import(modulePath)) as typeof import('../src/lib/scoped-library');
         const scope = `account:demo-play100:${uid}` as const;
         const current = await source.loadScopedLibrary(scope);
         const record = current.state.records[id];
@@ -523,7 +525,11 @@ test('account export and reversible/full deletion include the independent shelf 
   const download = await waiting;
   const file = await download.path();
   if (!file) throw new Error('The actual account export was not produced.');
-  const exported = JSON.parse(await readFile(file, 'utf8'));
+  const exported = JSON.parse(await readFile(file, 'utf8')) as {
+    friends: {
+      sharedGames: { config: { enabled: boolean }; shelf: { entries: [Record<string, unknown>, ...unknown[]] } };
+    };
+  };
   expect(exported.friends.sharedGames.config.enabled).toBe(true);
   expect(exported.friends.sharedGames.shelf.entries).toHaveLength(1);
   expect(Object.keys(exported.friends.sharedGames.shelf.entries[0]).sort()).toEqual([
@@ -564,7 +570,7 @@ test('account export and reversible/full deletion include the independent shelf 
   const remaining = await page.evaluate(async (uid) => {
     // The stored journal key itself: a journal transaction would now refuse the deleted account's retired copy.
     const modulePath = '/tests/fixtures/device-store-inspection.ts';
-    const inspection: typeof import('../tests/fixtures/device-store-inspection') = await import(modulePath);
+    const inspection = (await import(modulePath)) as typeof import('../tests/fixtures/device-store-inspection');
     return (await inspection.readStoredValue(`friends-shelf-selection:v1:account:demo-play100:${uid}`)) !== undefined;
   }, owner.uid);
   expect(remaining).toBe(false);
@@ -662,9 +668,9 @@ test('tray Compare resets the mounted comparison filters and page without changi
       const libraryPath = '/src/lib/scoped-library.ts';
       const recordsPath = '/src/lib/personal-types.ts';
       const collectionPath = '/src/lib/collection.ts';
-      const library: typeof import('../src/lib/scoped-library') = await import(libraryPath);
-      const records: typeof import('../src/lib/personal-types') = await import(recordsPath);
-      const collection: typeof import('../src/lib/collection') = await import(collectionPath);
+      const library = (await import(libraryPath)) as typeof import('../src/lib/scoped-library');
+      const records = (await import(recordsPath)) as typeof import('../src/lib/personal-types');
+      const collection = (await import(collectionPath)) as typeof import('../src/lib/collection');
       const data = collection.parseCollection(await (await fetch('/data/collection.json')).json());
       for (const game of data.games.slice(0, 30))
         await library.commitScopedAction(`account:demo-play100:${uid}`, {
@@ -731,7 +737,7 @@ test('initial shared-games consent stays checking or error until an enabled or a
     await returning.getByRole('button', { name: 'Use email', exact: true }).click();
     await returning.evaluate(async (uid) => {
       const sourcePath = '/src/cloud/friend-shelf-store.ts';
-      const source: typeof import('../src/cloud/friend-shelf-store') = await import(sourcePath);
+      const source = (await import(sourcePath)) as typeof import('../src/cloud/friend-shelf-store');
       const watch = source.FriendShelfStore.prototype.watchConfig;
       let gated = true;
       const gate: NonNullable<Window['shelfReadGate']> = {

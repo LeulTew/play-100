@@ -65,7 +65,7 @@ async function surfaces(page: Page, spacing = false) {
   if (await page.evaluate(() => matchMedia('(forced-colors: active)').matches)) {
     const borders = await page.locator('.compare-tray-dock, .search-field, .game-cover').evaluateAll((elements) =>
       elements.map((element) => ({
-        selector: element.className,
+        selector: element.className as string,
         style: getComputedStyle(element).borderTopStyle,
         width: parseFloat(getComputedStyle(element).borderTopWidth),
       })),

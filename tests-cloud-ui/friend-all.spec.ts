@@ -26,15 +26,15 @@ async function sdk(page: Page, action: 'controls' | 'heads' | 'legacy-off' | 'ol
   return page.evaluate(async (action) => {
     const clientPath = '/src/cloud/firebase-client.ts';
     const storePath = '/src/cloud/friend-all-store.ts';
-    const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
-    const module: typeof import('../src/cloud/friend-all-store') = await import(storePath);
+    const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
+    const module = (await import(storePath)) as typeof import('../src/cloud/friend-all-store');
     const uid = client.cloudAuth.currentUser?.uid;
     if (!uid) throw new Error('Synthetic fixture is not signed in.');
     const store = new module.FriendAllStore(client.cloudDb);
     if (action === 'controls') return store.controls(uid);
     if (action === 'heads') return { games: await store.head(uid, 'games'), ranking: await store.head(uid, 'ranking') };
     const friendPath = '/src/cloud/friend-store.ts';
-    const friends: typeof import('../src/cloud/friend-store') = await import(friendPath);
+    const friends = (await import(friendPath)) as typeof import('../src/cloud/friend-store');
     const legacy = new friends.FriendStore(client.cloudDb);
     const settings = (await legacy.settings(uid)) ?? (await legacy.initialize(uid));
     if (action === 'old-stop') await legacy.saveSettings(uid, { enabled: false, selectedIds: [] }, settings);
@@ -140,7 +140,7 @@ test('quota progress survives reload across both scopes without claiming all sha
       .map((entry) => entry.name)
       .find((url) => new URL(url).pathname === '/src/cloud/friend-all-store.ts');
     if (!url) throw new Error('Loaded All store missing.');
-    const module: typeof import('../src/cloud/friend-all-store') = await import(url);
+    const module = (await import(url)) as typeof import('../src/cloud/friend-all-store');
     const original = module.FriendAllStore.prototype.publish;
     let fail = true;
     module.FriendAllStore.prototype.publish = function (owner, kind, input, policy, source, isCurrent, progress) {
@@ -153,7 +153,7 @@ test('quota progress survives reload across both scopes without claiming all sha
       });
     };
     const path = '/src/lib/scoped-library.ts';
-    const source: typeof import('../src/lib/scoped-library') = await import(path);
+    const source = (await import(path)) as typeof import('../src/lib/scoped-library');
     await source.commitScopedAction(`account:demo-play100:${uid}`, {
       type: 'add-ranking',
       records: Array.from({ length: 52 }, (_, index) => ({
@@ -217,7 +217,7 @@ test('friends read paginated All data, compare exact tray games, receive score u
   const ownerUid = await uidFor(request, ownerEmail);
   await page.evaluate(async (uid) => {
     const libraryPath = '/src/lib/scoped-library.ts';
-    const source: typeof import('../src/lib/scoped-library') = await import(libraryPath);
+    const source = (await import(libraryPath)) as typeof import('../src/lib/scoped-library');
     const records = Array.from({ length: 205 }, (_, index) => ({
       id: `manual:all-${index + 1}`,
       title: `All fixture ${String(index + 1).padStart(3, '0')}`,
@@ -283,8 +283,8 @@ test('friends read paginated All data, compare exact tray games, receive score u
       const url = resources.find((value) => new URL(value).pathname === '/src/cloud/friend-all-store.ts');
       const legacyUrl = resources.find((value) => new URL(value).pathname === '/src/cloud/friend-store.ts');
       if (!url || !legacyUrl) throw new Error('Loaded comparison stores are missing.');
-      const module: typeof import('../src/cloud/friend-all-store') = await import(url);
-      const legacy: typeof import('../src/cloud/friend-store') = await import(legacyUrl);
+      const module = (await import(url)) as typeof import('../src/cloud/friend-all-store');
+      const legacy = (await import(legacyUrl)) as typeof import('../src/cloud/friend-store');
       const counts = { pages: 0, exact: 0, maxPage: 0, maxExact: 0, legacyFull: 0 };
       window.allReadCounts = counts;
       const exact = module.FriendAllStore.prototype.exact;
@@ -318,7 +318,7 @@ test('friends read paginated All data, compare exact tray games, receive score u
     expect(counts?.maxPage).toBeLessThanOrEqual(25);
     await page.evaluate(async (uid) => {
       const path = '/src/lib/scoped-library.ts';
-      const source: typeof import('../src/lib/scoped-library') = await import(path);
+      const source = (await import(path)) as typeof import('../src/lib/scoped-library');
       await source.commitScopedAction(`account:demo-play100:${uid}`, {
         type: 'edit-ranking',
         id: 'manual:all-1',
@@ -395,7 +395,7 @@ test('an old private write is denied atomically while durable local edits surviv
   });
   await page.evaluate(async (uid) => {
     const path = '/src/lib/scoped-library.ts';
-    const source: typeof import('../src/lib/scoped-library') = await import(path);
+    const source = (await import(path)) as typeof import('../src/lib/scoped-library');
     await source.commitScopedAction(`account:demo-play100:${uid}`, {
       type: 'rate-game',
       record: {
@@ -439,7 +439,7 @@ test('All export and reversible then full deletion retain the device copy and re
   const uid = await uidFor(request, email);
   await page.evaluate(async (uid) => {
     const path = '/src/lib/scoped-library.ts';
-    const source: typeof import('../src/lib/scoped-library') = await import(path);
+    const source = (await import(path)) as typeof import('../src/lib/scoped-library');
     await source.commitScopedAction(`account:demo-play100:${uid}`, {
       type: 'rate-game',
       record: {
@@ -462,7 +462,11 @@ test('All export and reversible then full deletion retain the device copy and re
   await page.getByRole('button', { name: 'Export account data', exact: true }).click();
   const file = await (await waiting).path();
   if (!file) throw new Error('Actual All account export missing.');
-  const exported = JSON.parse(await readFile(file, 'utf8'));
+  const exported = JSON.parse(await readFile(file, 'utf8')) as {
+    friends: {
+      automaticSharing: { policy: { enabled: boolean }; views: Array<{ head: { count: number; status: string } }> };
+    };
+  };
   expect(exported.friends.automaticSharing.policy.enabled).toBe(true);
   expect(exported.friends.automaticSharing.views).toHaveLength(2);
   expect(
@@ -481,8 +485,8 @@ test('All export and reversible then full deletion retain the device copy and re
     };
     const friendsPath = loaded('/src/cloud/friend-store.ts');
     const shelfPath = loaded('/src/cloud/friend-shelf-store.ts');
-    const friends: typeof import('../src/cloud/friend-store') = await import(friendsPath);
-    const shelf: typeof import('../src/cloud/friend-shelf-store') = await import(shelfPath);
+    const friends = (await import(friendsPath)) as typeof import('../src/cloud/friend-store');
+    const shelf = (await import(shelfPath)) as typeof import('../src/cloud/friend-shelf-store');
     const rankSave = friends.FriendStore.prototype.saveSettings;
     const shelfSave = shelf.FriendShelfStore.prototype.saveConfig;
     const counts = { ranking: 0, shelf: 0 };
@@ -544,7 +548,7 @@ test('interrupted online-copy cleanup resumes after private deletion without dro
   const uid = await uidFor(request, email);
   await page.evaluate(async (uid) => {
     const path = '/src/lib/scoped-library.ts';
-    const source: typeof import('../src/lib/scoped-library') = await import(path);
+    const source = (await import(path)) as typeof import('../src/lib/scoped-library');
     await source.commitScopedAction(`account:demo-play100:${uid}`, {
       type: 'rate-game',
       record: {
@@ -568,7 +572,7 @@ test('interrupted online-copy cleanup resumes after private deletion without dro
       .map((entry) => entry.name)
       .findLast((value) => new URL(value).pathname === '/src/cloud/friend-all-store.ts');
     if (!path) throw new Error('Loaded All store is missing.');
-    const all: typeof import('../src/cloud/friend-all-store') = await import(path);
+    const all = (await import(path)) as typeof import('../src/cloud/friend-all-store');
     const cleanup = all.FriendAllStore.prototype.cleanupPage;
     let fail = true;
     all.FriendAllStore.prototype.cleanupPage = function (...args) {

@@ -60,7 +60,9 @@ async function expectContinued(page: Page, request: APIRequestContext, email: st
   const uid = await uidFor(request, email);
   const trays = await page.evaluate(
     (uid) => ({
-      device: JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? 'null')?.items?.length ?? 0,
+      device:
+        (JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? 'null') as { items?: unknown[] } | null)
+          ?.items?.length ?? 0,
       account: localStorage.getItem(`play100:compare-tray:v1:account:demo-play100:${uid}`),
     }),
     uid,
@@ -176,15 +178,17 @@ test('a Compare tray sign-in does not continue once Back leaves its page while t
   // continued comparison loads first. The loads coalesce, so its next step is queued ahead of this one's.
   await page.evaluate(async () => {
     await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
-    const load = async (source: string) => import(source);
-    const tools: typeof import('../src/lib/app-tool-preload') = await load('/src/lib/app-tool-preload.ts');
+    const load = (source: string): Promise<unknown> => import(source);
+    const tools = (await load('/src/lib/app-tool-preload.ts')) as typeof import('../src/lib/app-tool-preload');
     await tools.loadComparisonTools();
   });
   // The account opened on the page Back chose. No comparison opened or took the pins as its filter; they stay pinned.
   await expect(page).toHaveURL((url) => url.pathname === '/discover');
   const after = await page.evaluate(() => ({
     filter: sessionStorage.getItem('play100.comparison-games.v1'),
-    device: JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? 'null')?.items?.length ?? 0,
+    device:
+      (JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? 'null') as { items?: unknown[] } | null)
+        ?.items?.length ?? 0,
   }));
   expect(after).toEqual({ filter: null, device: 2 });
 });

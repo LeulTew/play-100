@@ -84,7 +84,7 @@ async function holdCatalogWrite(page: Page, rejected: boolean) {
       const state = { attempts: 0, held: false };
       let finish: (() => void) | null = null;
       IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
-        const value: Partial<PersonalLibraryState> | null | undefined = args[0];
+        const value = args[0] as Partial<PersonalLibraryState> | null | undefined;
         if (
           this.transaction.db.name === 'play100-personal' &&
           this.name === 'library' &&

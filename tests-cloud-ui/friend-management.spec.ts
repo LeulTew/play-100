@@ -9,6 +9,11 @@ declare global {
     managerPairGate?: { waiting: boolean; finished: boolean; accepted: boolean; release: () => void };
   }
 }
+interface ManagerReads {
+  identities: string[];
+  rankings: number;
+}
+
 test.beforeEach(async ({ page }) => {
   page.setDefaultTimeout(20000);
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -25,7 +30,7 @@ async function prepare(page: Page, request: Parameters<typeof seedManager>[0]) {
   const fixture = await seedManager(request, uid);
   await page.evaluate(async (failingPeer) => {
     const source = '/src/cloud/friend-store.ts';
-    const module: typeof import('../src/cloud/friend-store') = await import(source);
+    const module = (await import(source)) as typeof import('../src/cloud/friend-store');
     const original = module.FriendStore.prototype.identity;
     const ranking = module.FriendStore.prototype.ranking;
     const reads = { identities: [] as string[], rankings: 0 };
@@ -117,7 +122,11 @@ test('loaded pages survive live changes; directional scans, row recovery, privat
   await page.getByLabel('Order', { exact: true }).selectOption('name');
   const managerUrl = page.url();
   await checkManager(page);
-  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('qa:manager-reads') ?? '{}').rankings)).toBe(0);
+  expect(
+    await page.evaluate(
+      () => (JSON.parse(sessionStorage.getItem('qa:manager-reads') ?? '{}') as ManagerReads).rankings,
+    ),
+  ).toBe(0);
   await page.evaluate(() => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -149,7 +158,7 @@ test('loaded pages survive live changes; directional scans, row recovery, privat
   await expect(page.getByRole('button', { name: 'Compare selected', exact: true })).toBeEnabled();
   await page.evaluate(async (peer) => {
     const source = '/src/cloud/friend-store.ts';
-    const module: typeof import('../src/cloud/friend-store') = await import(source);
+    const module = (await import(source)) as typeof import('../src/cloud/friend-store');
     const original = module.FriendStore.prototype.watchPair;
     let failOnce = true;
     module.FriendStore.prototype.watchPair = function (uid, other, next, error) {
@@ -176,7 +185,7 @@ test('loaded pages survive live changes; directional scans, row recovery, privat
   const origin = page.url();
   await page.evaluate(async (peer) => {
     const source = '/src/cloud/friend-store.ts';
-    const module: typeof import('../src/cloud/friend-store') = await import(source);
+    const module = (await import(source)) as typeof import('../src/cloud/friend-store');
     const original = module.FriendStore.prototype.pair;
     const gate: NonNullable<Window['managerPairGate']> = {
       waiting: false,
@@ -268,12 +277,12 @@ test('menus confirm named actions, blocked profiles stay private, invite expiry 
   await page.getByRole('dialog').getByRole('button', { name: 'Block player', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Player blocked.' })).toBeVisible();
   const readsBefore = await page.evaluate(
-    () => JSON.parse(sessionStorage.getItem('qa:manager-reads') ?? '{}').identities.length,
+    () => (JSON.parse(sessionStorage.getItem('qa:manager-reads') ?? '{}') as ManagerReads).identities.length,
   );
   await page.getByRole('button', { name: 'Blocked', exact: true }).click();
   await expect(page.locator('.friend-list > li')).toHaveCount(2);
   const laterReads: string[] = await page.evaluate(
-    (start) => JSON.parse(sessionStorage.getItem('qa:manager-reads') ?? '{}').identities.slice(start),
+    (start) => (JSON.parse(sessionStorage.getItem('qa:manager-reads') ?? '{}') as ManagerReads).identities.slice(start),
     readsBefore,
   );
   expect(laterReads).not.toContain(f.blocked);

@@ -2,6 +2,9 @@ import { createHash } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import type { DeletionCleanupOptions } from '../src/cloud/cloud-store';
 import {
+  type AuthLookup,
+  type RestDocument,
+  type RestDocumentList,
   authOrigin,
   createAccount,
   emailFor,
@@ -52,7 +55,7 @@ test('interrupted private deletion keeps Auth and resumes on the next sign-in be
   await writeManagerDocuments(request, documents);
   await page.evaluate(async () => {
     const source = '/src/cloud/cloud-store.ts';
-    const module: typeof import('../src/cloud/cloud-store') = await import(source);
+    const module = (await import(source)) as typeof import('../src/cloud/cloud-store');
     const original = module.CloudStore.prototype.cleanup;
     let interrupted = false;
     module.CloudStore.prototype.cleanup = function (all = false, options: DeletionCleanupOptions = {}) {
@@ -80,7 +83,7 @@ test('interrupted private deletion keeps Auth and resumes on the next sign-in be
       headers: { Authorization: 'Bearer owner' },
       data: { localId: [uid] },
     });
-  expect((await (await lookup()).json()).users).toHaveLength(1);
+  expect(((await (await lookup()).json()) as AuthLookup).users).toHaveLength(1);
   // Pausing online saving remounts the keyed Account page, which already closed the confirmation.
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Finish deleting', exact: true })).toBeVisible();
@@ -105,18 +108,18 @@ test('interrupted private deletion keeps Auth and resumes on the next sign-in be
   await expect(page.locator('.sync-panel [role="alert"]')).toContainText(
     'To delete your sign-in, confirm your password again',
   );
-  expect((await (await lookup()).json()).users).toHaveLength(1);
+  expect(((await (await lookup()).json()) as AuthLookup).users).toHaveLength(1);
   const marked = await request.get(
     `${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/syncHeads/${uid}`,
     {
       headers: { Authorization: 'Bearer owner' },
     },
   );
-  const head = (await marked.json()).fields;
+  const head = ((await marked.json()) as RestDocument<'cleanupEpoch' | 'epoch'>).fields;
   expect(head.cleanupEpoch.integerValue).toBe(head.epoch.integerValue);
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm deletion', exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
-  expect((await (await lookup()).json()).users ?? []).toEqual([]);
+  expect(((await (await lookup()).json()) as AuthLookup).users ?? []).toEqual([]);
   for (const kind of ['accounts', 'creatorRanks']) {
     const remaining = await request.get(
       `${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/${kind}/${uid}/chunks?pageSize=20`,
@@ -125,7 +128,7 @@ test('interrupted private deletion keeps Auth and resumes on the next sign-in be
       },
     );
     expect(remaining.ok()).toBe(true);
-    expect((await remaining.json()).documents ?? []).toEqual([]);
+    expect(((await remaining.json()) as RestDocumentList).documents ?? []).toEqual([]);
   }
 });
 
@@ -219,9 +222,9 @@ for (const step of [
         reached.push(step);
         return Promise.reject(new Error(`Synthetic stop at the ${step} cleanup step.`));
       };
-      const load = async (source: string) => import(source);
+      const load = (source: string): Promise<unknown> => import(source);
       if (step === 'private' || step === 'marker') {
-        const module: typeof import('../src/cloud/cloud-store') = await load('/src/cloud/cloud-store.ts');
+        const module = (await load('/src/cloud/cloud-store.ts')) as typeof import('../src/cloud/cloud-store');
         if (step === 'marker') module.CloudStore.prototype.markCleanupComplete = stop;
         else {
           const original = module.CloudStore.prototype.cleanup;
@@ -230,22 +233,24 @@ for (const step of [
           };
         }
       } else if (step === 'public' || step === 'reports') {
-        const module: typeof import('../src/cloud/social-store') = await load('/src/cloud/social-store.ts');
+        const module = (await load('/src/cloud/social-store.ts')) as typeof import('../src/cloud/social-store');
         if (step === 'reports') module.SocialStore.prototype.withdrawReport = stop;
         else module.SocialStore.prototype.deleteProfile = stop;
       } else if (step === 'groups' || step === 'blocks' || step === 'pairs') {
-        const module: typeof import('../src/cloud/friend-store') = await load('/src/cloud/friend-store.ts');
+        const module = (await load('/src/cloud/friend-store.ts')) as typeof import('../src/cloud/friend-store');
         if (step === 'groups') module.FriendStore.prototype.deleteGroup = stop;
         else if (step === 'pairs') module.FriendStore.prototype.releasePair = stop;
         else Reflect.set(module.FriendStore.prototype, 'releaseBlock', stop);
       } else if (step === 'all') {
-        const module: typeof import('../src/cloud/friend-all-store') = await load('/src/cloud/friend-all-store.ts');
+        const module = (await load('/src/cloud/friend-all-store.ts')) as typeof import('../src/cloud/friend-all-store');
         module.FriendAllStore.prototype.cleanupPage = stop;
       } else if (step === 'shelf') {
-        const module: typeof import('../src/cloud/friend-shelf-store') = await load('/src/cloud/friend-shelf-store.ts');
+        const module = (await load(
+          '/src/cloud/friend-shelf-store.ts',
+        )) as typeof import('../src/cloud/friend-shelf-store');
         module.FriendShelfStore.prototype.cleanupDeleted = stop;
       } else {
-        const module: typeof import('../src/cloud/friend-store') = await load('/src/cloud/friend-store.ts');
+        const module = (await load('/src/cloud/friend-store.ts')) as typeof import('../src/cloud/friend-store');
         module.FriendStore.prototype.cleanupDeleted = stop;
       }
     }, step);
@@ -256,14 +261,14 @@ for (const step of [
     await expect(page.locator('.sync-panel [role="alert"]')).toContainText(
       `Synthetic stop at the ${step} cleanup step.`,
     );
-    expect(await page.evaluate(() => Reflect.get(window, 'deletionStopsReached'))).toEqual([step]);
+    expect(await page.evaluate(() => Reflect.get(window, 'deletionStopsReached') as string[])).toEqual([step]);
     const read = await request.get(
       `${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/syncHeads/${uid}`,
       {
         headers: { Authorization: 'Bearer owner' },
       },
     );
-    const head = (await read.json()).fields;
+    const head = ((await read.json()) as RestDocument<'deleted' | 'cleanupEpoch'>).fields;
     expect(head.deleted.booleanValue).toBe(true);
     expect(head.cleanupEpoch).toBeUndefined();
     await page.reload();
@@ -300,7 +305,9 @@ test('a completed online-copy deletion stays complete after reload and offers ac
   await expect(page.getByRole('button', { name: 'Finish deleting', exact: true })).toHaveCount(0);
   await expect(notice.getByRole('button', { name: 'Delete account', exact: true })).toBeVisible();
   await expect(notice).toContainText('The copy on this device is still here');
-  expect(await page.evaluate(() => Reflect.get(window, 'deletionNoticeCopies'))).toEqual(['Online copy deleted']);
+  expect(await page.evaluate(() => Reflect.get(window, 'deletionNoticeCopies') as string[])).toEqual([
+    'Online copy deleted',
+  ]);
 });
 
 test('an outstanding deletion probe uses neutral pending copy before its real result', async ({ page, request }) => {
@@ -313,8 +320,8 @@ test('an outstanding deletion probe uses neutral pending copy before its real re
   await page.evaluate(async () => {
     const storeSource = '/src/cloud/cloud-store.ts';
     const clientSource = '/src/cloud/firebase-client.ts';
-    const module: typeof import('../src/cloud/cloud-store') = await import(storeSource);
-    const client: typeof import('../src/cloud/firebase-client') = await import(clientSource);
+    const module = (await import(storeSource)) as typeof import('../src/cloud/cloud-store');
+    const client = (await import(clientSource)) as typeof import('../src/cloud/firebase-client');
     await client.cloudAuth.authStateReady();
     const uid = client.cloudAuth.currentUser?.uid;
     if (!uid) throw new Error('The synthetic actor is not signed in.');
@@ -336,7 +343,7 @@ test('an outstanding deletion probe uses neutral pending copy before its real re
   await expect(pending).not.toContainText('Removal of all online data could not be confirmed.');
   await expect(pending.getByRole('button', { name: 'Finish deleting', exact: true })).toBeVisible();
   await page.evaluate(() => {
-    const release: unknown = Reflect.get(window, 'releaseDeletionProbe');
+    const release = Reflect.get(window, 'releaseDeletionProbe') as (() => void) | undefined;
     if (typeof release !== 'function') throw new Error('The deletion probe has not started.');
     release();
   });

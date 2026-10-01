@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { createAccount, emailFor, firestoreOrigin, readAccount, uidFor, verifyEmail } from './helpers';
+import {
+  type RestDocument,
+  createAccount,
+  emailFor,
+  firestoreOrigin,
+  readAccount,
+  uidFor,
+  verifyEmail,
+} from './helpers';
 import { readLibrary } from '../tests/library-helpers';
 import { onlineModuleRequest, onlinePageRoots } from '../tests/online-module-helpers';
 
@@ -210,7 +218,9 @@ test('the optional picker can fail and close natively, then load after a guarded
       `${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/members/${uid}`,
       { headers: { Authorization: 'Bearer owner' } },
     );
-    return response.ok() ? JSON.stringify((await response.json()).fields?.avatar ?? null) : response.status();
+    return response.ok()
+      ? JSON.stringify(((await response.json()) as Partial<RestDocument<'avatar'>>).fields?.avatar ?? null)
+      : response.status();
   };
   const iconBefore = await savedIcon();
   let requests = 0;

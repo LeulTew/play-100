@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { readLibrary } from './library-helpers';
 
+type Box = Omit<DOMRectReadOnly, 'toJSON'>;
+
 const trayName = (count: number, label = 'Compare tray') => `${count} ${count === 1 ? 'game' : 'games'} in ${label}`;
 
 test('a visible success toast passes a rapid second card action through while its dismiss control works', async ({
@@ -50,7 +52,11 @@ test('a visible success toast passes a rapid second card action through while it
     const ys = [top, bottom, ...controls.flatMap((box) => [box.top - 2, box.bottom + 2])]
       .filter((value) => value >= top && value <= bottom)
       .sort((a, b) => a - b);
-    const receipt = { toast: bounds.toJSON(), pin: action.toJSON(), controls: controls.map((box) => box.toJSON()) };
+    const receipt = {
+      toast: bounds.toJSON() as Box,
+      pin: action.toJSON() as Box,
+      controls: controls.map((box) => box.toJSON() as Box),
+    };
     for (let column = 1; column < xs.length; column++) {
       for (let row = 1; row < ys.length; row++) {
         const x = (xs[column - 1]! + xs[column]!) / 2;
@@ -114,7 +120,9 @@ test('Completed retains keyboard focus through a held save and ignores repeated 
         if (!complete) throw new Error('The completion fixture needs the existing save receiver.');
         transaction.oncomplete = (event) => {
           document.documentElement.dataset.completionSave = 'held';
-          window.addEventListener('completion:release-save', () => complete.call(transaction, event), { once: true });
+          window.addEventListener('completion:release-save', () => complete.call(transaction, event) as unknown, {
+            once: true,
+          });
         };
       }
       return put.apply(this, args);

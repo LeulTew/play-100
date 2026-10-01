@@ -72,6 +72,9 @@ import { packLibrary, packSnapshot, parseManifest } from '../src/lib/snapshot-tr
 import { friendPairId } from '../src/lib/friend-types';
 import { candidateRules, live270fRules, migrationEmulators } from './fixtures/migration-rules';
 
+type Stored<T> = Record<string, unknown> & T;
+type Registry = Stored<{ ids: string[]; revision: number }>;
+
 const avatar: AvatarValue = { version: 1, seed: 'b'.repeat(32), palette: 'moss' };
 const entry: PublicEntry = {
   position: 1,
@@ -350,7 +353,7 @@ for (const policy of ['live-270f', 'candidate'] as const)
         }),
       ).rejects.toThrow('Leave a real partial private upload');
       const privateRegistry = doc(owner.db, 'accounts', owner.uid, 'metadata', 'registry');
-      const privateId = (await getDocFromServer(privateRegistry)).data()?.ids[0];
+      const privateId = ((await getDocFromServer(privateRegistry)).data() as Registry | undefined)?.ids[0];
       if (typeof privateId !== 'string') throw new Error('The private staging fixture is missing.');
       await updateDoc(doc(owner.db, 'accounts', owner.uid, 'generations', privateId), { status: 'deleting' });
       expect(await owner.cloud.cleanup()).toBe(1);
@@ -650,7 +653,10 @@ for (const policy of ['live-270f', 'candidate'] as const)
             },
           });
           await assertSucceeds(setDoc(ranking, summary(bounded)));
-          expect((await getDocFromServer(ranking)).data()?.current.bytes).toBe(MAX_RANKING_SNAPSHOT_BYTES);
+          expect(
+            ((await getDocFromServer(ranking)).data() as Stored<{ current: { bytes: number } }> | undefined)?.current
+              .bytes,
+          ).toBe(MAX_RANKING_SNAPSHOT_BYTES);
         },
       );
 
@@ -831,7 +837,7 @@ for (const policy of ['live-270f', 'candidate'] as const)
         await assertFails(deleteDoc(doc(b.db, 'friendPairs', id)));
         await assertFails(updateDoc(quotaRef(b.db, a.uid, 'pairs'), { count: increment(-1), lastPair: id }));
         await assertFails(getDocFromServer(quotaRef(b.db, a.uid, 'pairs')));
-        const revision = (await getDocFromServer(quota)).data()?.revision;
+        const revision = ((await getDocFromServer(quota)).data() as Stored<{ revision: number }> | undefined)?.revision;
         expect(await b.friends.releasePair(b.uid, a.uid)).toBe(true);
         expect((await getDocFromServer(quota)).data()?.count).toBe(0);
         expect((await getDocFromServer(quota)).data()?.revision).toBe(revision);
@@ -943,7 +949,9 @@ for (const policy of ['live-270f', 'candidate'] as const)
               [`accountQuotas/${a.uid}/limits/pairs`]: { count: 0, revision: 2, lastPair: id },
             });
           }
-          const before = (await getDocFromServer(quotaRef(b.db, b.uid, 'pairs'))).data()?.count;
+          const before = (
+            (await getDocFromServer(quotaRef(b.db, b.uid, 'pairs'))).data() as Stored<{ count: number }> | undefined
+          )?.count;
           const invite = await a.friends.createInvite(a.uid);
           const accepted = await b.friends.acceptInvite(b.uid, invite.token);
           expect(accepted).toMatchObject({ format, state: 'accepted', from: a.uid });
@@ -1659,10 +1667,13 @@ for (const policy of ['live-270f', 'candidate'] as const)
           }),
         ).rejects.toThrow('Leave only the first private chunk');
         const registry = await getDocFromServer(doc(owner.db, 'accounts', owner.uid, 'metadata', 'registry'));
-        const id = registry.data()?.ids[0];
+        const id = (registry.data() as Registry | undefined)?.ids[0];
         if (typeof id !== 'string') throw new Error('The staged generation is missing.');
         const ref = doc(owner.db, 'accounts', owner.uid, 'generations', id);
-        const staged = (await getDocFromServer(ref)).data()!;
+        const staged = (await getDocFromServer(ref)).data() as Stored<{
+          private: Record<string, unknown>;
+          ranking: { chunks: string[] };
+        }>;
         const unrelated = (await packSnapshot('outside this manifest')).chunks[0]!;
         await assertFails(
           setDoc(doc(owner.db, 'accounts', owner.uid, 'chunks', unrelated.digest), {

@@ -4,6 +4,8 @@ import { readLibrary } from './library-helpers';
 import { closeDialog } from './readability-helpers';
 import { emptyCatalogs } from './catalog-helpers';
 
+type Box = Omit<DOMRectReadOnly, 'toJSON'>;
+
 const browsingTargets =
   ':is(.game-card, .discovery-card, .personal-row-static) :is(h3, button, a[href], input, select, textarea, summary)';
 
@@ -23,11 +25,11 @@ test('the tray limit message spans the list and aligns its dismissal with row ac
     const text = error.querySelector('p')!;
     const dismiss = error.querySelector('button')!.getBoundingClientRect();
     return {
-      error: error.getBoundingClientRect().toJSON(),
-      list: dialog.querySelector('.compare-tray-games')!.getBoundingClientRect().toJSON(),
+      error: error.getBoundingClientRect().toJSON() as Box,
+      list: dialog.querySelector('.compare-tray-games')!.getBoundingClientRect().toJSON() as Box,
       rule: getComputedStyle(error).borderTopWidth,
       textFits: text.getBoundingClientRect().width <= parseFloat(getComputedStyle(text).maxWidth) + 1,
-      dismiss: dismiss.toJSON(),
+      dismiss: dismiss.toJSON() as Box,
       rows: [...dialog.querySelectorAll('[data-unpin]')].map((button) => button.getBoundingClientRect().right),
     };
   });
@@ -181,7 +183,7 @@ for (const viewport of [
             return {
               browsing: Boolean(target.closest('.game-card, .discovery-card, .personal-row-static')),
               name: target.getAttribute('aria-label') || target.textContent?.trim(),
-              bounds: box.toJSON(),
+              bounds: box.toJSON() as Box,
               headerBottom: header.bottom,
               floor: nav.height ? nav.top : innerHeight,
               visible:
@@ -238,10 +240,10 @@ test('header Compare keeps its slot and expansion edge across wide breakpoints',
   const chip = dock.getByRole('button', { name: '1 game in Compare tray', exact: true });
   const slot = () =>
     dock.evaluate((element) => ({
-      anchor: element.parentElement!.getBoundingClientRect().toJSON(),
-      dock: element.getBoundingClientRect().toJSON(),
+      anchor: element.parentElement!.getBoundingClientRect().toJSON() as Box,
+      dock: element.getBoundingClientRect().toJSON() as Box,
       position: getComputedStyle(element).position,
-      header: element.closest('.site-header')!.getBoundingClientRect().toJSON(),
+      header: element.closest('.site-header')!.getBoundingClientRect().toJSON() as Box,
     }));
   type Slot = Awaited<ReturnType<typeof slot>>;
   // After a resize, a drag or a dialog, the fixed dock can reach its anchor a frame or a transition later, and a

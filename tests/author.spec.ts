@@ -93,7 +93,10 @@ test('a stale cached dataset has an explicit recovery path, never a substitute a
   page,
   request,
 }) => {
-  const current = await (await request.get('/data/collection.json')).json();
+  const current = (await (await request.get('/data/collection.json')).json()) as {
+    collection: { authorRatingsAreOriginal?: unknown };
+    games: Array<{ authorRating?: unknown }>;
+  };
   const old = structuredClone(current);
   delete old.collection.authorRatingsAreOriginal;
   for (const game of old.games) delete game.authorRating;

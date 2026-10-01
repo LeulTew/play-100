@@ -80,7 +80,7 @@ test('unmarking played visibly confirms completion loss and keeps the replay que
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.5);
   await page.evaluate(async (id) => {
     const modulePath = '/src/lib/personal-db.ts';
-    const source: typeof import('../src/lib/personal-db') = await import(modulePath);
+    const source = (await import(modulePath)) as typeof import('../src/lib/personal-db');
     await source.commitPersonalAction({ type: 'edit-ranking', id, note: 'Keep this replay note.' });
   }, a.id);
   const before = await readLibrary(page);

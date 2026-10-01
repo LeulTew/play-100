@@ -3,6 +3,8 @@ import { emptyCatalogs } from './catalog-helpers';
 import { installGuestLibrary, libraryFixture, libraryRecord, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 
+type Box = Omit<DOMRectReadOnly, 'toJSON'>;
+
 for (const width of [1440, 393]) {
   for (const mode of ['full', 'lite'] as const) {
     test(`table pin limit is refused once, in the strip, without moving focus at ${width}px in ${mode}`, async ({
@@ -161,7 +163,7 @@ for (const viewport of [
       const pins = await page.evaluate(() => {
         const raw = localStorage.getItem('play100:compare-tray:v1:guest');
         if (!raw) throw new Error('Accepted table pins must be stored in the guest tray.');
-        return JSON.parse(raw).items.map((record: { id: string }) => record.id);
+        return (JSON.parse(raw) as { items: Array<{ id: string }> }).items.map((record: { id: string }) => record.id);
       });
       expect(pins).toEqual(libraryRecords.slice(0, 2).map((record) => record.id));
     });
@@ -206,7 +208,7 @@ for (const viewport of [
     const before = await scrollport.evaluate((element) => ({
       height: element.getBoundingClientRect().height,
       horizontal: element.scrollLeft,
-      tray: document.querySelector('.ratings-tray-strip .compare-tray-dock')!.getBoundingClientRect().toJSON(),
+      tray: document.querySelector('.ratings-tray-strip .compare-tray-dock')!.getBoundingClientRect().toJSON() as Box,
     }));
     if (viewport.width === 393) expect(before.horizontal).toBeGreaterThan(0);
     const observation = await page.evaluateHandle(() => {
@@ -260,7 +262,7 @@ for (const viewport of [
       ).toBe(true);
       if (viewport.width === 1440) {
         expect(samples.every((sample) => Math.abs(sample.tableHeight - before.height) <= 1)).toBe(true);
-        expect(await tray.evaluate((element) => element.getBoundingClientRect().toJSON())).toEqual(before.tray);
+        expect(await tray.evaluate((element) => element.getBoundingClientRect().toJSON() as Box)).toEqual(before.tray);
       }
       await expect(later).toHaveAttribute('aria-pressed', 'true');
       expect((await readLibrary(page)).progress[libraryRecord(0).id]?.later).toBe(true);

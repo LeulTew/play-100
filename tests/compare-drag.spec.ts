@@ -5,6 +5,8 @@ import { applyPersonalAction } from '../src/lib/personal-library';
 import { readLibrary } from './library-helpers';
 import { installGuestLibrary, libraryFixture } from './library-pagination-helpers';
 
+type Box = Omit<DOMRectReadOnly, 'toJSON'>;
+
 const guestTrayKey = compareTrayStorageKey('guest');
 const trayRaw = (page: Page) => page.evaluate((key) => localStorage.getItem(key), guestTrayKey);
 const publicSources = [
@@ -343,8 +345,8 @@ test('coarse cards expose one 44px Pin path without a focusable drag handle at 3
   await expect(page.getByRole('button', { name: '1 game in Compare tray', exact: true })).toBeVisible();
   await expect(page.locator('dialog[open],.compare-drag-ghost')).toHaveCount(0);
   const geometry = await page.evaluate(() => ({
-    dock: document.querySelector('.compare-tray-dock')!.getBoundingClientRect().toJSON(),
-    nav: document.querySelector('.mobile-nav')!.getBoundingClientRect().toJSON(),
+    dock: document.querySelector('.compare-tray-dock')!.getBoundingClientRect().toJSON() as Box,
+    nav: document.querySelector('.mobile-nav')!.getBoundingClientRect().toJSON() as Box,
     width: innerWidth,
     documentWidth: document.documentElement.scrollWidth,
     coarse: matchMedia('(pointer: coarse)').matches,

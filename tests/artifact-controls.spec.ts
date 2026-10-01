@@ -106,14 +106,20 @@ test('the first rendered canvas fades in only with permitted fine-pointer motion
   if (isMobile) {
     await expect(artifact.locator('.artifact-canvas')).toHaveCSS('animation-name', 'none');
     await expect(artifact.locator('.artifact-still')).toHaveCSS('animation-name', 'none');
-    expect(await page.evaluate(() => JSON.parse(document.documentElement.dataset.artifactHandoffs ?? '[]'))).toEqual(
-      [],
-    );
+    expect(
+      await page.evaluate(() => JSON.parse(document.documentElement.dataset.artifactHandoffs ?? '[]') as unknown),
+    ).toEqual([]);
   } else {
     await expect
-      .poll(() => page.evaluate(() => JSON.parse(document.documentElement.dataset.artifactHandoffs ?? '[]').length))
+      .poll(() =>
+        page.evaluate(
+          () => (JSON.parse(document.documentElement.dataset.artifactHandoffs ?? '[]') as unknown[]).length,
+        ),
+      )
       .toBe(2);
-    const handoffs = await page.evaluate(() => JSON.parse(document.documentElement.dataset.artifactHandoffs ?? '[]'));
+    const handoffs = await page.evaluate(
+      () => JSON.parse(document.documentElement.dataset.artifactHandoffs ?? '[]') as unknown,
+    );
     expect(handoffs).toEqual(
       expect.arrayContaining([
         { name: 'artifact-canvas-reveal', duration: '0.18s', painted: true, interactive: true },

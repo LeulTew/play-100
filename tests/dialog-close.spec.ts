@@ -7,6 +7,8 @@ import { emptyCatalogs } from './catalog-helpers';
 import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
 import { openMenu } from './readability-helpers';
 
+type Box = Omit<DOMRectReadOnly, 'toJSON'>;
+
 const catalog = parseDiscoveryCatalog(
   JSON.parse(readFileSync(new URL('../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8')),
 );
@@ -103,7 +105,7 @@ for (const pins of [0, 6]) {
     const geometry = await heading.evaluate((element) => {
       const bounds = element.getBoundingClientRect();
       return {
-        heading: bounds.toJSON(),
+        heading: bounds.toJSON() as Box,
         headerBottom: document.querySelector('.site-header')!.getBoundingClientRect().bottom,
         navTop: document.querySelector('.mobile-nav')!.getBoundingClientRect().top,
         uncovered: element.contains(

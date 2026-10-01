@@ -42,6 +42,9 @@ import type { FriendPair, FriendSettings } from '../src/lib/friend-types';
 import type { AvatarValue, PublicEntry } from '../src/lib/community';
 import type { GetDocFromServer, GetDocsFromServer, RunTransaction } from './fixtures/modular-firestore';
 
+type Stored<T> = Record<string, unknown> & T;
+type Registry = Stored<{ ids: string[]; revision: number }>;
+
 vi.mock('firebase/firestore', async (importOriginal) => {
   const actual = await importOriginal<typeof import('firebase/firestore')>();
   return {
@@ -872,7 +875,7 @@ describe('bounded strict friends-only ranking generations', () => {
       );
     }
     const registry = await getDocFromServer(doc(a.db, 'friendShareRegistry', a.uid));
-    expect(new Set(registry.data()?.ids)).toEqual(
+    expect(new Set((registry.data() as Registry | undefined)?.ids)).toEqual(
       new Set([published.current.generation, published.previous.generation]),
     );
   });
@@ -891,7 +894,10 @@ describe('bounded strict friends-only ranking generations', () => {
       (byte) => byte.toString(16).padStart(2, '0'),
     ).join('');
     const stage = writeBatch(a.db);
-    stage.update(registryRef, { ids: [...registry.data()!.ids, candidate], revision: registry.data()!.revision + 1 });
+    stage.update(registryRef, {
+      ids: [...(registry.data() as Registry).ids, candidate],
+      revision: (registry.data() as Registry).revision + 1,
+    });
     stage.set(candidateRef, {
       epoch: control.epoch,
       settingsRevision: control.revision,
@@ -922,9 +928,9 @@ describe('bounded strict friends-only ranking generations', () => {
         epoch: control.epoch,
         settingsRevision: control.revision,
         source,
-        revision: current.data()!.revision + 1,
+        revision: (current.data() as Stored<{ revision: number }>).revision + 1,
         current: { generation: candidate, digest, count: 0 },
-        previous: current.data()!.current,
+        previous: (current.data() as Stored<{ current: unknown }>).current,
         updatedAt: serverTimestamp(),
       });
     });
@@ -1510,7 +1516,7 @@ describe('bounded strict friends-only ranking generations', () => {
         ...removed.data(),
         from: b.uid,
         state: 'pending',
-        epoch: removed.data().epoch + 1,
+        epoch: (removed.data() as Stored<{ epoch: number }>).epoch + 1,
         inviteSlot: null,
         updatedAt: serverTimestamp(),
       }),

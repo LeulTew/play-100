@@ -458,7 +458,7 @@ test('Escape cancels an in-flight Menu transition even when the pending save fin
       .map((entry) => entry.name)
       .findLast((value) => new URL(value).pathname === path);
     if (!loaded) throw new Error('The active app editor registry was not loaded.');
-    const { registerPendingEditor }: typeof import('../src/hooks/useExitSave') = await import(loaded);
+    const { registerPendingEditor } = (await import(loaded)) as typeof import('../src/hooks/useExitSave');
     let pending = true;
     const saved = new Promise<boolean>((resolve) =>
       window.addEventListener(
