@@ -19,8 +19,9 @@ export function parseOsArguments(args: string[]) {
   return url.href;
 }
 export function chromeAppId(manifestId: string) {
+  // Chrome hashes the manifest ID once, then CRX GenerateId hashes those bytes again.
   return createHash('sha256')
-    .update(manifestId)
+    .update(createHash('sha256').update(manifestId).digest())
     .digest('hex')
     .slice(0, 32)
     .replace(/[0-9a-f]/g, (digit) => String.fromCharCode(97 + parseInt(digit, 16)));
@@ -172,6 +173,7 @@ export async function releasePwaOs(url: string) {
     const ownedContext = await chromium.launchPersistentContext(profile, {
       executablePath: executable,
       headless: false,
+      chromiumSandbox: true,
       args: ['--enable-unsafe-swiftshader'],
       timeout: 30000,
     });

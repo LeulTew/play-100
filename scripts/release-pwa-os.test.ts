@@ -26,6 +26,8 @@ describe('Windows PWA evidence boundaries', () => {
     expect(() => assertOsHost({ lockPresent: false, freeBytes: minimum }, 3)).toThrow();
   });
   it('derives a deterministic Chrome application identifier', () => {
+    expect(chromeAppId('https://www.chromestatus.com/features')).toBe('fedbieoalmbobgfjapopkghdmhgncnaa');
+    expect(chromeAppId('https://example.com/subapp')).toBe('ghmpeckcpimfdekfodogbnnpmkppngmo');
     expect(chromeAppId(url)).toMatch(/^[a-p]{32}$/);
     expect(chromeAppId(url)).toBe(chromeAppId(url));
     expect(chromeAppId(`${url}other`)).not.toBe(chromeAppId(url));
