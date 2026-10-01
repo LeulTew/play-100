@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -26,7 +27,7 @@ async function command(method, path, body) {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(90_000),
+    signal: AbortSignal.timeout(path === '/session' ? 300_000 : 90_000),
   });
   const payload = await response.json();
   if (!response.ok || payload.value?.error) {
@@ -55,6 +56,7 @@ async function save() {
 async function capture(name) {
   const image = await wd('GET', '/screenshot');
   await writeFile(`${output}/${name}.png`, Buffer.from(image, 'base64'));
+  execFileSync('xcrun', ['simctl', 'io', results.udid, 'screenshot', `${output}/${name}-simulator.png`]);
 }
 
 async function collectErrors() {
@@ -101,7 +103,7 @@ async function installCollector(previousTimeOrigin) {
         performance.timeOrigin === ${JSON.stringify(previousTimeOrigin ?? null)}) return null;
     if (!window.__iosSmoke) {
       const state = window.__iosSmoke = {
-        errors: [], installedAtMs: performance.now(), readyState: document.readyState,
+        errors: [], clicks: [], installedAtMs: performance.now(), readyState: document.readyState,
         fcp: null, lcp: null, supportedEntryTypes: PerformanceObserver.supportedEntryTypes || []
       };
       addEventListener('error', event => {
@@ -113,6 +115,10 @@ async function installCollector(previousTimeOrigin) {
         type: 'unhandledrejection', message: String(event.reason?.message || event.reason),
         stack: event.reason?.stack, url: location.href
       }));
+      addEventListener('click', event => state.clicks.push({
+        trusted: event.isTrusted, text: event.target.closest('a,button')?.textContent.trim(),
+        tag: event.target.tagName, url: location.href, atMs: performance.now()
+      }), true);
       if (state.supportedEntryTypes.includes('paint')) {
         new PerformanceObserver(list => {
           for (const entry of list.getEntries()) {
@@ -145,7 +151,8 @@ async function metrics() {
       boot: { 'data-boot': root.getAttribute('data-boot'),
         'data-boot-art': root.getAttribute('data-boot-art'),
         'data-app-started': root.getAttribute('data-app-started') },
-      collector: { installedAtMs: state.installedAtMs, readyStateAtInstall: state.readyState }
+      collector: { installedAtMs: state.installedAtMs, readyStateAtInstall: state.readyState },
+      clicks: state.clicks
     };
   `);
 }
@@ -186,7 +193,7 @@ await mkdir(output, { recursive: true });
 await save();
 try {
   assert.ok(results.udid && results.runtime && results.device, 'Simulator identity is required.');
-  const deadline = Date.now() + 180_000;
+  const deadline = Date.now() + 360_000;
   while (!session && Date.now() < deadline) {
     try {
       const created = await command('POST', '/session', {
@@ -194,10 +201,13 @@ try {
           browserName: 'Safari',
           platformName: 'iOS',
           pageLoadStrategy: 'none',
-          'safari:useSimulator': true,
-          'safari:deviceUDID': results.udid,
-          'safari:platformVersion': results.runtime,
-          'safari:diagnose': true,
+          'appium:automationName': 'XCUITest',
+          'appium:udid': results.udid,
+          'appium:deviceName': results.device,
+          'appium:platformVersion': results.runtime,
+          'appium:nativeWebTap': true,
+          'appium:newCommandTimeout': 120,
+          'appium:wdaLaunchTimeout': 180_000,
         } },
       });
       session = created.sessionId;

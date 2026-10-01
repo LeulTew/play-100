@@ -71,18 +71,22 @@ jobs:
           set -euo pipefail
           mkdir -p ios-safari-artifacts
           xcodebuild -version | tee ios-safari-artifacts/xcode.txt
-          /usr/bin/safaridriver --version | tee ios-safari-artifacts/safaridriver-version.txt
           udid=$(xcrun simctl create "Play 100 smoke" "$IOS_DEVICE_TYPE" "$IOS_RUNTIME")
           echo "IOS_UDID=$udid" >> "$GITHUB_ENV"
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
-          xcrun simctl launch "$udid" com.apple.mobilesafari
-          sudo /usr/bin/safaridriver --enable
+          open -a Simulator --args -CurrentDeviceUDID "$udid"
+      - name: Install pinned simulator automation
+        run: |
+          npm install --global appium@3.8.0
+          appium driver install xcuitest@12.13.3
+          appium --version | tee ios-safari-artifacts/appium-version.txt
+          appium driver list --installed 2>&1 | tee ios-safari-artifacts/appium-drivers.txt
       - name: Exercise production in Mobile Safari
         shell: bash
         run: |
           set -euo pipefail
-          /usr/bin/safaridriver --port 4444 > ios-safari-artifacts/safaridriver.log 2>&1 &
+          appium --address 127.0.0.1 --port 4444 --log-no-colors > ios-safari-artifacts/appium.log 2>&1 &
           driver_pid=$!
           trap 'kill "$driver_pid" 2>/dev/null || true' EXIT
           node scripts/ios-safari-smoke/smoke.mjs
@@ -96,7 +100,6 @@ jobs:
           name: ios-safari-${{ matrix.label }}
           path: |
             ios-safari-artifacts/
-            ~/Library/Logs/com.apple.WebDriver/
           if-no-files-found: error
           retention-days: 30
       - name: Shut down the test simulator

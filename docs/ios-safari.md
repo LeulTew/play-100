@@ -1,7 +1,8 @@
 # iPhone Safari production smoke
 
-The `iOS Safari smoke` workflow runs Apple's Mobile Safari and `safaridriver`
-inside real iOS Simulator runtimes on `macos-15`. It does not use desktop
+The `iOS Safari smoke` workflow runs Apple's Mobile Safari with Appium 3.8.0
+and XCUITest driver 12.13.3 inside real iOS Simulator runtimes on `macos-15`.
+It does not use desktop
 WebKit with an iPhone user-agent override. It needs no secrets, downloads no
 app dependencies, and never deploys or changes production data.
 
@@ -24,7 +25,7 @@ matched, justified and linked to an issue.
 
 The script requests `pageLoadStrategy: none` and injects `error` and
 `unhandledrejection` listeners as soon as WebDriver can execute in each new
-production document, including after reload. Safari WebDriver has no
+production document, including after reload. This WebDriver path has no
 document-start script injection API. Errors before that installation are not
 certified; `installedAtMs` and `readyStateAtInstall` make the observation gap
 explicit. Buffered paint observers retrieve earlier FCP/LCP when the runtime
@@ -40,6 +41,12 @@ plus the newest supported Pro Max. Missing runtime/device coverage fails
 planning rather than quietly skipping it. `ios-simulator-inventory` contains
 the exact inventory and matrix; each device artifact records Xcode, driver
 version, runtime, UDID and returned WebDriver capabilities.
+
+The first runner trials used Apple's `safaridriver` with `platformName: iOS`
+and `safari:useSimulator`. Navigation and screenshots worked, but element
+clicks returned success without activating Discover on all four simulator
+configurations. This workflow therefore uses XCUITest's `nativeWebTap: true`,
+not JavaScript-generated clicks, to exercise bottom navigation and dialogs.
 
 The image changes over time. The workflow therefore records its actual
 runtime inventory instead of claiming a permanently fixed device matrix.
@@ -61,8 +68,9 @@ gh workflow run ios-safari-smoke.yml --ref main
 The scheduled run is Monday at 08:00 UTC on the default branch. Inspect the
 device jobs and download the `ios-safari-*` artifacts. They are retained for
 30 days. To reproduce on a Mac, select an installed Xcode with
-`DEVELOPER_DIR`, create and boot a fresh simulator with `xcrun simctl`, enable
-`safaridriver`, start it on port 4444, set `IOS_UDID`, `IOS_DEVICE_NAME` and
+`DEVELOPER_DIR`, create and boot a fresh simulator with `xcrun simctl`, install
+the pinned Appium and XCUITest versions above, start
+`appium --address 127.0.0.1 --port 4444`, set `IOS_UDID`, `IOS_DEVICE_NAME` and
 `IOS_VERSION`, then run `node scripts/ios-safari-smoke/smoke.mjs`.
 
 This is simulator Safari coverage, **not physical iPhone certification**.
