@@ -6,6 +6,7 @@ import type { BudgetLimits } from './check-budgets.ts';
 import {
   WORKER_LIMITS,
   budgetPolicyProblems,
+  parseBudgetRaises,
   parseBudgetRelease,
   policyCap,
   recordBudgetRelease,
@@ -32,14 +33,20 @@ const budgets = (cap: Partial<BudgetLimits> = {}, extra: Record<string, unknown>
 });
 
 describe('budget cap policy', () => {
-  it('holds for the committed budgets.json: no cap above its release measurement plus the margin', () => {
+  it('holds for the committed budgets.json: no cap above its release measurement, or its raise, plus the margin', () => {
     expect(budgetPolicyProblems(committed)).toEqual([]);
     const release = parseBudgetRelease(committed);
+    const raises = parseBudgetRaises(committed);
     const caps = parseBudgetLimits(committed);
     for (const metric of BUDGET_METRICS) {
       const worker = WORKER_LIMITS[metric];
-      if (worker === undefined) expect(caps[metric], metric).toBeLessThanOrEqual(policyCap(release.measured[metric]));
-      else expect(caps[metric], metric).toBe(worker);
+      if (worker !== undefined) {
+        expect(caps[metric], metric).toBe(worker);
+        continue;
+      }
+      // A raise (docs/performance.md) lets a cap reach its own measurement plus the margin, no further.
+      const raise = raises.find((entry) => entry.metric === metric);
+      expect(caps[metric], metric).toBeLessThanOrEqual(policyCap(raise ? raise.measured : release.measured[metric]));
     }
   });
 
