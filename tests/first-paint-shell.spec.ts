@@ -502,9 +502,10 @@ test("a shell shown once the web fonts load equals React's first commit", async 
     releaseScript();
     await page.waitForFunction(() => window.p100Commit !== undefined);
     const commit = await page.evaluate(() => window.p100Commit ?? []);
-    expect(differences(shell, commit, 0.5, true), "React's first commit renders exactly what the shell painted").toEqual(
-      [],
-    );
+    expect(
+      differences(shell, commit, 0.5, true),
+      "React's first commit renders exactly what the shell painted",
+    ).toEqual([]);
     await frames(page);
     expect(await page.evaluate(() => window.p100TakeLayoutShift?.() ?? Number.NaN), 'layout shift').toBe(0);
   } finally {
