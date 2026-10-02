@@ -1,7 +1,19 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { extractCopy, extractHtmlCopy, renderInventory } from './copy-inventory';
+import { collectInventory, extractCopy, extractHtmlCopy, renderInventory } from './copy-inventory';
 
 describe('source copy inventory', () => {
+  it('keeps the checked-in inventory current with production copy and source references', () => {
+    const root = new URL('../', import.meta.url);
+    const { entries, fileCount } = collectInventory(fileURLToPath(root));
+    const committed = readFileSync(new URL('docs/copy-inventory.md', root), 'utf8');
+    expect(
+      renderInventory(entries, fileCount) === committed,
+      'Copy inventory is stale. Run npx tsx scripts/copy-inventory.ts and commit docs/copy-inventory.md.',
+    ).toBe(true);
+  });
+
   it('records conditions, complete interpolation and live-region expressions', () => {
     const entries = extractCopy(
       'src/Example.tsx',
