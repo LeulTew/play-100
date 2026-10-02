@@ -158,6 +158,35 @@ function stillCoverBounds(width: number, height: number) {
   });
 }
 
+describe('startup timing', () => {
+  const sceneEntries = (type: 'mark' | 'measure') =>
+    performance
+      .getEntriesByType(type)
+      .map((entry) => entry.name)
+      .filter((name) => name.startsWith('p100:scene:'));
+
+  it('marks the context and the renderer as the scene is built, then its first render only', () => {
+    performance.clearMarks();
+    performance.clearMeasures();
+    const current = fixture(600, 360);
+    try {
+      expect(sceneEntries('mark')).toEqual([
+        'p100:scene:context-start',
+        'p100:scene:context-end',
+        'p100:scene:renderer-start',
+        'p100:scene:renderer-end',
+      ]);
+      current.draw(0);
+      current.handle.setFanned(true);
+      current.draw(1);
+      expect(sceneEntries('mark').slice(4)).toEqual(['p100:scene:first-render-start', 'p100:scene:first-render-end']);
+      expect(sceneEntries('measure')).toEqual(['p100:scene:context', 'p100:scene:renderer', 'p100:scene:first-render']);
+    } finally {
+      current.handle.dispose();
+    }
+  });
+});
+
 describe('resting artifact continuity', () => {
   it.each([
     [600, 360],
