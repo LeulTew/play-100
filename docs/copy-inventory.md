@@ -38,7 +38,7 @@ in this source tree; dynamic output sites identify where data-derived copy appea
 - Keep privacy, deletion and storage consequences explicit and unchanged in meaning.
 
 The review replaced visitor-facing provider/worker terms with catalog/source or
-offline-app language; rating/note and reviews/ratings became conjunctions.
+offline-access language; rating/note and reviews/ratings became conjunctions.
 Ranking additions share Add to my ranking; completion reversal is Mark not
 completed. Empty-state headings and fallback success messages now use the same
 plain voice. Existing privacy exclusions, storage guarantees and original scores
@@ -231,7 +231,7 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
 | [public/pwa/offline.html:12](../public/pwa/offline.html#L12) | HTML fallback | This page needs a connection. | Navigation unavailable while offline |
-| [public/pwa/offline.html:13](../public/pwa/offline.html#L13) | HTML fallback | Accounts, sharing and online catalog lookups are unavailable offline. No account response or private form has been saved by the offline cache. | Navigation unavailable while offline |
+| [public/pwa/offline.html:13](../public/pwa/offline.html#L13) | HTML fallback | Accounts, sharing and online game searches need a connection. Offline preparation does not save account details or private forms. | Navigation unavailable while offline |
 | [public/pwa/offline.html:14](../public/pwa/offline.html#L14) | HTML fallback | After offline access finishes preparing, the public collection and your available device library can open without a connection. Your existing guest and account libraries remain separate. | Navigation unavailable while offline |
 | [public/pwa/offline.html:15](../public/pwa/offline.html#L15) | HTML fallback | Open The 100 Open My games Try this page again | Navigation unavailable while offline |
 ## src/App.tsx
@@ -4694,10 +4694,10 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 | --- | --- | --- | --- |
 | [src/pwa/client.ts:32](../src/pwa/client.ts#L32) | Error/validation | Offline access needs a newer version of this browser. | registerOfflineWorker(); operation rejected or threw; !moduleOptionRead &#124;&#124; (cause instanceof DOMException &amp;&amp; cause.name === 'NotSupportedError') is true |
 | [src/pwa/client.ts:38](../src/pwa/client.ts#L38) | Message/fragment | In Safari, open Share, then Add to Home Screen. Turn on Open as Web App if offered, then choose Add. This website cannot open that system dialog for you. | PWA_IOS_INSTRUCTIONS(); when its owning surface/operation is used |
-| [src/pwa/client.ts:94](../src/pwa/client.ts#L94) | Error/validation | Offline access did not respond. Try again when connected. | timeout(); when its owning surface/operation is used |
+| [src/pwa/client.ts:94](../src/pwa/client.ts#L94) | Error/validation | Offline access did not respond. Try again. | timeout(); when its owning surface/operation is used |
 | [src/pwa/client.ts:108](../src/pwa/client.ts#L108) | Error/validation | This page could not verify its offline files. Try again when connected. | sendPwaRequest(); !reply &#124;&#124; typeof reply !== 'object' &#124;&#124; !('channel' in reply) &#124;&#124; reply.channel !== channel &#124;&#124; !('version' in reply) &#124;&#124; typeof reply.version !== 'string' &#124;&#124; !versionPattern.test(reply.version) is true |
 | [src/pwa/client.ts:170](../src/pwa/client.ts#L170) | Error/validation | Offline access is unavailable in this page or browser. | ensureAvailable(); !attached &#124;&#124; !window.isSecureContext &#124;&#124; !('serviceWorker' in navigator) &#124;&#124; !availablePage() is true |
-| [src/pwa/client.ts:176](../src/pwa/client.ts#L176) | Error/validation | Another offline app is active here. Play 100 left it unchanged. | checkRegistration(); value.scope !== &#96;${location.origin}/&#96; &#124;&#124; !trustedPwaWorker(worker, location.origin) is true |
+| [src/pwa/client.ts:176](../src/pwa/client.ts#L176) | Error/validation | The current offline setup is not compatible with Play 100. It was left unchanged. | checkRegistration(); value.scope !== &#96;${location.origin}/&#96; &#124;&#124; !trustedPwaWorker(worker, location.origin) is true |
 | [src/pwa/client.ts:199](../src/pwa/client.ts#L199) | Message/fragment | An update is active, but this page still uses its previous version. Save your edits before choosing to reload. | refresh(); worker &amp;&amp; trustedPwaWorker(worker, location.origin) is true; reply.ready &amp;&amp; retainedDocument is true |
 | [src/pwa/client.ts:207](../src/pwa/client.ts#L207) | Message/fragment | Offline files are ready. Reopen The 100 or the installed app to use them offline. | refresh(); worker &amp;&amp; trustedPwaWorker(worker, location.origin) is true; reply.ready &amp;&amp; !navigator.serviceWorker.controller is true |
 | [src/pwa/client.ts:216](../src/pwa/client.ts#L216) | Message/fragment | An update is ready. Your current page stays open until you choose to update. | refresh(); registration?.waiting &amp;&amp; navigator.serviceWorker.controller is true |

@@ -68,6 +68,7 @@ describe('data use explanation', () => {
     ])
       expect(text).not.toContain(term);
     expect(text).not.toMatch(/\w\s*\/\s*\w/);
+    expect(text).not.toMatch(/\b(?:worker|controller|provider|payload|queue)\b/i);
   });
 
   it('retains sharing limits, revocation, deletion and operational-data exclusions', () => {
@@ -112,6 +113,8 @@ describe('data use explanation', () => {
     expect(text).toContain("Your comparison filters and chosen people stay in this tab's private history.");
     expect(text).toContain('Public links do not include those choices.');
     expect(text).toContain('Vercel hosts the site. Firebase provides sign-in and online storage.');
+    expect(text).toContain('sign-in service restrictions require you to sign in again.');
+    expect(text).toContain('Catalog records keep their source links.');
     expect(text).toContain('Use Account to export or delete your data. For questions, use the creator links below.');
     expect(text).toContain(
       'online lookup uses the exact public game ID to request public ratings and licensed artwork.',

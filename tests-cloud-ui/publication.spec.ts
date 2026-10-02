@@ -82,6 +82,9 @@ test('an explicitly published snapshot stays frozen, keeps private fields out, a
     const guest = await visitor.newPage();
     await guest.goto(`/u/${handle}`);
     await guest.getByRole('button', { name: `Save for later: ${title}`, exact: true }).click();
+    await expect(guest.locator('.public-profile-page').getByRole('status')).toHaveText(
+      `${title} added to Play later. The publisher's scores were not copied.`,
+    );
     await expect.poll(async () => (await readLibrary(guest)).queueOrder).toEqual([id]);
     expect((await readLibrary(guest)).ranking).toEqual([]);
     expect((await readLibrary(guest)).progress[id]?.played).toBe(false);
