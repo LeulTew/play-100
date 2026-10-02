@@ -3,9 +3,9 @@ import type { CatalogArtwork, DiscoveryItem } from './discovery-catalog.js';
 import type { GameSource, LibraryRecord, PersonalLibraryState } from './personal-types.js';
 import { recordFromGame } from './personal-types.js';
 import type { Game } from './types.js';
-import type { CatalogSource } from './catalog-types.js';
-import { normalizeCatalogQuery } from './catalog-query.js';
 
+// The identity rules every page needs. Matching used only by lazily loaded views lives beside them in
+// catalog-matches.ts and catalog-picker.ts, so it loads with those views instead of with every page.
 const providerSlugs: ReadonlyMap<string, string> = new Map(
   COLLECTION_IDENTITIES.map(([slug, id]) => [`wikidata:${id}`, slug]),
 );
@@ -30,37 +30,6 @@ export function canonicalCatalogId(id: string): string {
   return providerSlugs.get(id) ?? id;
 }
 
-export function newOnlineMatchCounts(
-  sources: readonly { source: CatalogSource; records: readonly LibraryRecord[] }[],
-  local: readonly LibraryRecord[],
-  shown: readonly LibraryRecord[],
-): Record<CatalogSource, number> {
-  const seen = new Set(local.map((record) => canonicalCatalogId(record.id)));
-  const visible = new Set(shown.map((record) => canonicalCatalogId(record.id)));
-  const counts = { wikidata: 0, freetogame: 0 };
-  for (const source of sources) {
-    for (const record of source.records) {
-      const id = canonicalCatalogId(record.id);
-      if (!seen.has(id) && visible.has(id)) {
-        counts[source.source]++;
-        seen.add(id);
-      }
-    }
-  }
-  return counts;
-}
-
-export function collidingCatalogTitles(records: readonly LibraryRecord[]): ReadonlySet<string> {
-  const titles = new Map<string, string[]>();
-  for (const record of records) {
-    const title = normalizeCatalogQuery(record.title);
-    const ids = titles.get(title) ?? [];
-    ids.push(record.id);
-    titles.set(title, ids);
-  }
-  return new Set([...titles.values()].filter((ids) => new Set(ids).size > 1).flat());
-}
-
 export function catalogOwnership(records: Record<string, LibraryRecord>): CatalogOwnership {
   const owned = new Map<string, LibraryRecord[]>();
   for (const record of Object.values(records)) {
@@ -75,35 +44,6 @@ export function catalogOwnership(records: Record<string, LibraryRecord>): Catalo
 export function catalogActionRecord(record: LibraryRecord, ownership: CatalogOwnership): LibraryRecord {
   const copies = ownership.get(record.id);
   return copies?.find((copy) => copy.id === record.id) ?? (copies?.length === 1 ? copies[0] : undefined) ?? record;
-}
-
-export interface CatalogPickerChoice {
-  record: LibraryRecord;
-  titles: readonly string[];
-}
-
-export function catalogPickerChoices(
-  available: readonly LibraryRecord[],
-  owned: Record<string, LibraryRecord>,
-): CatalogPickerChoice[] {
-  const ownership = catalogOwnership(owned);
-  const inputs = [...Object.values(owned), ...available];
-  const known = new Map(inputs.map((record) => [record.id, record]));
-  const titles = new Map<string, Set<string>>();
-  for (const record of inputs) {
-    const id = canonicalCatalogId(record.id);
-    const names = titles.get(id) ?? new Set<string>();
-    names.add(record.title);
-    titles.set(id, names);
-  }
-  const choices = new Map<string, CatalogPickerChoice>();
-  for (const record of known.values()) {
-    const identity = canonicalCatalogId(record.id);
-    const target = owned[record.id] ?? catalogActionRecord(known.get(identity) ?? record, ownership);
-    if (!choices.has(target.id))
-      choices.set(target.id, { record: target, titles: [...(titles.get(identity) ?? [target.title])] });
-  }
-  return [...choices.values()];
 }
 
 export function catalogProgress(state: PersonalLibraryState, ownership: CatalogOwnership) {
@@ -135,19 +75,6 @@ export function resolveCatalogRecords(records: readonly LibraryRecord[], games: 
         return [resolved.id, resolved];
       }),
     ).values(),
-  ];
-}
-
-export function catalogPageRecords(
-  local: readonly CatalogSearchItem[],
-  remote: readonly LibraryRecord[],
-  offset: number,
-  limit: number,
-): LibraryRecord[] {
-  const localIds = new Set(local.map((item) => item.record.id));
-  return [
-    ...local.slice(offset, offset + limit).map((item) => item.record),
-    ...new Map(remote.filter((record) => !localIds.has(record.id)).map((record) => [record.id, record])).values(),
   ];
 }
 

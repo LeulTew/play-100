@@ -2,13 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { parsePublicEntry, projectOwnRanking, projectPublicRanking, recordFromPublic } from './community';
 import type { PublicEntry } from './community';
 import { parseFriendChunk, projectFriendRanking, validateFriendEntries } from './friend-types';
-import {
-  applyPersonalAction,
-  createLibraryBackup,
-  emptyPersonalLibrary,
-  parseLibraryBackup,
-  parsePersonalLibrary,
-} from './personal-library';
+import { applyPersonalAction, createLibraryBackup, emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
+import { parseLibraryBackup } from './backup-restore';
 import type { LibraryRecord } from './personal-types';
 
 const prefix = 'https://www.freetogame.com/';

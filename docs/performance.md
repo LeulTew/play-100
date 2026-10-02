@@ -48,6 +48,18 @@ HEAD. The test needs the full history, not a shallow clone.
   `friend-comparison-intent`), so the offline core can precache it; without it Rolldown folds them into an unnamed
   shared chunk. [`scripts/preloaded-tool-chunks.ts`](../scripts/preloaded-tool-chunks.ts) lists them and finds their
   facade-less manifest entries, and `online-bridge-closure.test.ts` fails when the bridge loads a preloaded tool it leaves out.
+- **Lazy-only code.** A module in the entry's static closure ships in `app-shared` with every export that any chunk
+  imports from it, so code that only lazily loaded pages use costs every page while it shares a module with code every
+  page needs. Restoring a backup ([`backup-restore.ts`](../src/lib/backup-restore.ts)), Discover's result matching
+  ([`catalog-matches.ts`](../src/lib/catalog-matches.ts)), the ranking picker
+  ([`catalog-picker.ts`](../src/lib/catalog-picker.ts)), result paging
+  ([`local-pagination.ts`](../src/lib/local-pagination.ts)) and My games' artwork
+  ([`useDiscoveryArtwork.ts`](../src/hooks/useDiscoveryArtwork.ts)) are modules of their own for that reason. Each
+  one's importers already share a lazy chunk, so it joins that chunk instead of adding a file to the offline core.
+  [`deferred-module-policy.ts`](../src/lib/deferred-module-policy.ts) lists them with the other deferred modules: the
+  build fails when one is eager, and a unit test follows the entry's static imports to find it before a build. Code
+  only the online pages use stays in `app-shared` for now, since moving it adds it to the online routes, the largest of
+  which is at its cap.
 
 ## Low-end phones
 
