@@ -13,9 +13,16 @@ mkdir -p "$OUT"
 read -r -a specs <<<"${SPECS:-}"
 # Headless Linux Chromium stalls the background tab that a modified click opens from the Vite dev server (menu.spec
 # :412 and :532, runs 36955190309 and 36958514072; disabling background throttling did not help, 36960546555), so the
-# dev suite runs headed under Xvfb (36960548687, 340/340). Recorded in identity.json as browserEnv.
+# dev suite runs headed under Xvfb (36960548687, 340/340). The offline build stalls the same way
+# (root-navigation-guards.spec :277 mobile: 3/10 failed headless in 36968462436, 180/180 passed headed in 36968465330;
+# a full mobile offline pass fails the same tests headless and headed apart from :277, 36971706327 and 36971709266), so
+# e2e-offline runs headed too. e2e-prod stays headless: headed desktop adds 33 motion, drag and breakpoint failures and
+# takes 46% longer (36971172335 against 36971170036). Recorded in identity.json as browserEnv.
 if [[ "${BROWSER_ENV:-auto}" == auto ]]; then
-  if [[ "$SUITE" == e2e-dev ]]; then BROWSER_ENV=xvfb-headed; else BROWSER_ENV=default; fi
+  case "$SUITE" in
+    e2e-dev | e2e-offline) BROWSER_ENV=xvfb-headed ;;
+    *) BROWSER_ENV=default ;;
+  esac
 fi
 export BROWSER_ENV
 if [[ -n "${GITHUB_ENV:-}" ]]; then echo "BROWSER_ENV=$BROWSER_ENV" >>"$GITHUB_ENV"; fi

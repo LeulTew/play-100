@@ -17,7 +17,7 @@
       "expectedPassed": 2,
       "purpose": "Gate FLAKE-01 partition, attempt 1"
     },
-    { "id": "e2e-dev-full", "suite": "e2e-dev", "project": "both", "lean": "e2e-development", "purpose": "Whole development suite (xvfb-headed on Linux)" },
+    { "id": "e2e-dev-full", "suite": "e2e-dev", "project": "both", "lean": "e2e-development", "purpose": "Whole development suite" },
     { "id": "e2e-offline-full", "suite": "e2e-offline", "project": "both", "lean": "e2e-offline", "purpose": "Whole offline suite" },
     { "id": "cloud-rules-full", "suite": "cloud-rules", "repeat": 3, "lean": "cloud-rules", "purpose": "Full tests-cloud, three fresh-emulator iterations" },
     { "id": "cloud-ui-full-desktop", "suite": "cloud-ui", "project": "desktop", "lean": "cloud-ui-desktop", "purpose": "Whole cloud-ui suite, desktop, one server (REL-11)" },
@@ -59,7 +59,7 @@
       "repeat": 40,
       "purpose": "FLAKE-01 loop"
     },
-    { "id": "menu-dev", "suite": "e2e-dev", "specs": ["tests/menu.spec.ts"], "repeat": 10, "purpose": "Intermittent row loop (xvfb-headed on Linux)" },
+    { "id": "menu-dev", "suite": "e2e-dev", "specs": ["tests/menu.spec.ts"], "repeat": 10, "purpose": "Intermittent row loop" },
 
     { "id": "rules-convergence", "suite": "cloud-rules", "specs": ["tests-cloud/friend-all.test.ts"], "grep": "converges a first friend action", "repeat": 20, "purpose": "Intermittent row loop" },
     { "id": "rules-friendships-shelf", "suite": "cloud-rules", "specs": ["tests-cloud/friendships.test.ts", "tests-cloud/friend-shelf.test.ts"], "repeat": 10, "purpose": "Intermittent row loop" },

@@ -170,10 +170,12 @@ export function dispatchArgs(entry: PlanEntry, sha: string, ref: string, request
   ];
 }
 
-/** The browser environment run-suite.sh resolves and identity.json records: `auto` is xvfb-headed for e2e-dev. */
+const HEADED_SUITES: readonly string[] = ['e2e-dev', 'e2e-offline'];
+
+/** The browser environment run-suite.sh resolves and identity.json records: `auto` is xvfb-headed for e2e-dev and e2e-offline. */
 export function resolvedBrowserEnv(entry: Pick<PlanEntry, 'suite' | 'browserEnv'>): string {
   if (entry.browserEnv !== 'auto') return entry.browserEnv;
-  return entry.suite === 'e2e-dev' ? 'xvfb-headed' : 'default';
+  return HEADED_SUITES.includes(entry.suite) ? 'xvfb-headed' : 'default';
 }
 
 /** Quotes arguments for a POSIX shell, for printing copyable command lines. */
