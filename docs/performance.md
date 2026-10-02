@@ -65,7 +65,7 @@ HEAD. The test needs the full history, not a shallow clone.
   which is at its cap.
 - **Dialogs.** The 100's game detail ([`GameDetail`](../src/components/GameDetail.tsx)) ships in the catalog detail's
   chunk rather than the eager bundle or a chunk of its own. A page warms that chunk before a detail opens: at idle on
-  every device class (not with Save-Data, on 2G or with reduced motion), on a pointer, focus or press on a game link,
+  every device class (not with Save-Data or on 2G), on a pointer, focus or press on a game link,
   and beside the collection for a linked game ([`DialogHost`](../src/components/app/DialogHost.tsx)). A detail that
   opens before its module has loaded shows the catalog detail's pending dialog after 300 ms; one that opens after renders
   in its first commit, as before. The rating input both details share with Discover and the ranking stays in

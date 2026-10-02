@@ -8,6 +8,7 @@ import { filterGames } from '../../lib/collection';
 import { useExtendedSearchResults } from '../../hooks/useExtendedSearch';
 import { focusPendingEditor, visibleMenuTrigger } from '../../lib/dialog-focus';
 import { catalogDetailModule, loadCatalogDetail } from '../../lib/catalog-detail-preload';
+import type { DeviceHints } from '../../lib/device-capabilities';
 import { scheduleIdlePrefetch } from '../../lib/idle-prefetch';
 import type { AboutDialog } from '../AboutDialog';
 import { Dialog } from '../Dialog';
@@ -31,6 +32,13 @@ function warmGameDetail(event?: Event) {
   if (event && !(event.target instanceof Element && event.target.closest('a[href*="game="]'))) return;
   // A failed load is reported where the detail renders (DetailLoadFailure).
   void catalogDetailModule.load().catch(() => undefined);
+}
+// Opening a game is the likeliest next step on any page, so constrained devices load the details at idle too, unless the
+// reader saves data or is on 2G (the connection hints isConstrainedDevice reads).
+function loadDetailAtIdle(): Promise<unknown> {
+  const connection = (navigator as DeviceHints).connection;
+  if (connection?.saveData || ['slow-2g', '2g'].includes(connection?.effectiveType ?? '')) return Promise.resolve();
+  return catalogDetailModule.load();
 }
 type KeyedProps<T> = { key: string; props: T };
 type GameDialogInput = KeyedProps<Omit<ComponentProps<typeof GameDetail>, 'previous' | 'next' | 'position'>> & {
@@ -161,9 +169,7 @@ export function DialogHost({
   };
   useEffect(() => {
     for (const name of DETAIL_INTENT_EVENTS) document.addEventListener(name, warmGameDetail, true);
-    // Opening a game is the likeliest next step on any page, so constrained devices warm the details too, unless the
-    // reader saves data or is on 2G.
-    const stop = scheduleIdlePrefetch(catalogDetailModule.load, 1200, 'navigation');
+    const stop = scheduleIdlePrefetch(loadDetailAtIdle, 1200, 'intent');
     return () => {
       stop();
       for (const name of DETAIL_INTENT_EVENTS) document.removeEventListener(name, warmGameDetail, true);
