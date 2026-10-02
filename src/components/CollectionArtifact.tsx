@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { AfterFirstPaint } from './AfterFirstPaint';
 import type { CollectionSceneHandle } from './scene/CollectionScene';
+import { sceneSpan } from './scene/scene-timing';
 import { createMemoizedModule } from '../lib/memoized-module';
 import './scene/artifact.css';
 
@@ -225,7 +226,9 @@ export default function CollectionArtifact({
       setState({ ready: false, status: 'loading', reason: null });
       try {
         if (!createScene) {
+          const moduleDone = sceneSpan('module');
           const module = await sceneModule.load();
+          moduleDone();
           if (cancelled || failed) return;
           createScene = module.createCollectionScene;
           if (!isActive()) setState({ ready: false, status: 'waiting', reason: null });
