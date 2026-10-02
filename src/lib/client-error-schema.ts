@@ -17,6 +17,7 @@ export const REPORT_ROUTES = [
   ...APP_ROUTES.map((route) => route.path),
   '/index.html',
   '/pwa/offline.html',
+  // The sign-in helper documents, whose CSP reports to /api/csp-report (api/auth-helper.ts).
   '/__/auth/handler',
   '/__/auth/iframe',
   'other',

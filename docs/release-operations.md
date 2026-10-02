@@ -1056,7 +1056,9 @@ three checks only; the manual checks below still apply.
 4. In Logs, inspect `/api/csp-report` and `/api/client-error-report` for function
    failures and changes in `csp-count` / `client-error-count`. Compare fixed
    categories and the client build fingerprint with the current entry asset,
-   not visitor identities. A rejected body or 429 can be abuse or admission
+   not visitor identities. Since R24, `csp-count` rows for the
+   `/__/auth/handler` and `/__/auth/iframe` routes come from the sign-in helper
+   documents. A rejected body or 429 can be abuse or admission
    pressure; counts are untrusted hints, and absent reports do not prove health.
    Browsers can suppress beacons, and offline or unrecovered startup failures
    may never report. An occasional `connect-src` count blocking

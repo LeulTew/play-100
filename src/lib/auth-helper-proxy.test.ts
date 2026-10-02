@@ -5,6 +5,7 @@ import {
   AUTH_HELPER_ADMISSION,
   AUTH_HELPER_MAX_BYTES,
   AUTH_HELPER_REFRESH_BACKOFF_MS,
+  AUTH_HELPER_REPORTING_ENDPOINTS,
   AUTH_HELPER_RETRY_AFTER_SECONDS,
   AUTH_HELPER_TEMPLATE_MAX_AGE_MS,
   AUTH_HELPER_TEMPLATE_TTL_MS,
@@ -14,6 +15,8 @@ import {
   createAuthHelperHandler,
 } from '../../api/auth-helper';
 import type { AdmissionLimits } from '../../api/_lib/admission';
+import configuration from '../../vercel.json';
+import { MAIN_DOCUMENT_RULE, directiveSources } from '../../scripts/first-paint/csp';
 import { listenOnFetchSafePort } from './test-server-ports';
 
 // Synthetic templates with the same structural markers as the captured Firebase helpers; not Google's bytes.
@@ -36,6 +39,7 @@ const EXPECTED_HEADERS = [
   'content-type',
   'permissions-policy',
   'referrer-policy',
+  'reporting-endpoints',
   'strict-transport-security',
   'vercel-cdn-cache-control',
   'x-content-type-options',
@@ -150,6 +154,7 @@ describe('fresh-nonce Firebase Auth helper function', () => {
           'content-type',
           'permissions-policy',
           'referrer-policy',
+          'reporting-endpoints',
           'strict-transport-security',
           'x-content-type-options',
           'x-frame-options',
@@ -163,6 +168,7 @@ describe('fresh-nonce Firebase Auth helper function', () => {
       'permissions-policy':
         'camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), hid=(), bluetooth=(), display-capture=()',
       'referrer-policy': 'no-referrer',
+      'reporting-endpoints': 'csp="/api/csp-report"',
       'strict-transport-security': 'max-age=63072000; includeSubDomains',
       'x-content-type-options': 'nosniff',
       'x-frame-options': 'SAMEORIGIN',
@@ -170,6 +176,32 @@ describe('fresh-nonce Firebase Auth helper function', () => {
     expect(response.headers.get('content-security-policy')).toContain("frame-ancestors 'self'");
     expect(response.headers.get('content-security-policy')).not.toContain('unsafe-eval');
     expect(Number(response.headers.get('content-length'))).toBe(Buffer.byteLength(await response.text()));
+  });
+  it('reports violations in the helper documents to the main document endpoint, and only from those documents', async () => {
+    // The same first-party endpoint, report-to group and report-uri fallback as the main policy in vercel.json.
+    const main = configuration.headers.find((rule) => rule.source === MAIN_DOCUMENT_RULE)!;
+    const mainHeaders = Object.fromEntries(main.headers.map(({ key, value }) => [key.toLowerCase(), value]));
+    for (const directive of ['report-to', 'report-uri']) {
+      expect(directiveSources(authHelperCsp('n'), directive)).toEqual(
+        directiveSources(mainHeaders['content-security-policy']!, directive),
+      );
+    }
+    expect(AUTH_HELPER_REPORTING_ENDPOINTS).toBe(mainHeaders['reporting-endpoints']);
+    upstreamHtml(HANDLER);
+    const helperPage = await nativeFetch(`${base}/api/auth-helper?page=handler`);
+    expect(helperPage.headers.get('reporting-endpoints')).toBe('csp="/api/csp-report"');
+    expect(directiveSources(helperPage.headers.get('content-security-policy')!, 'report-to')).toEqual(['csp']);
+    expect(directiveSources(helperPage.headers.get('content-security-policy')!, 'report-uri')).toEqual([
+      '/api/csp-report',
+    ]);
+    // A plain-text refusal has nothing to report and keeps its own policy.
+    for (const refused of [
+      await nativeFetch(`${base}/api/auth-helper?page=links`),
+      await nativeFetch(`${base}/api/auth-helper?page=handler`, { method: 'POST' }),
+    ]) {
+      expect(refused.headers.get('reporting-endpoints')).toBeNull();
+      expect(refused.headers.get('content-security-policy')).not.toContain('report');
+    }
   });
   it('answers HEAD with the success headers and a fresh nonce but no upstream request, body or length', async () => {
     const upstream = upstreamHtml(HANDLER);

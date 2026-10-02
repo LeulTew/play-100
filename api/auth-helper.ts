@@ -26,6 +26,9 @@ export const AUTH_HELPER_RETRY_AFTER_SECONDS = 15;
 const NONCE_ATTRIBUTE = `nonce="${AUTH_HELPER_TEMPLATE_NONCE}"`;
 const POST_BODY_PLACEHOLDER = '{{POST_BODY}}';
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+// The helper documents report CSP violations to the same first-party endpoint as the main document (vercel.json), which
+// keeps only the directive, the blocked origin and the route template (/__/auth/handler or /__/auth/iframe).
+export const AUTH_HELPER_REPORTING_ENDPOINTS = 'csp="/api/csp-report"';
 
 export function authHelperCsp(nonce: string): string {
   return [
@@ -39,7 +42,14 @@ export function authHelperCsp(nonce: string): string {
     "base-uri 'none'",
     "frame-ancestors 'self'",
     "form-action 'self' https://accounts.google.com",
+    'report-to csp',
+    'report-uri /api/csp-report',
   ].join('; ');
+}
+
+function setHelperPolicy(response: ServerResponse, nonce: string): void {
+  response.setHeader('Content-Security-Policy', authHelperCsp(nonce));
+  response.setHeader('Reporting-Endpoints', AUTH_HELPER_REPORTING_ENDPOINTS);
 }
 
 const ERROR_CSP = "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'";
@@ -260,7 +270,7 @@ export function createAuthHelperHandler({
       return;
     }
     const body = Buffer.from(rewritten, 'utf8');
-    response.setHeader('Content-Security-Policy', authHelperCsp(nonce));
+    setHelperPolicy(response, nonce);
     response.setHeader('Content-Type', 'text/html; charset=utf-8');
     response.setHeader('Content-Length', String(body.byteLength));
     response.writeHead(200).end(body);
@@ -285,7 +295,7 @@ export function createAuthHelperHandler({
     if (request.method === 'HEAD') {
       // HEAD describes the helper document without fetching it, so it costs no upstream request. Only the fetched
       // template determines the length, so Content-Length is omitted (RFC 9110 sections 8.6 and 9.3.2).
-      response.setHeader('Content-Security-Policy', authHelperCsp(randomBytes(16).toString('base64')));
+      setHelperPolicy(response, randomBytes(16).toString('base64'));
       response.setHeader('Content-Type', 'text/html; charset=utf-8');
       response.writeHead(200).end();
       return;

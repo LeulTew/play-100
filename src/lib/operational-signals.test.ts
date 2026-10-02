@@ -189,6 +189,47 @@ describe('anonymous first-party CSP counts', () => {
     expect(() => cspCounts({ 'csp-report': { 'effective-directive': 'private' } }, false)).toThrow();
   });
 
+  it('counts sign-in helper reports under their fixed routes, without the sign-in query', () => {
+    // The helper documents report here since R24; their URLs carry the public key, the return URL and, coming back from
+    // the provider, its one-time state and code.
+    const query = '?apiKey=public-key&redirectUrl=https%3A%2F%2Fprivate.test%2F&state=private-state&code=private-code';
+    for (const page of ['handler', 'iframe'] as const) {
+      const documentURL = `https://play-100-collection.vercel.app/__/auth/${page}${query}`;
+      const batch = cspCounts(
+        [
+          {
+            type: 'csp-violation',
+            url: documentURL,
+            body: {
+              effectiveDirective: 'frame-src',
+              blockedURL: 'https://accounts.google.com/o/oauth2/auth?state=private-state',
+              documentURL,
+            },
+          },
+        ],
+        true,
+      );
+      expect(batch).toEqual([
+        { directive: 'frame-src', blockedOrigin: 'https://accounts.google.com', route: `/__/auth/${page}`, count: 1 },
+      ]);
+      const deprecated = cspCounts(
+        {
+          'csp-report': {
+            'effective-directive': 'style-src-attr',
+            'blocked-uri': 'inline',
+            'document-uri': documentURL,
+            'script-sample': 'private sample',
+          },
+        },
+        false,
+      );
+      expect(deprecated).toEqual([
+        { directive: 'style-src-attr', blockedOrigin: 'inline', route: `/__/auth/${page}`, count: 1 },
+      ]);
+      expect(JSON.stringify([batch, deprecated])).not.toMatch(/private|public-key|apiKey|redirectUrl/);
+    }
+  });
+
   it('never retains visitor-controlled hostname labels, including subdomains of diagnostic hosts', () => {
     for (const host of [
       'visitor-unique-id.example.test',

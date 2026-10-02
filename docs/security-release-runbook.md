@@ -582,7 +582,9 @@ Production only, after promotion; preview origins are referrer-blocked.
 2. DevTools → Network on `/__/auth/handler` and `/__/auth/iframe`:
    - status 200;
    - exactly one `Content-Security-Policy` header, containing
-     `'nonce-<24 base64 chars>'` and `frame-ancestors 'self'`;
+     `'nonce-<24 base64 chars>'` and `frame-ancestors 'self'`, and ending with
+     `report-to csp; report-uri /api/csp-report`;
+   - `Reporting-Endpoints: csp="/api/csp-report"`;
    - a different nonce on each reload;
    - X-Frame-Options `SAMEORIGIN` and `Cache-Control: private, no-store, max-age=0`.
 

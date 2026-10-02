@@ -3,7 +3,12 @@
 ## Anonymous operational signals
 
 The main document policy reports to the first-party `/api/csp-report` endpoint
-using `Reporting-Endpoints`/`report-to`, with `report-uri` as a fallback.
+using `Reporting-Endpoints`/`report-to`, with `report-uri` as a fallback. Since
+R24 the sign-in helper documents (`/__/auth/handler`, `/__/auth/iframe`) report
+there the same way, from their own policy. Their URLs carry the sign-in query:
+the public API key, the return URL and, on the way back from the provider, its
+one-time state and code. The endpoint keeps only their route template, as it
+does for every other document.
 Only POSTs with CSP report media types
 are accepted, with a 16 KiB body cap, a three-second read deadline, at most 16
 reports per batch and per-instance admission (4 active / 30 per minute). The
@@ -984,7 +989,15 @@ in `nonce="firebase-auth-helper"` with 16 random bytes (base64), and sends that
 nonce in its own CSP. All other bytes are unchanged. The policy is otherwise
 the previous helper policy, with
 `frame-ancestors 'self'`, X-Frame-Options SAMEORIGIN, private/CDN no-store,
-nosniff, `no-referrer`, HSTS and Permissions-Policy. It fails closed with a
+nosniff, `no-referrer`, HSTS and Permissions-Policy. Since R24 it also ends with
+`report-to csp; report-uri /api/csp-report`, and the response sends
+`Reporting-Endpoints: csp="/api/csp-report"`, the main rule's endpoint (before
+that, a violation in a sign-in document was invisible). Reports count under the
+`/__/auth/handler` and `/__/auth/iframe` routes. The plain-text answers
+(redirects, and the 404, 405, 429, 502 and 504 refusals) keep their own
+non-reporting policy. `style-src
+'unsafe-inline'` stays: the Firebase helper scripts insert style attributes and
+style elements at run time (G12-SEC2's capture). It fails closed with a
 static no-store 502 and a counts-only log unless all of these hold:
 - the literal count equals the attribute count, and is at least 1;
 - no other `nonce=` attribute exists;

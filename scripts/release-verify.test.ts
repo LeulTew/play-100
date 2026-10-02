@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
+import { authHelperCsp } from '../api/auth-helper';
 import {
   compareDocumentHeaders,
   entryLiteralCounts,
@@ -9,6 +10,7 @@ import {
   helperNonce,
   inspectHtml,
   parseVerifyArguments,
+  reportsCspViolations,
   serializeReceipt,
   sourcemapNotServed,
 } from './release-verify';
@@ -82,6 +84,21 @@ describe('deployed release verification, without network', () => {
 
   it.each([null, {}, { headers: [] }])('rejects incomplete header policy %#', (value) => {
     expect(() => expectedDocumentHeaders(value)).toThrow();
+  });
+
+  it('requires the helper documents to report CSP violations to the first-party endpoint', () => {
+    const helper = { 'content-security-policy': authHelperCsp(nonce), 'reporting-endpoints': 'csp="/api/csp-report"' };
+    expect(reportsCspViolations(new Headers(helper))).toBe(true);
+    expect(reportsCspViolations(new Headers({ ...helper, 'reporting-endpoints': 'csp="https://other.test/r"' }))).toBe(
+      false,
+    );
+    const withoutEndpoints = { 'content-security-policy': helper['content-security-policy'] };
+    expect(reportsCspViolations(new Headers(withoutEndpoints))).toBe(false);
+    for (const directive of ['; report-to csp', '; report-uri /api/csp-report']) {
+      expect(helper['content-security-policy']).toContain(directive);
+      const csp = helper['content-security-policy'].replace(directive, '');
+      expect(reportsCspViolations(new Headers({ ...helper, 'content-security-policy': csp }))).toBe(false);
+    }
   });
 
   it('requires a single well-formed nonce CSP and fresh values across all requests', () => {

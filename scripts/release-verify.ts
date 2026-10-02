@@ -145,6 +145,16 @@ export function compareDocumentHeaders(actual: Headers, expected: Record<string,
   return checks;
 }
 
+/** Whether a response's CSP reports to the first-party endpoint: the `csp` report-to group and the report-uri fallback. */
+export function reportsCspViolations(headers: Headers): boolean {
+  const csp = headers.get('content-security-policy') ?? '';
+  return (
+    headers.get('reporting-endpoints') === 'csp="/api/csp-report"' &&
+    JSON.stringify(directiveSources(csp, 'report-to')) === '["csp"]' &&
+    JSON.stringify(directiveSources(csp, 'report-uri')) === '["/api/csp-report"]'
+  );
+}
+
 export function entryLiteralCounts(source: string) {
   return {
     baseUrl: source.split('BASE_URL:').length - 1,
@@ -420,6 +430,10 @@ export async function verifyDeployment(options: VerifyOptions, config: unknown, 
         `${pathname} ${attempt}: private cache and SAMEORIGIN`,
         result?.headers.get('x-frame-options') === 'SAMEORIGIN' &&
           result.headers.get('cache-control') === 'private, no-store, max-age=0',
+      );
+      record(
+        `${pathname} ${attempt}: CSP reports to /api/csp-report`,
+        Boolean(result && reportsCspViolations(result.headers)),
       );
     }
   }
