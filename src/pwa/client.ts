@@ -91,7 +91,7 @@ export function sendPwaRequest(
     };
     const timeout = window.setTimeout(() => {
       finish();
-      reject(new Error('Offline access did not respond. Try again when connected.'));
+      reject(new Error('Offline access did not respond. Try again.'));
     }, 5000);
     ports.port1.onmessage = (event) => {
       const reply: unknown = event.data;
@@ -173,7 +173,7 @@ export function createPwaController(): PwaController {
   const checkRegistration = (value: ServiceWorkerRegistration) => {
     const worker = value.installing ?? value.waiting ?? value.active;
     if (value.scope !== `${location.origin}/` || !trustedPwaWorker(worker, location.origin)) {
-      throw new Error('Another offline app is active here. Play 100 left it unchanged.');
+      throw new Error('The current offline setup is not compatible with Play 100. It was left unchanged.');
     }
   };
   const refresh = async (start: number) => {

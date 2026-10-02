@@ -271,7 +271,7 @@ export function renderInventory(entries: CopyEntry[], files: number): string {
     '- Keep privacy, deletion and storage consequences explicit and unchanged in meaning.',
     '',
     'The review replaced visitor-facing provider/worker terms with catalog/source or',
-    'offline-app language; rating/note and reviews/ratings became conjunctions.',
+    'offline-access language; rating/note and reviews/ratings became conjunctions.',
     'Ranking additions share Add to my ranking; completion reversal is Mark not',
     'completed. Empty-state headings and fallback success messages now use the same',
     'plain voice. Existing privacy exclusions, storage guarantees and original scores',
