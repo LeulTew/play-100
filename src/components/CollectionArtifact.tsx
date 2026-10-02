@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import { AfterFirstPaint } from './AfterFirstPaint';
 import type { CollectionSceneHandle } from './scene/CollectionScene';
 import { createMemoizedModule } from '../lib/memoized-module';
+import { createScrollSettle } from '../lib/scroll-settle';
 import './scene/artifact.css';
 
 const sceneModule = createMemoizedModule(() => import('./scene/CollectionScene'));
@@ -195,15 +196,22 @@ export default function CollectionArtifact({
     let createScene: (typeof import('./scene/CollectionScene'))['createCollectionScene'] | null = null;
     let idleId: number | null = null;
     let timerId: number | null = null;
+    let settleCancel: (() => void) | null = null;
     let observer: IntersectionObserver | null = null;
+    // Each start-up turn is a long task (loading the module, then building the scene and its first frame), and one
+    // that lands mid-scroll holds the frames the scroll needs: automatic starts wait for scrolling to pause.
+    const scrolling = createScrollSettle(window);
+    const mayStart = () => requestedRef.current || scrolling.quiet();
 
     const isActive = () => visible && document.visibilityState !== 'hidden';
 
     function cancelScheduledLoad() {
       if (idleId !== null) window.cancelIdleCallback(idleId);
       if (timerId !== null) window.clearTimeout(timerId);
+      settleCancel?.();
       idleId = null;
       timerId = null;
+      settleCancel = null;
     }
 
     function fallback(reason: string) {
@@ -221,6 +229,11 @@ export default function CollectionArtifact({
       idleId = null;
       timerId = null;
       if (cancelled || failed || loading || !isActive()) return;
+      // A scroll that began after this turn was scheduled defers it again.
+      if (!mayStart()) {
+        reconcile();
+        return;
+      }
       loading = true;
       setState({ ready: false, status: 'loading', reason: null });
       try {
@@ -270,7 +283,14 @@ export default function CollectionArtifact({
         cancelScheduledLoad();
         return;
       }
-      if (loading || idleId !== null || timerId !== null) return;
+      if (loading || idleId !== null || timerId !== null || settleCancel !== null) return;
+      if (!mayStart()) {
+        settleCancel = scrolling.whenQuiet(() => {
+          settleCancel = null;
+          reconcile();
+        });
+        return;
+      }
       if (typeof window.requestIdleCallback === 'function') {
         idleId = requestedRef.current
           ? window.requestIdleCallback(
@@ -325,6 +345,7 @@ export default function CollectionArtifact({
       releaseFooterRef.current?.();
       requestSceneRef.current = null;
       cancelScheduledLoad();
+      scrolling.dispose();
       observer?.disconnect();
       document.removeEventListener('visibilitychange', reconcile);
       window.removeEventListener('scroll', checkPosition);
