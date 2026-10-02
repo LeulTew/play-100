@@ -22,6 +22,8 @@ jobs:
     timeout-minutes: 10
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
+    env:
+      IOS_TARGET_ORIGIN: ${{ inputs.target_origin || 'https://play-100-collection.vercel.app' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -41,6 +43,8 @@ jobs:
         id: plan
         run: |
           npx tsx scripts/ios-safari-smoke/plan.ts
+      - name: Record served target build identity
+        run: npx tsx scripts/ios-safari-smoke/identity.ts
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
