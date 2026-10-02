@@ -34,7 +34,7 @@ test('family guidance keeps its summary visible and uncommon detail inside the d
   await openBrowsingFilters(page);
   await expect(page.locator('#discovery-genre-help')).toHaveText('A game can belong to more than one family.');
   const details = page
-    .locator('details')
+    .locator('details.discovery-help')
     .filter({ has: page.locator('summary').filter({ hasText: /^Exact source genre$/ }) });
   await expect(details).not.toHaveAttribute('open');
   const context = details.getByText('Families group the genres supplied by each source.', { exact: false });
