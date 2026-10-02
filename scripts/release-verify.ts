@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { freshNonces, helperNonce } from '../src/lib/auth-helper-nonce.js';
 export { freshNonces, helperNonce } from '../src/lib/auth-helper-nonce.js';
+import { isMainDocumentRule } from '../src/lib/vercel-routes.js';
 
 interface Check {
   name: string;
@@ -100,11 +101,7 @@ export function parseVerifyArguments(args: string[]): VerifyOptions {
 
 export function expectedDocumentHeaders(config: unknown): Record<string, string> {
   if (!object(config) || !Array.isArray(config.headers)) throw new Error('Invalid Vercel header configuration.');
-  const groups = config.headers.filter(
-    (group: unknown) =>
-      object(group) &&
-      group.source === '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
-  );
+  const groups = config.headers.filter(isMainDocumentRule);
   if (groups.length !== 1 || !object(groups[0]) || !Array.isArray(groups[0].headers)) {
     throw new Error('Expected exactly one non-auth document header group.');
   }

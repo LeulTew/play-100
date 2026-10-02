@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { Parser } from 'htmlparser2';
+import { MAIN_DOCUMENT_RULE } from '../../src/lib/vercel-routes.ts';
 
 /**
  * Content-Security-Policy checks for inline blocks in built documents (docs/first-paint-shell.md,
@@ -19,7 +20,7 @@ export interface CspDocument {
   readonly html: string;
 }
 
-export const MAIN_DOCUMENT_RULE = '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)';
+export { MAIN_DOCUMENT_RULE };
 
 export function sha256Source(content: string): string {
   return `'sha256-${createHash('sha256').update(content, 'utf8').digest('base64')}'`;

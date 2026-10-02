@@ -25,6 +25,7 @@ import { parseArgs } from 'node:util';
 import { brotliCompressSync, constants } from 'node:zlib';
 import { chromium } from '@playwright/test';
 import type { Browser } from '@playwright/test';
+import { routePattern } from '../src/lib/vercel-routes.ts';
 
 // DevTools' Slow 4G preset: 150 ms × 3.75 of latency per request, 1.6 Mbit/s × 0.9 down and 750 kbit/s × 0.9 up.
 export const SLOW_4G = {
@@ -69,9 +70,6 @@ interface Deployment {
   rewrites: { source: string; destination: string }[];
   headers: { source: string; headers: { key: string; value: string }[] }[];
 }
-
-/** vercel.json's sources are anchored regular expressions, apart from their :name segments. */
-export const routePattern = (source: string) => new RegExp(`^${source.replace(/(?<!\?):\w+/g, '[^/]+')}$`);
 
 function certificate() {
   const key = path.join(tmpdir(), 'play100-low-end-profile.key');

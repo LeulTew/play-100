@@ -1,17 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { Script } from 'node:vm';
 import { describe, expect, it } from 'vitest';
-import {
-  DRIVER,
-  initScript,
-  median,
-  PHASES,
-  phaseTasks,
-  pick,
-  routePattern,
-  SLOW_4G,
-  SUMMARY_KEYS,
-} from './low-end-profile';
+import { DRIVER, initScript, median, PHASES, phaseTasks, pick, SLOW_4G, SUMMARY_KEYS } from './low-end-profile';
+import { routePattern } from '../src/lib/vercel-routes';
 
 const deployment = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8')) as {
   rewrites: { source: string; destination: string }[];

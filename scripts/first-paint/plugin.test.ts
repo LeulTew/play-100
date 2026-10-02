@@ -25,6 +25,7 @@ import {
   startupTags,
 } from './plugin.ts';
 import { cspProblems, sha256Source } from './csp.ts';
+import { MAIN_DOCUMENT_RULE } from '../../src/lib/vercel-routes.ts';
 import { removeShell, shellMarkup, shellText } from './shell-html.ts';
 import { readFirstPaintRecord, textDigest } from '../build-metadata.ts';
 import { eagerHtmlFiles } from '../check-budgets.ts';
@@ -809,7 +810,7 @@ describe('first-paint index.html', () => {
           JSON.stringify({
             headers: [
               {
-                source: '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
+                source: MAIN_DOCUMENT_RULE,
                 headers: [{ key: 'Content-Security-Policy', value: csp }],
               },
             ],
