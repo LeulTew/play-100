@@ -9,9 +9,16 @@ declare global {
 }
 
 const diagnostics = new WeakMap<Page, string[]>();
+// DIAGNOSTIC ONLY: beacons the page sends by synchronous XHR, recorded here as the browser pauses each request, so they
+// arrive even when the page's main thread hangs right after sending one (console messages wait for the task to end).
+const beacons = new WeakMap<Page, string[]>();
 test.afterEach(async ({ page }, info) => {
   await info.attach('resize-visit-diagnostics', {
     body: JSON.stringify(diagnostics.get(page) ?? []),
+    contentType: 'application/json',
+  });
+  await info.attach('resize-visit-beacons', {
+    body: JSON.stringify(beacons.get(page) ?? []),
     contentType: 'application/json',
   });
 });
@@ -39,6 +46,7 @@ async function scrollThrough(page: Page) {
         scrollTo(0, top);
         const waiting = performance.now();
         await frame();
+        Reflect.get(window, '__p100Beacon')?.('step', steps + 1);
         longestFrameWait = Math.max(longestFrameWait, performance.now() - waiting);
         if (++steps % 10 === 0) console.info('Resize visit scroll progress', report());
       }
@@ -67,6 +75,32 @@ for (const viewport of [
     await page.addInitScript(() => {
       // That phone's browser predates URLSearchParams.size (Chrome 113), which once left a detail's URL unchanged.
       Reflect.deleteProperty(URLSearchParams.prototype, 'size');
+      const beacon = (name: string, detail: unknown = '') => {
+        try {
+          const request = new XMLHttpRequest();
+          const query = new URLSearchParams({ n: name, d: String(detail), t: String(Math.round(performance.now())) });
+          request.open('GET', `/__p100diag?${query.toString()}`, false);
+          request.send();
+        } catch {
+          // A beacon that fails says nothing; the next one may still arrive.
+        }
+      };
+      Reflect.set(window, '__p100Beacon', beacon);
+      let beats = 0;
+      addEventListener('DOMContentLoaded', () => setInterval(() => beacon('hb', ++beats), 200));
+      const idle = window.requestIdleCallback;
+      let idles = 0;
+      window.requestIdleCallback = (callback, options) =>
+        idle.call(
+          window,
+          (deadline) => {
+            const id = ++idles;
+            beacon('idle-run', id);
+            callback(deadline);
+            beacon('idle-done', id);
+          },
+          options,
+        );
       const errors: string[] = [];
       window.resizeObserverLoopErrors = errors;
       addEventListener('error', (event) => {
@@ -90,6 +124,7 @@ for (const viewport of [
           if (phase[2] === 'start') scenePhases.add(phase[1]!);
           else scenePhases.delete(phase[1]!);
           console.info('Resize visit scene mark', { name, at: result.startTime, visibility: document.visibilityState });
+          beacon(name, document.visibilityState);
         }
         return result;
       };
@@ -100,7 +135,9 @@ for (const viewport of [
         value(this: HTMLCanvasElement, kind: string, options?: unknown) {
           const measured = kind === 'webgl' || kind === 'webgl2';
           if (measured) console.info('Resize visit WebGL context start', { at: performance.now(), kind });
+          beacon(`getContext-before`, kind);
           const result = getContext.call(this, kind, options);
+          beacon(`getContext-after`, kind);
           if (measured)
             console.info('Resize visit WebGL context end', { at: performance.now(), kind, available: Boolean(result) });
           return result;
@@ -130,6 +167,7 @@ for (const viewport of [
               const sampled = first || (scenePhases.size > 0 && synchronousQueries.includes(method));
               const started = performance.now();
               if (sampled) console.info(`Resize visit WebGL ${method} start`, { at: started, first });
+              if (first) beacon(`gl-${method}-first`);
               let returned = false;
               try {
                 const result: unknown = Reflect.apply(original, this, args);
@@ -148,6 +186,13 @@ for (const viewport of [
     const reported: string[] = [];
     const timing: string[] = [];
     diagnostics.set(page, timing);
+    const received: string[] = [];
+    beacons.set(page, received);
+    await page.route((url) => url.pathname === '/__p100diag', (route) => {
+      const query = new URL(route.request().url()).searchParams;
+      received.push(`${Date.now()} ${query.get('t')} ${query.get('n')} ${query.get('d')}`);
+      return route.fulfill({ status: 204, body: '' });
+    });
     page.on('console', (message) => {
       if (message.text().startsWith('Resize visit')) {
         timing.push(message.text());
