@@ -45,10 +45,13 @@ test('3D module loading and visible WebGL construction use separate cancelable i
     };
   }, motionHintKey('guest'));
   await page.goto('/?catalogs=off');
+  // React's first commit replaces the first-paint shell's artifact; wait for it, as the fan test below does.
+  await expect(page.locator('.save-game').first()).toBeEnabled();
   const artifact = page.locator('.collection-artifact');
   await artifact.scrollIntoViewIfNeeded();
-  await expect.poll(() => page.evaluate(() => window.pendingArtifactIdle())).toBeGreaterThanOrEqual(2);
-  expect(await page.evaluate(() => window.pendingArtifactIdleTimeouts())).toContain(null);
+  // The scene's automatic turn has no timeout, and waits for a scroll into view to pause first (scroll-settle.ts).
+  await expect.poll(() => page.evaluate(() => window.pendingArtifactIdleTimeouts())).toContain(null);
+  expect(await page.evaluate(() => window.pendingArtifactIdle())).toBeGreaterThanOrEqual(2);
   await expect(artifact.locator('canvas')).toHaveCount(0);
   await page.evaluate(() => window.flushArtifactIdle());
   await expect.poll(() => page.evaluate(() => window.pendingArtifactIdle())).toBe(1);
