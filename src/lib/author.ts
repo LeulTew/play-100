@@ -1,13 +1,31 @@
-import author from '../../author.json';
+import {
+  fullName,
+  shortName,
+  githubUrl,
+  githubProfileUrl,
+  linkedinUrl,
+  telegramHandle,
+  telegramUrl,
+  email,
+} from '../../author.json';
 import type { AuthorRating } from './types';
 
-export { author };
+export const author = {
+  fullName,
+  shortName,
+  githubUrl,
+  githubProfileUrl,
+  linkedinUrl,
+  telegramHandle,
+  telegramUrl,
+  email,
+};
 
 export const authorLinks = [
-  ['github', `${author.shortName} on GitHub`, author.githubProfileUrl],
-  ['linkedin', `${author.shortName} on LinkedIn`, author.linkedinUrl],
-  ['telegram', `${author.shortName} on Telegram, ${author.telegramHandle}`, author.telegramUrl],
-  ['email', `Email ${author.shortName} at ${author.email}`, `mailto:${author.email}`],
+  ['github', `${shortName} on GitHub`, githubProfileUrl],
+  ['linkedin', `${shortName} on LinkedIn`, linkedinUrl],
+  ['telegram', `${shortName} on Telegram, ${telegramHandle}`, telegramUrl],
+  ['email', `Email ${shortName} at ${email}`, `mailto:${email}`],
 ] as const;
 
 export function authorRatingText(rating: AuthorRating | null): string {

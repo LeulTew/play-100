@@ -27,9 +27,6 @@ export function AboutDialog({
       </h2>
       <p className="dialog-lead">This is a personal collection of 100 games, not an official ranking.</p>
       <section className="author-block" aria-label="Collection author">
-        <p>
-          Curated by <strong>{author.fullName}</strong>
-        </p>
         <AuthorLinks />
       </section>
       <section>

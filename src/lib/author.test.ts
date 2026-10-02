@@ -89,6 +89,6 @@ describe('public creator ratings stay separate from visitor opinions', () => {
     );
     expect(publicData).toMatchObject({ collection: { author } });
     expect(canonicalData).toEqual(publicData);
-    expect(JSON.parse(readFileSync(new URL('../../data/author.json', import.meta.url), 'utf8'))).toEqual(author);
+    expect(JSON.parse(readFileSync(new URL('../../data/author.json', import.meta.url), 'utf8'))).toMatchObject(author);
   });
 });
