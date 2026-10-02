@@ -105,6 +105,7 @@ export default function CatalogDetail({
     <Dialog
       open
       titleId="catalog-game-title"
+      descriptionId="catalog-game-description"
       onClose={onClose}
       getOpener={getOpener}
       getFallbackFocus={() => visibleGameTrigger(record.id)}
@@ -114,7 +115,7 @@ export default function CatalogDetail({
       <h2 id="catalog-game-title" data-autofocus tabIndex={-1}>
         {record.title}
       </h2>
-      <p className="dialog-lead">
+      <p id="catalog-game-description" className="dialog-lead">
         {SOURCE_LABELS[record.source]}
         {record.collectionRank !== null
           ? ` · original rank #${record.collectionRank}`

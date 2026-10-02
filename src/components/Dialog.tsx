@@ -49,12 +49,14 @@ export function Dialog({
   const latestMotion = useRef(motion);
   const motionDisabled = motion === false;
   const returnFocus = useRef(getReturnFocus);
+  const close = useRef(onClose);
   const openerFocus = useRef({ getOpener, getFallbackFocus });
   useLayoutEffect(() => {
     latestMotion.current = motion;
     returnFocus.current = getReturnFocus;
+    close.current = onClose;
     openerFocus.current = { getOpener, getFallbackFocus };
-  }, [motion, getReturnFocus, getOpener, getFallbackFocus]);
+  }, [motion, getReturnFocus, getOpener, getFallbackFocus, onClose]);
   useLayoutEffect(() => {
     const current = visual;
     return () => {
@@ -135,6 +137,34 @@ export function Dialog({
       runDialogMotion(() => ending?.closed());
     };
   }, [open, controller, layer]);
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog || !open) return;
+    let pointer: number | null = null;
+    const down = (event: PointerEvent) => {
+      pointer =
+        event.isPrimary && event.button === 0 && event.target === dialog && foregroundDialog() === dialog
+          ? event.pointerId
+          : null;
+    };
+    const up = (event: PointerEvent) => {
+      const dismiss = pointer === event.pointerId && event.target === dialog && foregroundDialog() === dialog;
+      pointer = null;
+      if (dismiss) close.current();
+    };
+    const cancel = () => {
+      pointer = null;
+    };
+    // A document-level pointer gesture keeps the accessible dialog itself free of a click action.
+    document.addEventListener('pointerdown', down, true);
+    document.addEventListener('pointerup', up, true);
+    document.addEventListener('pointercancel', cancel, true);
+    return () => {
+      document.removeEventListener('pointerdown', down, true);
+      document.removeEventListener('pointerup', up, true);
+      document.removeEventListener('pointercancel', cancel, true);
+    };
+  }, [open]);
   return (
     <dialog
       ref={ref}
@@ -159,9 +189,6 @@ export function Dialog({
         event.preventDefault();
         event.stopPropagation();
         onClose();
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
       }}
     >
       <div className="dialog-inner" ref={inner}>

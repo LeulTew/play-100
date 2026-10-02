@@ -23,6 +23,16 @@ support deep-linked entry. Buttons/touch controls are at least 44px. The UI keep
 normal page scrolling, visible focus and mobile safe areas. Asset dimensions are
 reserved; covers load lazily and results are paginated in groups of 24.
 
+Detail opening focuses its heading directly, with native autofocus prepared
+before `showModal`; it does not first focus Close or the dialog container.
+The accessible dialog has no click action: backdrop dismissal is a complete
+pointer gesture handled at the document, separate from the named Close button
+and Escape. Its description is deliberately short (the collection position,
+or the catalog source summary), not the complete dialog text. The rationale,
+source notes and tracking controls remain available in ordinary reading order.
+DOM focus/description assertions and native screen-reader speech are separate
+checks; neither substitutes for the other.
+
 Eligible collection and Discover previews connect the existing public artwork
 to the native detail using one temporary numbered sleeve or licensed catalog
 image. The real fields stay in place and are usable immediately. A same-view
