@@ -5,6 +5,9 @@
  * Separate shared chunks add gzip overhead and offline entries without deferring any code. Including the entry's
  * static dependencies compresses them together; dynamic imports remain separate. The eager-module guard rejects
  * deferred bodies and app-tool-loading checks the online graph. A missing path fails app-shared-chunk.test.ts.
+ *
+ * PersonalRatingInput loads only with lazily loaded views (both game details, Discover's cards and the ranking), but
+ * those four would otherwise share it as a chunk of its own, one more file of the offline core, which is at its limit.
  */
 export const APP_SHARED_MODULES: readonly string[] = [
   'src/main.tsx',
@@ -12,6 +15,7 @@ export const APP_SHARED_MODULES: readonly string[] = [
   'src/components/dialog-layer.ts',
   'src/components/dialog-lifecycle.ts',
   'src/components/Icon.tsx',
+  'src/components/personal/PersonalRatingInput.tsx',
   'src/hooks/useExitSave.ts',
   'src/hooks/useLatest.ts',
   'src/lib/dialog-focus.ts',

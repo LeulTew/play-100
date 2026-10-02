@@ -63,7 +63,13 @@ HEAD. The test needs the full history, not a shallow clone.
   build fails when one is eager, and a unit test follows the entry's static imports to find it before a build. Code
   only the online pages use stays in `app-shared` for now, since moving it adds it to the online routes, the largest of
   which is at its cap.
-
+- **Dialogs.** The 100's game detail ([`GameDetail`](../src/components/GameDetail.tsx)) ships in the catalog detail's
+  chunk rather than the eager bundle or a chunk of its own. A page warms that chunk before a detail opens: at idle on
+  every device class (not with Save-Data, on 2G or with reduced motion), on a pointer, focus or press on a game link,
+  and beside the collection for a linked game ([`DialogHost`](../src/components/app/DialogHost.tsx)). A detail that
+  opens before its module has loaded shows the catalog detail's pending dialog after 300 ms; one that opens after renders
+  in its first commit, as before. The rating input both details share with Discover and the ranking stays in
+  `app-shared` ([`app-shared-chunk.ts`](../scripts/app-shared-chunk.ts)).
 ## Low-end phones
 
 Firebase Test Lab ran Release 7 on a Galaxy A03s (2 GB, WebView Chrome 106, 412×785 at DPR 1.75, `deviceMemory` 2)
