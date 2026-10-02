@@ -478,10 +478,7 @@ describe('first-paint boot gate', () => {
         'p100-probe-sans-bold': { width: 1306, height: 130 },
       },
     ],
-    [
-      'the lower whole-pixel bound',
-      { ...ACCEPTED_PROBES, 'p100-probe-display': { width: 602.6, height: 120 } },
-    ],
+    ['the lower whole-pixel bound', { ...ACCEPTED_PROBES, 'p100-probe-display': { width: 602.6, height: 120 } }],
     ['the upper whole-pixel bound', { ...ACCEPTED_PROBES, 'p100-probe-display': { width: 616.6, height: 120 } }],
   ])('shows the shell with the Arial faces laid out on whole pixels (%s)', (_, probes) => {
     expect(boot({ probes })).toEqual({ 'data-boot-art': 'pending', 'data-boot': 'landing' });
