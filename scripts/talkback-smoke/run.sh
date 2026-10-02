@@ -111,12 +111,13 @@ run adb shell settings put secure accessibility_enabled 1
 started=0
 for i in $(seq 1 30); do
   sleep 2
-  if adb logcat -d | grep -qP 'action=SPEAK\s+text="'; then started=1; break; fi
+  # The first start plays an earcon but may speak nothing; a bound service with verbose pipeline logs is enough.
+  if adb logcat -d | grep -qE ' talkback: (Actors|Pipeline): '; then started=1; sleep 10; break; fi
 done
 run adb shell 'dumpsys accessibility | grep -iE "bound services|enabled services" | head -4'
 adb logcat -d -v threadtime > "$out/talkback-start.txt"
 grep -oP 'action=SPEAK\s+text="\K[^"]*' "$out/talkback-start.txt" | tee "$out/talkback-start-speech.txt"
-check setup 'TalkBack runs and its speech is logged' "$started" "$(paste -sd '|' "$out/talkback-start-speech.txt")"
+check setup 'TalkBack runs with verbose speech logging' "$started" "$(paste -sd '|' "$out/talkback-start-speech.txt")"
 
 {
   echo "{"
