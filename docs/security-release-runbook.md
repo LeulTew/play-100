@@ -628,15 +628,19 @@ and `/api/csp-report` post report spikes to one GitHub issue (thresholds in
 [operations](release-operations.md#11-daily-and-post-deploy-operational-checks),
 "Client report alerts"). Without it they log exactly as before and post nothing.
 It is the functions' only credential; its scope and blast radius are in
-[security](security.md#anonymous-operational-signals). The owner creates and
-holds it; never paste it into receipts, logs or the repository.
+[security](security.md#anonymous-operational-signals). The repository's owner
+(`LeulTew`) creates and holds it: the functions and the hourly `Production
+alert` workflow trust only the owner's spike issue and posts, so a token of any
+other account posts nothing that counts. Never paste it into receipts, logs or
+the repository.
 
 **Create.**
 
 1. Create the label once:
    `gh label create client-report-spike --repo LeulTew/play-100 --color B60205 --description "Client error or CSP report spike in production"`.
-   The functions find their issue by this label, and so does the hourly
-   `Production alert` workflow.
+   The functions find their issue by this label and by its author, and so does
+   the hourly `Production alert` workflow. (That workflow creates its own
+   `production-check-failed` label when it first needs it.)
 2. GitHub → Settings → Developer settings → Personal access tokens →
    **Fine-grained tokens** → Generate new token:
    - name `play-100 production alert`, resource owner `LeulTew`;
@@ -665,16 +669,19 @@ done
 ```
 
 The report that crosses the threshold, normally the fifth, answers only once
-its post is done, up to 5 s later. By then an issue titled "Production alert:
-client error or CSP report spike", labelled `client-report-spike`, has appeared
-under the owner's name, and that report's `client-error-count` log line carries
-`"alert":"created"`.
+its post is done, up to 5 s later. By then a locked issue titled "Production
+alert: client error or CSP report spike", labelled `client-report-spike`, has
+appeared under the owner's name, and that report's `client-error-count` log
+line carries `"alert":"created"`. If the owner's newest spike post on an open
+alert issue is under an hour old, the line carries `"alert":"cooldown"` and
+nothing posts: wait until the hour has passed.
 Counts are per instance: if the reports reached different instances, nothing
 posts, so send five more. At the next half hour the workflow acknowledges the
 post and fails that run, which emails the owner; GitHub sends no email for the
 post itself, because it is the owner's own activity. Then close the issue. The
-drill uses that instance's one post for the hour, and its counts stay in the
-logs under `entry:alert-drill`.
+drill uses that instance's one attempt for the hour, starts the hour every
+instance waits after a spike post, and its counts stay in the logs under
+`entry:alert-drill`.
 
 **Rotate** before the expiry; GitHub emails a reminder before a token expires.
 Create a new token as above, replace the variable's value, redeploy, run the
