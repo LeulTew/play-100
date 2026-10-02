@@ -203,7 +203,8 @@ export async function postAlert(
       .map((item) => nullableObject(item))
       .find((item) => item !== null && item.pull_request === undefined && byOwner(item));
     if (!issue || typeof issue.number !== 'number') {
-      const created = nullableObject(await call('POST', '/issues', { title: ALERT_TITLE, body, labels: [ALERT_LABEL] }));
+      const opening = { title: ALERT_TITLE, body, labels: [ALERT_LABEL] };
+      const created = nullableObject(await call('POST', '/issues', opening));
       try {
         // Locked, only collaborators can comment on it.
         if (typeof created?.number !== 'number') throw new GitHubFailure(0);
