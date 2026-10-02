@@ -17,6 +17,7 @@ export const DEFERRED_SOURCE_MODULES = [
   'src/lib/catalog-picker.ts',
   'src/lib/local-pagination.ts',
   'src/hooks/useDiscoveryArtwork.ts',
+  'src/components/GameDetail.tsx',
   'src/components/PwaControls.tsx',
   'src/components/app/SettingsPanel.tsx',
   'src/pwa/client.ts',
