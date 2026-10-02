@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import {
+  APB2_GATED_ROWS,
   APB2_PROTOCOL,
   APB2_REPETITIONS,
   apb2Schedule,
@@ -221,10 +222,20 @@ export function recomputeRows(profile: Apb2ProfileId, records: readonly Repetiti
   return rows;
 }
 
-/** Field-by-field differences between the frozen aggregation's rows and the recomputed ones (empty when equal). */
+/** Whether the table treats a pinned aggregation row as informational: by its flag or its no-gate status. */
+export function frozenInformational(row: Record<string, unknown>) {
+  return row.informational === true || row.status === 'INFORMATIONAL_NO_GATE';
+}
+
+/**
+ * Field-by-field differences between the frozen aggregation's rows and the recomputed ones (empty when equal),
+ * including whether each row is gated, and a gated-row count other than the contract's.
+ */
 export function compareRows(frozen: readonly Record<string, unknown>[], recomputed: readonly TableRow[]): string[] {
   const differences: string[] = [];
   if (frozen.length !== recomputed.length) differences.push(`row count ${frozen.length} != ${recomputed.length}`);
+  const gated = frozen.filter((row) => !frozenInformational(row)).length;
+  if (gated !== APB2_GATED_ROWS) differences.push(`gated rows ${gated} != ${APB2_GATED_ROWS}`);
   recomputed.forEach((row, index) => {
     const other = frozen[index];
     const label = `${row.profile} ${row.journey} ${row.metric}`;
@@ -234,6 +245,8 @@ export function compareRows(frozen: readonly Record<string, unknown>[], recomput
       return;
     }
     const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    if (frozenInformational(other) !== row.informational)
+      differences.push(`${label}: informational ${frozenInformational(other)} != ${row.informational}`);
     if (other.status !== row.status) differences.push(`${label}: status ${String(other.status)} != ${row.status}`);
     if (!same(normalizedValue(other.p75), normalizedValue(row.p75))) differences.push(`${label}: p75`);
     if (!same(normalizedValue(other.max), normalizedValue(row.max))) differences.push(`${label}: max`);
@@ -243,4 +256,35 @@ export function compareRows(frozen: readonly Record<string, unknown>[], recomput
     }
   });
   return differences;
+}
+
+/**
+ * One profile's table: the pinned aggregation's rows as the table classifies them, beside the recomputed status, with
+ * the gated count, its passes and every difference. All gated rows pass only when there are exactly the contract's
+ * 29, so a row relabelled informational cannot drop out of the gate.
+ */
+export function summarizeTable(frozen: readonly Record<string, unknown>[], recomputed: readonly TableRow[]) {
+  const differences = compareRows(frozen, recomputed);
+  const rows = frozen.map((row, position) => ({
+    journey: row.journey,
+    metric: row.metric,
+    informational: frozenInformational(row),
+    status: row.status,
+    p75: row.p75,
+    max: row.max,
+    budget: row.budget ?? null,
+    finiteCount: row.finiteCount,
+    failedRepetitions: row.failedRepetitions ?? [],
+    recomputedStatus: recomputed[position]?.status ?? null,
+  }));
+  const gated = rows.filter((row) => !row.informational);
+  const passed = gated.filter((row) => /^PASS/.test(String(row.status))).length;
+  return {
+    rows,
+    gated: gated.length,
+    expectedGated: APB2_GATED_ROWS,
+    passed,
+    allGatedPass: gated.length === APB2_GATED_ROWS && passed === gated.length,
+    differences,
+  };
 }

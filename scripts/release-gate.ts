@@ -9,6 +9,7 @@ import { createServer } from 'vite';
 import { requireObject } from '../src/lib/guards.js';
 import { summarizeNpmAudit, summarizePlaywright, summarizeVitest } from './release-manifest';
 import { prepareGitleaks, gitleaksSummary } from './release-gitleaks';
+import { verifyProtocol, type ProtocolVerification } from './release-apb2-contract';
 import {
   evidenceEnvironment,
   evidenceFileExists,
@@ -29,6 +30,31 @@ export function requireApb2Runner(input: unknown) {
   const scripts = requireObject(requireObject(input).scripts);
   if (typeof scripts[APB2_GATE_SCRIPT] !== 'string' || !scripts[APB2_GATE_SCRIPT].trim())
     throw new Error('APB2 gate hook blocked: the committed npm run release:apb2 runner is not available.');
+}
+/**
+ * The operator's APB2 settings, checked before the gate's first step as PLAY100_FLOOR_CHROMIUM is: the absolute folder
+ * of the pinned set, which must match the committed digests, the quiet-host attestation and the bound Chrome version.
+ */
+export async function requireApb2Operator(
+  env: NodeJS.ProcessEnv,
+  verify: (folder: string) => Promise<Pick<ProtocolVerification, 'ok' | 'files' | 'freezeSha256'>> = verifyProtocol,
+) {
+  const protocol = env.PLAY100_APB2_PROTOCOL ?? '';
+  if (!path.isAbsolute(protocol))
+    throw new Error(
+      'Set PLAY100_APB2_PROTOCOL to the absolute folder of the pinned APB2 v3.2 set before the full gate.',
+    );
+  if (env.PLAY100_APB2_QUIET_ATTESTED !== '1')
+    throw new Error('Set PLAY100_APB2_QUIET_ATTESTED=1, the quiet-host attestation, before the full gate.');
+  const browserVersion = env.PLAY100_APB2_BROWSER_VERSION ?? '';
+  if (!/^\d+\.\d+\.\d+\.\d+$/.test(browserVersion))
+    throw new Error('Set PLAY100_APB2_BROWSER_VERSION to the bound four-part Chrome version before the full gate.');
+  const verification = await verify(protocol);
+  if (!verification.ok)
+    throw new Error(
+      'PLAY100_APB2_PROTOCOL does not match the committed APB2 v3.2 digests; fix it before the full gate.',
+    );
+  return { protocol, browserVersion, files: verification.files, freezeSha256: verification.freezeSha256 };
 }
 export function checkApb2GateReceipt(input: unknown, candidate: { sha: string; tree: string }): Apb2GateReceipt {
   const receipt = requireObject(input);
@@ -588,6 +614,7 @@ export async function releaseGate(evidence: string, offline: string) {
   if (!process.env.PLAY100_FLOOR_CHROMIUM || !(await stat(process.env.PLAY100_FLOOR_CHROMIUM)).isFile())
     throw new Error('Set PLAY100_FLOOR_CHROMIUM to the reviewed old Chromium executable before the full gate.');
   requireApb2Runner(JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')));
+  await requireApb2Operator(process.env);
   const sha = git(root, 'rev-parse', 'HEAD');
   const tree = git(root, 'rev-parse', 'HEAD^{tree}');
   await cleanCheckout(root, sha);

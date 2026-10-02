@@ -620,11 +620,15 @@ stock Chrome, whose version must equal `--browser-version`. It proves the setup
 guards and the ordinary-Pin preflight before timing, then the pinned adapter
 captures the fixed 72-context population under a 19-minute lease. The capture stays
 where the pinned adapter writes it (`<protocol>/round4-apb2/<stage-id>/capture`).
-Afterwards the runner checks that the owned Chrome and both ports are gone and
-re-checks HEAD, the build and the pinned set. It writes one JSON record per
+Afterwards the runner checks, for up to 15 seconds, that the owned Chrome's
+processes and both ports are gone, then re-checks HEAD, the tree, the build and
+the pinned set. A stage whose closure never holds, or that lacks this after-run
+check, is held (HOLD, or a failed smoke). It writes one JSON record per
 scheduled repetition, missing and failed ones included, with an index of SHA-256
 digests, and `table.json`: the pinned aggregation's rows beside rows recomputed in
-TypeScript from those records. The two must agree field by field.
+TypeScript from those records. The two must agree field by field, including
+which rows are gated, and each profile's table must have exactly the contract's
+29 gated rows, so a row relabelled informational cannot leave the gate.
 
 Exit code 0 means a complete capture whose gated rows all pass, 2 a complete
 capture with a gated row not passing, and 1 anything else; the receipts are kept in
@@ -641,14 +645,17 @@ The gate's `apb2` step calls the runner's gate form,
 `PLAY100_APB2_SOURCE_COMMIT` and `PLAY100_APB2_SOURCE_TREE` set to the full
 candidate identities. It also passes the operator's `PLAY100_APB2_PROTOCOL`,
 `PLAY100_APB2_QUIET_ATTESTED=1` and `PLAY100_APB2_BROWSER_VERSION` through, which
-the configured profile would otherwise strip. The gate form checks both
+the configured profile would otherwise strip. Before its first step the full gate
+checks those three settings, as it checks `PLAY100_FLOOR_CHROMIUM`: an absolute
+protocol folder that verifies against the committed digests, the attestation and
+a four-part Chrome version. The gate form checks both
 identities against HEAD, verifies the pinned set, captures `fine1440cpu1` and then
 `coarse393cpu4` (with the fine runtime as its previous runtime) from the
 configured `dist`, and collects both. It then writes `NEW_DIRECTORY/receipt.json`
 conforming to `Apb2GateReceipt` in `scripts/release-gate.ts`: `schemaVersion: 1`,
 `source: { sha, tree }`, and `status: "passed"` only when both profiles are
-complete, their recomputed tables equal the pinned aggregation and every gated
-row passes; otherwise `failed`, with its reasons. The receipt binds each
+complete, their recomputed tables equal the pinned aggregation and all 29 gated
+rows of each pass; otherwise `failed`, with its reasons. The receipt binds each
 profile's stage receipt, `table.json`, record index and capture `run.json` by
 SHA-256, with the runner's file digests and the pinned set's verification; it
 never merely echoes the environment as proof. An operator who must admit the host

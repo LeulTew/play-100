@@ -6,6 +6,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  APB2_GATED_ROWS,
   APB2_PROFILE_IDS,
   APB2_PROTOCOL,
   verifyProtocol,
@@ -94,7 +95,7 @@ export function gateProfile(
     recomputed: collection?.equal === true,
     gated,
     passed,
-    allGatedPass: complete && collection?.allGatedPass === true && gated > 0 && passed === gated,
+    allGatedPass: complete && collection?.allGatedPass === true && gated === APB2_GATED_ROWS && passed === gated,
     files,
   };
 }
@@ -125,6 +126,8 @@ export function gateReceipt(input: {
     if (!row) block(`${id}: not run.`);
     else if (!row.complete) block(`${id}: incomplete (${row.result ?? 'no stage receipt'}).`);
     else if (!row.recomputed) block(`${id}: the recomputed table differs from the pinned aggregation.`);
+    else if (row.gated !== APB2_GATED_ROWS)
+      block(`${id}: ${row.gated} gated rows, not the contract's ${APB2_GATED_ROWS}.`);
     else if (!row.allGatedPass)
       reasons.push(`${id}: ${row.gated - row.passed} of ${row.gated} gated rows did not pass.`);
     if (row && Object.values(row.files).some((file) => file === null)) block(`${id}: a bound file is missing.`);
