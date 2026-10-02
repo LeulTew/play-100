@@ -1,7 +1,5 @@
 import { nvdaTest as test } from '@guidepup/playwright';
 import type { NVDAPlaywright } from '@guidepup/playwright';
-import { WindowsKeyCodes } from '@guidepup/guidepup';
-import type { WindowsKeyCodeCommand } from '@guidepup/guidepup';
 import type { Page } from '@playwright/test';
 import { SpeechJournal } from '../src/speech.ts';
 import { journeyBrowseMode, journeyCompare, journeyDialog, journeyDiscover, journeySettings } from './journeys.ts';
@@ -9,12 +7,6 @@ import type { JourneyContext, NvdaCommand } from './journeys.ts';
 import { FULL, delay, runJourney, writeVersions } from './support.ts';
 
 const READER = 'nvda';
-
-// NVDA+8 has no named Guidepup command. It toggles whether the virtual cursor moves system focus.
-const toggleAutoFocusFocusableElements: WindowsKeyCodeCommand = {
-  keyCode: [WindowsKeyCodes.Insert, WindowsKeyCodes.Digit8],
-  representation: 'NVDA-8',
-};
 
 // The same cleaning Guidepup applies to window titles before comparing them.
 const clean = (text: string) =>
@@ -61,10 +53,7 @@ function context(nvda: NVDAPlaywright, page: Page, journal: SpeechJournal): Jour
       );
     },
     command: async (name: NvdaCommand, options = FULL) => {
-      await nvda.perform(
-        name === 'toggleAutoFocusFocusableElements' ? toggleAutoFocusFocusableElements : nvda.keyboardCommands[name],
-        options,
-      );
+      await nvda.perform(nvda.keyboardCommands[name], options);
     },
   };
 }
