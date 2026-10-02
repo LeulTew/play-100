@@ -55,9 +55,10 @@
   transition: transform 350ms var(--ease-out);
 }
 /* A constrained device (useCapabilities) draws covers without the blurred shadow each card would raster as it scrolls
-   in. */
+   in, and upright, so each scroll step does not resample a tilted image. */
 html[data-constrained] .game-cover img {
   box-shadow: none;
+  transform: translate(-50%, -50%);
 }
 @media (hover: hover) and (pointer: fine) {
   html[data-motion='on'] .game-link:hover .game-cover img {
