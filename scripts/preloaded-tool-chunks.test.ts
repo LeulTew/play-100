@@ -9,19 +9,22 @@ import { PWA_ROOTS } from './pwa-build.ts';
 const root = fileURLToPath(new URL('../', import.meta.url));
 
 describe('preloaded tool chunks', () => {
-  it('names modules that exist and that the offline core precaches, each in its own chunk', () => {
+  it('names modules that exist and that the offline core precaches, the comparison tools in one chunk', () => {
     for (const file of Object.keys(PRELOADED_TOOL_CHUNKS)) {
       expect(existsSync(path.join(root, file)), file).toBe(true);
       expect(PWA_ROOTS).toContain(file);
     }
-    const names = Object.values(PRELOADED_TOOL_CHUNKS);
-    expect(new Set(names).size).toBe(names.length);
+    expect(PRELOADED_TOOL_CHUNKS).toEqual({
+      'src/lib/comparison-game-filter.ts': 'comparison-tools',
+      'src/lib/friend-comparison-intent.ts': 'comparison-tools',
+      'src/lib/google-intent.ts': 'google-intent',
+    });
   });
 
   it('places only the listed modules, matched by their whole path with either separator', () => {
     expect(preloadedToolChunkName(`${root}src/lib/google-intent.ts`)).toBe('google-intent');
-    expect(preloadedToolChunkName('C:\\repo\\src\\lib\\comparison-game-filter.ts')).toBe('comparison-game-filter');
-    expect(preloadedToolChunkName('/repo/src/lib/friend-comparison-intent.ts')).toBe('friend-comparison-intent');
+    expect(preloadedToolChunkName('C:\\repo\\src\\lib\\comparison-game-filter.ts')).toBe('comparison-tools');
+    expect(preloadedToolChunkName('/repo/src/lib/friend-comparison-intent.ts')).toBe('comparison-tools');
     expect(preloadedToolChunkName('/repo/src/lib/google-intent-key.ts')).toBeNull();
     expect(preloadedToolChunkName('/repo/src/lib/my-google-intent.ts')).toBeNull();
     expect(preloadedToolChunkName('/repo/src/lib/url.ts')).toBeNull();
@@ -42,5 +45,14 @@ describe('preloaded tool chunks', () => {
     expect(() => manifestEntry(grouped, 'src/lib/google-intent.ts')).toThrow(
       'More than one Vite chunk is named google-intent.',
     );
+  });
+
+  it('resolves both comparison tools to the one chunk they share', () => {
+    const shared: Manifest = {
+      '_comparison-tools-AbCd1234.js': { file: 'assets/comparison-tools-AbCd1234.js', name: 'comparison-tools' },
+    };
+    expect(manifestEntry(shared, 'src/lib/comparison-game-filter.ts')?.key).toBe('_comparison-tools-AbCd1234.js');
+    expect(manifestEntry(shared, 'src/lib/friend-comparison-intent.ts')?.key).toBe('_comparison-tools-AbCd1234.js');
+    expect(manifestEntry(shared, 'src/lib/google-intent.ts')).toBeUndefined();
   });
 });

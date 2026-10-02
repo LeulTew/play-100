@@ -132,8 +132,8 @@ export default defineConfig(({ mode }) => {
                 includeDependenciesRecursively: true,
               },
               {
-                // One chunk per idle-preloaded tool the online bridge also loads, holding only that module, so the
-                // offline core can precache it (scripts/preloaded-tool-chunks.ts).
+                // Named chunks for the idle-preloaded tools the online bridge also loads, holding only those modules,
+                // so the offline core can precache them (scripts/preloaded-tool-chunks.ts).
                 name: preloadedToolChunkName,
                 debugName: 'preloaded-tools',
                 priority: 1,
