@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ARTIFACT_COLORS, FOLIO_DESIGNS, P100_GLYPHS, type FolioDesign, type MarkPoint } from './artifactDesign';
 import { FrameBudget, MIN_SCENE_DPR } from './frameBudget';
+import { sceneSpan } from './scene-timing';
 import { SCENE_DISPLAY, sceneFont, sceneFontSet, sceneFontsReady, whenSceneFontsReady } from './sceneFonts';
 
 export interface CollectionSceneOptions {
@@ -319,6 +320,7 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
   }
 
   try {
+    const contextDone = sceneSpan('context');
     context = canvas.getContext('webgl2', {
       alpha: true,
       antialias: true,
@@ -326,8 +328,11 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
       stencil: false,
       powerPreference: 'low-power',
     });
+    contextDone();
     if (!context) throw new Error('WebGL 2 is unavailable.');
+    const rendererDone = sceneSpan('renderer');
     const engine = new THREE.WebGLRenderer({ canvas, context, alpha: true, antialias: true });
+    rendererDone();
     renderer = engine;
     engine.setClearColor(0x000000, 0);
     engine.outputColorSpace = THREE.SRGBColorSpace;
@@ -563,7 +568,10 @@ export function createCollectionScene(host: HTMLDivElement, options: CollectionS
       pose();
       try {
         const start = performance.now();
+        // The first render compiles the scene's shaders and uploads its textures, waiting on the GPU for both.
+        const firstRenderDone = frameCount === 0 ? sceneSpan('first-render') : null;
         engine.render(scene, camera);
+        firstRenderDone?.();
         const renderMs = performance.now() - start;
         if (engine.getContext().isContextLost()) {
           fallback('Illustrated view · 3D interrupted');

@@ -225,7 +225,10 @@ export default function CollectionArtifact({
       setState({ ready: false, status: 'loading', reason: null });
       try {
         if (!createScene) {
+          // Plain marks here, as in scene-timing.ts, which ships with the scene rather than in every page's bundle.
+          performance.mark('p100:scene:module-start');
           const module = await sceneModule.load();
+          performance.mark('p100:scene:module-end');
           if (cancelled || failed) return;
           createScene = module.createCollectionScene;
           if (!isActive()) setState({ ready: false, status: 'waiting', reason: null });
