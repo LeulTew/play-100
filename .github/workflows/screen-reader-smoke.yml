@@ -77,11 +77,14 @@ jobs:
         if: inputs.sha != ''
         run: |
           New-Item -ItemType Directory -Force artifacts/nvda | Out-Null
-          Start-Process -FilePath (Get-Command node).Source `
-            -ArgumentList 'src/serve-build.ts', '../../candidate', '4173' `
-            -RedirectStandardOutput artifacts/nvda/serve.log -RedirectStandardError artifacts/nvda/serve-errors.log
+          # The runner ends processes a step starts; one created through WMI sits outside the step and keeps serving.
+          $node = (Get-Command node).Source
+          $here = (Get-Location).Path
+          $command = "cmd.exe /c `"`"$node`" src\serve-build.ts ..\..\candidate 4173 > artifacts\nvda\serve.log 2> artifacts\nvda\serve-errors.log`""
+          $created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $command; CurrentDirectory = $here }
+          if ($created.ReturnValue -ne 0) { throw "Could not start the build server: $($created.ReturnValue)" }
           foreach ($attempt in 1..60) {
-            try { Invoke-WebRequest "$env:TARGET_ORIGIN/" -UseBasicParsing | Out-Null; Get-Content artifacts/nvda/serve.log; exit 0 } catch { Start-Sleep 1 }
+            try { Invoke-WebRequest "$env:TARGET_ORIGIN/" -UseBasicParsing | Out-Null; Get-Content artifacts/nvda/serve.log -ErrorAction SilentlyContinue; exit 0 } catch { Start-Sleep 1 }
           }
           Get-Content artifacts/nvda/serve.log, artifacts/nvda/serve-errors.log -ErrorAction SilentlyContinue
           throw 'The build server did not answer within 60 seconds.'
