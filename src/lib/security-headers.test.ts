@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import configuration from '../../vercel.json';
 import { AUTH_HELPER_UPSTREAM } from '../../api/auth-helper';
+import { directiveSources } from '../../scripts/first-paint/csp';
 import { gatePlan } from '../../scripts/release-gate';
+import { MAIN_DOCUMENT_RULE, matchingRules, routePattern } from './vercel-routes';
 
 const HELPER_SCRIPTS = '/__/auth/(handler|iframe|experiments)\\.js';
 
-const main = configuration.headers.find(
-  (rule) => rule.source === '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
-)!;
+const main = configuration.headers.find((rule) => rule.source === MAIN_DOCUMENT_RULE)!;
 const headers = Object.fromEntries(main.headers.map((header) => [header.key, header.value]));
 
 describe('S3 header and supply-chain boundaries', () => {
@@ -17,7 +17,7 @@ describe('S3 header and supply-chain boundaries', () => {
     expect(covers).toHaveLength(1);
     expect(covers[0]!.headers).toEqual([policy]);
     for (const pathname of ['/covers/red-dead-redemption-2.webp', '/covers/mass-effect-2.webp']) {
-      const matching = configuration.headers.filter((rule) => new RegExp(`^${rule.source}$`).test(pathname));
+      const matching = matchingRules(configuration.headers, pathname);
       expect(matching.map((rule) => rule.source)).toEqual([main.source, '/covers/(.*)']);
       const combined = Object.fromEntries(
         matching.flatMap((rule) => rule.headers.map(({ key, value }) => [key, value])),
@@ -26,7 +26,7 @@ describe('S3 header and supply-chain boundaries', () => {
       expect(combined['Cache-Control']).not.toContain('immutable');
     }
     for (const pathname of ['/api/catalog', '/__/auth/handler', '/assets/index.js', '/images/discovery/a.webp']) {
-      expect(new RegExp(`^${covers[0]!.source}$`).test(pathname)).toBe(false);
+      expect(routePattern(covers[0]!.source).test(pathname)).toBe(false);
     }
   });
 
@@ -39,8 +39,23 @@ describe('S3 header and supply-chain boundaries', () => {
         .some((header) => header.key === 'Cross-Origin-Embedder-Policy'),
     ).toBe(false);
     expect(headers['Content-Security-Policy']).not.toContain('play100-online-48823b32.firebaseapp.com');
-    expect(headers['Content-Security-Policy']).toContain("frame-src 'self' https://accounts.google.com");
     expect(configuration.installCommand).toBe('npm ci');
+  });
+  it("allows gapi's script and telemetry host but frames only the app's own origin", () => {
+    // docs/security.md, CSP-GAPI-01: gapi.iframes sends a sampled no-cors gen_204 ping to apis.google.com, so connect-src
+    // keeps it. R24: the main document's only auth frame is its own /__/auth/iframe, and the trip to
+    // accounts.google.com is a top-level navigation, which frame-src does not govern.
+    const policy = headers['Content-Security-Policy']!;
+    expect(directiveSources(policy, 'script-src')).toContain('https://apis.google.com');
+    expect(directiveSources(policy, 'connect-src')).toEqual([
+      "'self'",
+      'https://identitytoolkit.googleapis.com',
+      'https://securetoken.googleapis.com',
+      'https://firestore.googleapis.com',
+      'https://apis.google.com',
+    ]);
+    expect(directiveSources(policy, 'frame-src')).toEqual(["'self'"]);
+    expect(policy).not.toContain('accounts.google.com');
   });
   it('pins two-year HSTS on the app and auth helper without claiming preload for a shared suffix', () => {
     const hsts = 'max-age=63072000; includeSubDomains';
@@ -90,8 +105,7 @@ describe('S3 header and supply-chain boundaries', () => {
     // Vercel matches header `source` against the incoming pathname. None of these sources use path-to-regexp
     // named parameters, so each reads as the same anchored JavaScript regular expression.
     expect(configuration.headers.every((rule) => !/\/:[A-Za-z]/.test(rule.source))).toBe(true);
-    const matching = (path: string) =>
-      configuration.headers.filter((rule) => new RegExp(`^${rule.source}$`).test(path)).map((rule) => rule.source);
+    const matching = (path: string) => matchingRules(configuration.headers, path).map((rule) => rule.source);
     for (const document of ['/__/auth/handler', '/__/auth/iframe']) expect(matching(document)).toEqual([]);
     for (const script of ['/__/auth/handler.js', '/__/auth/iframe.js', '/__/auth/experiments.js'])
       expect(matching(script)).toEqual([HELPER_SCRIPTS]);
@@ -110,7 +124,7 @@ describe('S3 header and supply-chain boundaries', () => {
       '/__/auth/experiments',
       '/__/auth/Handler',
     ]) {
-      const matching = configuration.headers.filter((rule) => new RegExp(`^${rule.source}$`).test(pathname));
+      const matching = matchingRules(configuration.headers, pathname);
       expect(matching.map((rule) => rule.source)).toEqual([main.source]);
       expect(
         Object.fromEntries(matching.flatMap((rule) => rule.headers.map(({ key, value }) => [key, value]))),

@@ -14,6 +14,7 @@ import {
   sha256Source,
   withInlineHashes,
 } from './csp.ts';
+import { MAIN_DOCUMENT_RULE } from '../../src/lib/vercel-routes.ts';
 import { minifyBootScript } from './plugin.ts';
 import vercel from '../../vercel.json';
 
@@ -98,7 +99,7 @@ describe('main-document policy', () => {
       mainDocumentPolicy({
         headers: [
           {
-            source: '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
+            source: MAIN_DOCUMENT_RULE,
             headers: [{ key: 'X-Frame-Options', value: 'DENY' }],
           },
         ],
@@ -277,7 +278,7 @@ describe('check:csp', () => {
   const configured = (value: string) => ({
     headers: [
       {
-        source: '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
+        source: MAIN_DOCUMENT_RULE,
         headers: Object.entries({
           ...expectedDocumentHeaders(vercel),
           'content-security-policy': value,

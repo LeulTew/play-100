@@ -5,14 +5,16 @@ param(
 $ErrorActionPreference = 'Stop'
 if ($Action -eq 'guard') {
   $memory = (Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory * 1024
-  $lockPath = "$env:USERPROFILE\.copilot\mizan-host.lock"
-  $present = Test-Path $lockPath
+  $lockPath = $env:PLAY100_HOST_LOCK
+  $present = [bool]$lockPath -and (Test-Path -LiteralPath $lockPath)
   $owned = $false
   if ($present -and $env:PLAY100_HOST_LOCK_TOKEN) {
     $lock = Get-Content -LiteralPath $lockPath -Raw | ConvertFrom-Json
-    $owned = $lock.token -ceq $env:PLAY100_HOST_LOCK_TOKEN -and
-      $lock.holder -eq 'play-100 readiness lane (57722abf)' -and
-      [DateTimeOffset]::Parse($lock.expectedRelease) -gt [DateTimeOffset]::Now
+    $expires = [DateTimeOffset]::MinValue
+    $owned = $lock.token -is [string] -and
+      $lock.token -ceq $env:PLAY100_HOST_LOCK_TOKEN -and
+      [DateTimeOffset]::TryParse($lock.expectedRelease, [ref]$expires) -and
+      $expires -gt [DateTimeOffset]::Now
   }
   @{
     lockPresent = $present

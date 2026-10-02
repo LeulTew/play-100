@@ -52,12 +52,16 @@ risk for each waiver; an earlier client-first exception is not standing approval
 | WAF `api-per-ip` | Review seven days of Log hits; switch Log to 429 **no earlier than 2026-10-02**. Record review, decision and switch time. Log mode records matches and blocks nothing, so the rule is not an active control before that switch. Do not invent a completed switch or modify the log-only OWASP rules. |
 | Device and assistive technology | Physical low-end/mobile and iOS Safari, keyboard and screen-reader journeys, OS installation/launch/uninstall, real multi-window/two-version updates. Record devices and results or explicit waivers. Chromium emulation is not physical-device evidence. |
 
+See [iPhone Safari smoke](ios-safari.md) for the Mobile Safari simulator workflow,
+its retained results and the remaining physical-device boundary.
+
 For consented Windows OS evidence, run
 `npm run release:pwa-os -- --url https://play-100-collection.vercel.app`
 and retain its redacted receipt and SHA-256. See
 [Windows OS installation companion](pwa.md#windows-os-installation-companion)
 for the actual CDP installation/shortcut/removal checks and offline-emulation
-boundary. The command requires no Mizan lock and at least 6 GiB free RAM;
+boundary. The command honors the optional `PLAY100_HOST_LOCK` file and requires
+at least 6 GiB free RAM by default;
 each foreground PWA or screen-reader burst must remain under fifteen minutes.
 Do not replace screen-reader evidence with an accessibility-tree snapshot:
 record NVDA/Narrator version, Windows/Chrome versions, exact speech output,
@@ -163,7 +167,7 @@ redacted JSON report and command log, not only a summary of its result.
 
 ## 2. Candidate-bound local gate
 
-The committed runner is the default entry point. It follows the integrator's
+The committed runner is the default entry point. It follows the release operator's
 ordered local partitions, pins **Node 24.21.0**, refuses occupied suite ports
 (including IPv6), and stops on the first failure without retries or cleanup of
 evidence. The old, disabled hosted workflow was removed rather than kept as a
@@ -175,7 +179,7 @@ never installs dependencies or creates worktrees. Both checkouts must have no
 `.env` files; load only the reviewed public Production configuration into the
 calling environment. Java 21 and the installed browsers must already be available.
 Use the pinned runtime's bundled npm. Do not invoke this full gate during another
-lane's bounded-check or quiet window.
+job's bounded-check or quiet window.
 
 Download the matching Gitleaks 8.30.1 release archive separately from
 `https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1` and set
@@ -451,6 +455,8 @@ populations retain P0–P3 read-only observations and require complete matching
 eight-run cohorts before reporting a delta. These rules and the local v3 fixture
 amendment must survive any future committed port.
 
+### Gate evidence and diagnostic commands
+
 Every command log starts with the full candidate commit and tree; emulator
 debug logs receive the same header when that partition stops, even on failure.
 Native JSON reports remain unmodified. `history-secret-scan-tool.json` retains
@@ -569,6 +575,28 @@ Each config starts its own strict server on 4187. Stop any other server first;
 never adopt a stale server. Preserve `dist` and its environment after this build.
 Any offline-build expansion must use a separate build/evidence directory and
 manifest; never describe it as this configured candidate.
+
+**Browser-floor smoke.** The partitions above run current Chromium only. The
+floor smoke (`tests/floor-smoke.spec.ts`, `playwright.floor.config.ts`) runs the
+flows an older engine breaks first on Firefox, WebKit and, when
+`PLAY100_FLOOR_CHROMIUM` names its `chrome.exe`, an old Chromium near the
+README floor (Chrome 94). Each test also removes `URLSearchParams.prototype.size`.
+It covers a game detail opened through its link (`?game=`), Discover filters and
+paging keeping the query, the My games tabs, the outdated-browser boot notice and,
+on a configured build, the Google sign-in return path. It is never part of
+`test:e2e`. Install the two engines once, then run it against this same build
+(`PLAY100_TEST_BUILD` unset or `production`):
+
+```powershell
+npx --no-install playwright install firefox webkit
+$env:PLAY100_FLOOR_CHROMIUM = '<path to an old Chromium chrome.exe>'  # optional
+$env:PLAYWRIGHT_JSON_OUTPUT_NAME = "$evidence\e2e-floor.json"
+npm run test:floor -- --reporter=list,json
+if ($LASTEXITCODE -ne 0) { throw 'Floor smoke failed' }
+Remove-Item Env:PLAYWRIGHT_JSON_OUTPUT_NAME, Env:PLAY100_FLOOR_CHROMIUM -ErrorAction SilentlyContinue
+```
+
+Without `PLAY100_FLOOR_CHROMIUM` only `floor-firefox` and `floor-webkit` run.
 
 For cloud-UI use three terminals in this **same checkout**. Terminal A:
 
@@ -847,7 +875,13 @@ The verifier uses Node fetch, manual redirects, 60-second request deadlines
 and an 8 MiB response cap. It does not execute JavaScript or certify UI/Auth.
 It ports the Release 2 HTTP checks, consolidating repeated requests/checks,
 and adds the current headers, removed Google asset, PWA version and shell
-guards. It is not itself the historical “42/42”: deployment/alias identity
+guards. Since R24 it also covers the auth area as Vercel itself serves it:
+each helper document reports CSP violations to `/api/csp-report`,
+`/__/auth/unknown` answers 404 with the full main document headers, and
+`/__/auth/handler.js` answers 200 JavaScript with its own rule's headers and
+none of the main document's. It also fails a main CSP that lists
+`https://accounts.google.com` in frame-src. It is not itself the historical
+“42/42”: deployment/alias identity
 checks remain these operator readbacks. An omitted `--expect-index` is recorded
 as `compared: false`, not evidence of build identity. No raw bodies, cookies,
 nonce values or bypass credentials enter the receipt. A new `--json` path is
@@ -1028,10 +1062,16 @@ three checks only; the manual checks below still apply.
 4. In Logs, inspect `/api/csp-report` and `/api/client-error-report` for function
    failures and changes in `csp-count` / `client-error-count`. Compare fixed
    categories and the client build fingerprint with the current entry asset,
-   not visitor identities. A rejected body or 429 can be abuse or admission
+   not visitor identities. Since R24, `csp-count` rows for the
+   `/__/auth/handler` and `/__/auth/iframe` routes come from the sign-in helper
+   documents. A rejected body or 429 can be abuse or admission
    pressure; counts are untrusted hints, and absent reports do not prove health.
    Browsers can suppress beacons, and offline or unrecovered startup failures
-   may never report.
+   may never report. Google sign-in should add no `csp-count`: since R24 the
+   main policy frames only its own origin, so a `frame-src` count for
+   `https://accounts.google.com`, or any count for `https://apis.google.com`,
+   means the policy blocked something sign-in needs (see
+   [security](security.md#headers-auth-proxy-and-supply-chain)).
 
 Record UTC, deployment/build identity, last observed probe status, affected
 categories and the investigation/rollback decision in the release evidence;

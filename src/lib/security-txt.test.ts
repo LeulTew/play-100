@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import configuration from '../../vercel.json';
 import { isPublicPwaFile } from '../pwa/worker';
+import { MAIN_DOCUMENT_RULE, routePattern } from './vercel-routes';
 
 const source = readFileSync(new URL('../../public/.well-known/security.txt', import.meta.url), 'utf8');
 const fields = source
@@ -35,9 +36,7 @@ describe('RFC 9116 security.txt', () => {
   });
   it('stays outside the offline precache and under the main security-header rule', () => {
     expect(isPublicPwaFile('/.well-known/security.txt')).toBe(false);
-    const main = configuration.headers.find(
-      (rule) => rule.source === '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
-    )!;
-    expect(new RegExp(`^${main.source}$`).test('/.well-known/security.txt')).toBe(true);
+    const main = configuration.headers.find((rule) => rule.source === MAIN_DOCUMENT_RULE)!;
+    expect(routePattern(main.source).test('/.well-known/security.txt')).toBe(true);
   });
 });

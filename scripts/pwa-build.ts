@@ -14,6 +14,7 @@ import {
   validatePwaManifest,
 } from '../src/pwa/worker.ts';
 import type { PwaAsset, PwaBuildManifest, PwaDocumentPolicy } from '../src/pwa/types.ts';
+import { isMainDocumentRule } from '../src/lib/vercel-routes.ts';
 
 export const PWA_ROOTS = [
   'index.html',
@@ -91,13 +92,7 @@ export function pwaDocumentPolicy(configuration: unknown): PwaDocumentPolicy {
     throw new Error('The deployment security-header configuration is missing.');
   }
   const rules: unknown[] = configuration.headers;
-  const matches = rules.filter(
-    (rule) =>
-      rule &&
-      typeof rule === 'object' &&
-      'source' in rule &&
-      rule.source === '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
-  );
+  const matches = rules.filter(isMainDocumentRule);
   const rule: unknown = matches[0];
   if (
     matches.length !== 1 ||

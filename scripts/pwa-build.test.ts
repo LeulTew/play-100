@@ -22,6 +22,7 @@ interface WebAppManifest {
 }
 import { myGamesTab } from '../src/lib/my-games-navigation';
 import { pageFromPath } from '../src/lib/url';
+import { MAIN_DOCUMENT_RULE } from '../src/lib/vercel-routes';
 
 function manifest(): Manifest {
   const output: Manifest = {
@@ -100,7 +101,7 @@ describe('generated public PWA build closure', () => {
           headers: [{ key: 'Content-Security-Policy', value: "script-src 'nonce-template'" }],
         },
         {
-          source: '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
+          source: MAIN_DOCUMENT_RULE,
           headers: [
             { key: 'Content-Security-Policy', value: "default-src 'self'; style-src 'self' 'unsafe-inline'" },
             { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
@@ -124,7 +125,7 @@ describe('generated public PWA build closure', () => {
     const config = (value: string) => ({
       headers: [
         {
-          source: '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
+          source: MAIN_DOCUMENT_RULE,
           headers: [{ key: 'Content-Security-Policy', value }],
         },
       ],

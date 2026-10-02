@@ -303,15 +303,15 @@ branch at maximum IDs/titles/URL bounds, real public-100 plus 100 additions,
 bounded queries/cleanup, legacy deletion/re-enable, current-generation revocation,
 ACK/readback, lifecycle and listener cases.
 
-**Measured SDK result, 2026-09-17:** the sole integrator ran
+**Measured SDK result, 2026-09-17:** the sole release operator ran
 `vitest run --config vitest.cloud.config.ts tests-cloud/friend-shelf.test.ts`
 against its fresh, owned local Auth/Firestore emulator group. **28/28 cases
 passed in 27.67 seconds**, including all five maximum-200 source branches,
 100-chunk reads, atomic Stop pulses, pair revocation, old-client copy deletion
-and re-enable consent, ACK recovery and bounded cleanup. Tested backend commit:
-`f98677e2b5b608fa6ba89f6363343b24ca5cc9e2`. Exact `firestore.rules` SHA-256:
+and re-enable consent, ACK recovery and bounded cleanup. Tested backend revision:
+the active-shelf consent-revocation repair. Exact `firestore.rules` SHA-256:
 `CEF64B284486093420D9DEDD86327109DF17A8A0A556245056AD747B9302C65E`.
-The worker read the integrator's `overnight-shelf-sdk-final.log` and independently
+An independent check read the release operator's `overnight-shelf-sdk-final.log` and
 matched this hash. This demonstrates the tested read/access and expression
 budgets with the actual SDK, not source inspection or mocked authorization.
 
@@ -319,7 +319,7 @@ The earlier dependency-only head-listener test exposed a provider timing
 assumption; it was replaced with actual pair-target revocation plus fresh-read
 denial, and a separate target-pulse Stop test. A timed-out prior listener also
 caused emulator `clearFirestore` infrastructure failure before any test case;
-the integrator restarted only its owned group rather than changing policy to
+the release operator restarted only its owned group rather than changing policy to
 mask that failure. The final receipt above is from the fresh successful run.
 
 Main must additionally execute the real atomic IDB adapter cases (rollback,

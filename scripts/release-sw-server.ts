@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { requireObject, requireText } from '../src/lib/guards';
+import { routePattern } from '../src/lib/vercel-routes';
 import type { SwBuild } from './release-sw-inputs';
 
 const HTML_TYPE = 'text/html; charset=utf-8';
@@ -80,7 +81,7 @@ export async function startSwServer(build: SwBuild, port: number) {
         if (!Array.isArray(rules)) throw new Error('Missing deployment header rules.');
         for (const value of rules) {
           const rule = requireObject(value);
-          if (!new RegExp(`^${requireText(rule.source)}$`).test(pathname)) continue;
+          if (!routePattern(requireText(rule.source)).test(pathname)) continue;
           if (!Array.isArray(rule.headers)) throw new Error('Invalid deployment header rule.');
           for (const value of rule.headers) {
             const header = requireObject(value);

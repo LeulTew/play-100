@@ -3,7 +3,12 @@
 ## Anonymous operational signals
 
 The main document policy reports to the first-party `/api/csp-report` endpoint
-using `Reporting-Endpoints`/`report-to`, with `report-uri` as a fallback.
+using `Reporting-Endpoints`/`report-to`, with `report-uri` as a fallback. Since
+R24 the sign-in helper documents (`/__/auth/handler`, `/__/auth/iframe`) report
+there the same way, from their own policy. Their URLs carry the sign-in query:
+the public API key, the return URL and, on the way back from the provider, its
+one-time state and code. The endpoint keeps only their route template, as it
+does for every other document.
 Only POSTs with CSP report media types
 are accepted, with a 16 KiB body cap, a three-second read deadline, at most 16
 reports per batch and per-instance admission (4 active / 30 per minute). The
@@ -56,7 +61,7 @@ Endpoint code and the cron definition are
 pending the ordinary release/deployment gate; their presence is not evidence
 that production reporting or a scheduled run has occurred.
 
-These rules and client changes are a prototype pending the integrator's actual
+These rules and client changes are a prototype pending the release operator's actual
 emulator, type, browser and rollout checks. Source assertions are not proof of
 production protection or a numerical security score.
 
@@ -77,7 +82,7 @@ Existing report access still checks its stored reporter field, not an inferred
 suffix. Global UID validators and hyphenated demo identities are unchanged.
 Introducing custom UIDs requires revisiting the report ID format first.
 
-The parent reviewed the supported sign-in source paths: Firebase assigns IDs for
+The release operator reviewed the supported sign-in source paths: Firebase assigns IDs for
 email/password and Google redirect, and the app has no custom-token, user-import,
 Admin or anonymous-sign-in path. Custom/imported/Admin-created users would be
 operator-only additions, not a supported app flow today. No existing-user export
@@ -171,7 +176,7 @@ passed in `npm run test:cloud` at Release 1 (`2f727389`); receipts are in the
 
 ## Dated H14 black-box evidence and accepted risks
 
-The parent performed read-only public-API probes on **2026-09-23**, using the
+The release operator performed read-only public-API probes on **2026-09-23**, using the
 public web key from live 270f (redacted in the receipt). The console canvas was
 signed out; no credentials were entered and no writes were made. This is
 **black-box readback, not console readback**. Operator-held receipt:
@@ -249,6 +254,45 @@ that prerequisite and enabling protection remain owner decisions. Existing
 enumeration protection, password policy and rules controls do not remove the
 accepted abuse risk.
 
+**Review decision, 2026-10-02 (the review due above).** App Check stays off
+and reCAPTCHA Auth protection stays not set up: the accepted risk above is
+renewed, still owned by the project owner. The WAF switch is tracked
+separately, in the runbook. Readback, about 00:43Z (operator-held receipt
+`firebase-config-readback-20261002.txt`, secrets redacted, SHA-256
+`0d5b16534dee4620b7f3279181f28de97383834e3d13ed56a40380b991c8b576`):
+- App Check is not enabled: the Firebase App Check API has no enabled
+  service in the project. No production client can send a token either: the
+  build refuses `VITE_APP_CHECK_ENABLED` while the main CSP lacks App Check's
+  sources, which it does.
+- The project is on Spark, so abuse can exhaust the free quotas, a denial of
+  service, but cannot run up a bill.
+- The browser key allows only Cloud Firestore, Identity Toolkit and Token
+  Service, and only from the production and `firebaseapp.com` referrers. It is
+  unchanged since the 2026-10-01 owner decision. Email enumeration protection
+  is on.
+
+Rationale: the rules admit writes only from signed-in accounts, almost all only
+from verified ones, to their own documents or through per-account quotas. So
+automated abuse needs many accounts and gains only what each account may do
+anyway; what it can still cause is the quota denial of service above.
+Enforcing App Check would refuse every request without a token, which today is
+every client, including installed and cached older versions, until each
+updates. The runbook's monitor-first path, a token-sending client observed for
+at least seven days before enforcement, therefore comes first. reCAPTCHA v3
+would also add Google scripts and cookies, widen the CSP that R24 just
+narrowed, and need a Data Use change. Email/password Auth protection needs the
+Identity Platform upgrade as well.
+
+Revisit when any of these happens:
+- an abuse signal: unexplained growth in sign-ups, sign-ins, reads or writes, a
+  Spark quota warning or exhaustion, or rule denials at unusual volume;
+- the project moves to Blaze, where quota abuse becomes cost;
+- a new Firebase product or API is added to the browser key, or a new write
+  path opens to accounts;
+- the owner adopts the Identity Platform upgrade.
+
+Otherwise review again by 2027-01-02.
+
 **Sign-up enumeration (accepted risk, R9).** Creating an account with an email
 that is already registered fails with `auth/email-already-in-use`, which
 `src/cloud/errors.ts` maps to its own message and the online session's email
@@ -284,7 +328,7 @@ responses must be `application/json`. The Vercel WAF rule in the runbook is the
 intended global control, but it runs in Log mode, which records matches and
 blocks nothing, until its scheduled switch to 429; until then only these
 per-instance limiters bound requests. The rule and its deployment evidence
-remain with the parent/integrator.
+remain with the release operator.
 
 ### Preview referrers and production smoke
 
@@ -307,7 +351,7 @@ promotion and with operator approval. Local demo-emulator tests use synthetic
 configuration and remain the pre-promotion validation path.
 
 **Promotion-time option, not performed:** after verifying the proxied
-`/__/auth/*` sign-in, linking and reauthentication flows on production, the parent
+`/__/auth/*` sign-in, linking and reauthentication flows on production, the release operator
 may remove firebaseapp.com from the key's referrer allowlist if no legitimate
 request still requires that origin. Recheck those production flows and retain
 the prior allowlist for rollback. This option does not remove the proxy
@@ -349,8 +393,8 @@ UI suite; never point these actors at production.
 
 ## Storage caps and legacy compatibility
 
-**H5 remains a release gate until the integrator verifies the complete candidate
-and the parent reviews its receipts.** The original metadata-only deletion loop
+**H5 remains a release gate until the release operator verifies the complete candidate
+and the release operator reviews its receipts.** The original metadata-only deletion loop
 is retained in history as a reproduced counterexample, not an accepted risk.
 Candidate rules now keep the generation/slot until its payload has been released:
 
@@ -404,7 +448,7 @@ registry-only deletion.
 
 ### Conditional per-account storage ceiling
 
-The table below retains the accepted H5 index baseline from `67555a5`.
+The table below retains the accepted H5 index baseline recorded with the account-only deletion recovery action.
 STORAGE-02 is a separate candidate, described afterward; its configuration must
 not be treated as deployed merely because this branch contains it.
 
@@ -463,7 +507,7 @@ but that much looser bound is not a useful promise about Spark capacity.
 
 ### STORAGE-02 accounting (deployed 2026-10-01)
 
-**Deployed** 2026-10-01 between 20:53 and 20:55Z: the parent added the 13
+**Deployed** 2026-10-01 between 20:53 and 20:55Z: the release operator added the 13
 overrides below one by one with `gcloud firestore indexes fields update
 --disable-indexes`, changing no composite and no other override. All 18 field
 operations finished SUCCESSFUL by 21:03Z. Readback: the ten composites are
@@ -510,13 +554,13 @@ the same storage-size formulas give 31,360,000 bytes for All token/step indexes,
 manifest-map indexes: **35,396,779 bytes, about 33.76 MiB** in that example.
 These calculated example deltas are not the loose ceiling deltas, real-user
 averages, measured billing savings or evidence of production index state.
-Only the parent's before/after readback after READY/backfill may establish the
-deployed result. Follow the runbook; all runtime commands remain with I.
+Only the release operator's before/after readback after READY/backfill may establish the
+deployed result. Follow the runbook; all runtime commands remain with the release operator.
 
 `ranking-envelope.test.ts` emits exact serialized and base64 sizes for a
 deterministic 100-record fixture, a 1,000-record fixture and the maximum escaping
 fixture. These are synthetic examples, not observed user averages. Their current
-execution receipts must be recorded by I; the source lane does not invent
+execution receipts must be recorded by the release operator; source changes do not establish
 measured sizes.
 
 For the representative fixture's literal ASCII fields, source arithmetic predicts
@@ -862,13 +906,13 @@ Account like the localStorage case, and its Try again repeats the whole
 removal: the copy's database row and journals as well as its localStorage keys.
 The password entry accepts up to Firebase's 4096-character policy maximum.
 
-## Ordered parent-only rollout
+## Ordered operator-only rollout
 
 The only authoritative promotion sequence is the runbook's
 [Promotion order](security-release-runbook.md#promotion-order); this section
 keeps no second numbered list. Its constraints, in brief: preserve the published
 rules and verify the owner UID first; the compatible client ships before the
-candidate rules; only the parent publishes rules and records the full SHA;
+candidate rules; only the release operator publishes rules and records the full SHA;
 production smoke follows promotion; and rollback prefers roll-forward or a
 client-only rollback, with the retained `971b0fe6...` rules as a last resort
 that suspends H5 bounds. The table below explains why each change is client-first.
@@ -913,29 +957,52 @@ authDomain is the application origin. The now-redundant firebaseapp.com origin
 is removed from main connect-src/frame-src; upstream proxy destinations and the
 separate auth-helper policy are not changed by that removal.
 
-Main connect-src also lists `https://apis.google.com` (CSP-GAPI-01), the origin
-script-src already trusts for gapi. Firebase Auth loads `gapi.iframes` from it
-for its hidden auth iframe, and that module's gen204 logger sends a sampled
-(rate 0.001 to 0.01) `fetch(<api.js origin>/js/gen_204?c=50:1, no-cors)`
-whenever gapi's random helper mints an rpctoken for a child iframe. Blocking it
-only drops Google telemetry, but it logs a connect-src violation. The
-auth-helper policy is unchanged: the helper's handler.js and iframe.js bundle
-their own iframes code with no gen204 logger, and the ping only runs where the
-apis.google.com module opens a child iframe, which is the main document.
+Main connect-src also lists `https://apis.google.com` (CSP-GAPI-01, R5; kept
+in R24), the origin script-src already trusts for gapi's loader (`/js/api.js`)
+and its `gapi.iframes` module. Firebase Auth loads them when it reads a pending
+redirect result (`src/cloud/redirect-resolver.ts`). That module's gen204
+logger sends a telemetry ping each time gapi's random helper mints a value,
+such as the auth iframe's rpctoken, with about 1% sampling. R5's e2e logged
+it blocked on `/invite`. R24 confirmed it in Google's code, read on 2026-10-02:
+- the loader `https://apis.google.com/js/api.js` (captured 00:53:04Z, SHA-256
+  `570bc4816f5599d7f35f2149c2d06886cba61add8fb9fe3d99250cdec27a8e62`) sets
+  `gen204logger: { interval: 30000, rate: 0.01, batch: false }`;
+- its `gapi.iframes` module (captured 00:53:20Z, SHA-256
+  `f66c612bb75fca57bd236fc4805ac6f4068de431935941a526ea80dc78bb8dd9`) sends
+  `fetch(origin + "/js/gen_204?…", {method: "GET", mode: "no-cors"})` when
+  `Math.random()` falls below that rate.
+
+Blocking the ping would drop only Google's telemetry, but each blocked ping
+would log a connect-src violation in the console and as a `csp-count`, so the
+host stays as a documented need. The 2026-10-02 production smoke below saw no
+such fetch in two returns, as that rate predicts. The auth-helper policy is
+unchanged: the helper's handler.js and iframe.js bundle their own iframes code
+with no gen204 logger, and the ping only runs where the apis.google.com module
+opens a child iframe, which is the main document.
+
+**Frame host (R24).** Main frame-src is `'self'` only: R24 removed
+`https://accounts.google.com`, because the only auth frame the main document
+opens is the same-origin `/__/auth/iframe`. The evidence is the parent's real
+Google sign-in and reauthentication on production (Release 7, 2026-10-02 about
+00:50–00:55Z, receipt `google-signin-reauth-production-20261002.json`). After
+each return the main document framed only that document. The trip to
+`accounts.google.com` is a top-level navigation, which frame-src does not
+govern. The helper documents keep their own policy, which still allows framing
+and form posts to `accounts.google.com`. `release:verify` fails a deployment
+whose main CSP lists that host in frame-src again, even if `vercel.json` does,
+and the CSP report endpoint counts a blocked frame of that origin by name.
 
 **CSP least privilege (R9).** Main connect-src no longer lists
 `https://firebaseinstallations.googleapis.com`: `src` imports only
 `firebase/app`, `firebase/app-check`, `firebase/auth` and `firebase/firestore`,
 none of which calls Firebase Installations, and the optional App Check path
 needs only the sources in `APP_CHECK_CSP_SOURCES` (added when it is enabled).
-Two sources stay on purpose:
-- `frame-src https://accounts.google.com`: Google sign-in, linking and
-  reauthentication return through it, and that return flow cannot be verified
-  until a real production Google sign-in. Remove it only after that smoke shows
-  no frame of that origin.
-- The offline-variant style hash: one vercel.json policy serves both the online
-  and the offline build, and `check:csp` requires the other variant's inline
-  style hash, so dropping it would break an offline deployment.
+`frame-src https://accounts.google.com` stayed until a real production Google
+sign-in could show that no frame of that origin is used; R24 removed it
+(above). Besides CSP-GAPI-01's connect-src host, one source stays on purpose:
+the offline-variant style hash. One vercel.json policy serves both the online
+and the offline build, and `check:csp` requires the other variant's inline
+style hash, so dropping it would break an offline deployment.
 
 Trusted Types (`require-trusted-types-for 'script'`) was considered and
 rejected: the Firebase Auth helper path loads gapi by assigning a script `src`
@@ -945,7 +1012,7 @@ CORP `cross-origin` overrides apply only to `/social-card.png`,
 `/social-card.svg`, `/favicon.svg`, `/pwa/icon-192.png`, `/pwa/icon-512.png`,
 `/pwa/icon-maskable-192.png`, `/pwa/icon-maskable-512.png` and
 `/pwa/apple-touch-icon.png`. These are public social/launcher assets, not account
-or API resources. The integrator must verify actual header override behavior,
+or API resources. The release operator must verify actual header override behavior,
 scraper image access and redirect sign-in on the intended origin.
 
 **Client env exposure (R8-ENV-01).** Only the named public Firebase fields
@@ -966,7 +1033,15 @@ in `nonce="firebase-auth-helper"` with 16 random bytes (base64), and sends that
 nonce in its own CSP. All other bytes are unchanged. The policy is otherwise
 the previous helper policy, with
 `frame-ancestors 'self'`, X-Frame-Options SAMEORIGIN, private/CDN no-store,
-nosniff, `no-referrer`, HSTS and Permissions-Policy. It fails closed with a
+nosniff, `no-referrer`, HSTS and Permissions-Policy. Since R24 it also ends with
+`report-to csp; report-uri /api/csp-report`, and the response sends
+`Reporting-Endpoints: csp="/api/csp-report"`, the main rule's endpoint (before
+that, a violation in a sign-in document was invisible). Reports count under the
+`/__/auth/handler` and `/__/auth/iframe` routes. The plain-text answers
+(redirects, and the 404, 405, 429, 502 and 504 refusals) keep their own
+non-reporting policy. `style-src
+'unsafe-inline'` stays: the Firebase helper scripts insert style attributes and
+style elements at run time (G12-SEC2's capture). It fails closed with a
 static no-store 502 and a counts-only log unless all of these hold:
 - the literal count equals the attribute count, and is at least 1;
 - no other `nonce=` attribute exists;
@@ -990,7 +1065,7 @@ it repeats the failure's 502 or 504 until then, without asking upstream again.
 It also repeats an upstream redirect for those 15 s. Only a refresh takes an
 admission slot, so page loads, however many or from whom, never meet the limit.
 
-Evidence: the parent's read-only capture recorded the handler (462 B) and
+Evidence: the release operator's read-only capture recorded the handler (462 B) and
 iframe (364 B). Each was byte-identical across query strings, with one nonce
 attribute, one literal and one inline script, no style or `on*` handler, and
 upstream `Cache-Control: max-age=1800` with no CSP or Set-Cookie. Tests use
@@ -1024,6 +1099,23 @@ the same key. So no config rule matches the two helper documents:
 no-store rewrites; no configuration carries a static nonce any more. A direct
 `/api/auth-helper` request also receives the main rule. Whichever CSP wins there is
 either the fresh-nonce policy or the stricter main policy, which blocks the script.
+
+**On the deployment (R24).** Vercel compiles these sources with path-to-regexp,
+not a JavaScript `RegExp`, so neither those tests nor `check:csp` prove what
+production does. Plain `curl` GET and HEAD requests to production (Release 7,
+2026-10-02) did:
+- `/__/auth/unknown` answered 404 with the 404 page and the full main header
+  set, its CSP byte-identical to `/`'s.
+- `/__/auth/handler.js`, the external rewrite to Firebase Hosting, answered 200
+  `text/javascript` with its own rule's headers (nosniff, `no-referrer`,
+  SAMEORIGIN, `private, no-store, max-age=0`, `CDN-Cache-Control: no-store`,
+  Permissions-Policy, HSTS and its CSP) and none of the main rule's. Vercel does
+  apply header rules to that external rewrite, unlike the local production
+  emulation G12-SEC2 used. It does not send the two directives addressed to its
+  own CDN, `Vercel-CDN-Cache-Control` and `x-vercel-enable-rewrite-caching`.
+
+`release:verify` now checks both paths on every candidate and production
+deployment, against the rules in `vercel.json`.
 
 The application uses password reset/verification, not email-link sign-in:
 `sendSignInLinkToEmail` and `isSignInWithEmailLink` are absent, and the unused
@@ -1171,7 +1263,7 @@ in the bounded offline core, in the same retained change. These styles work unde
 the current policy and do not depend on removing `unsafe-inline`.
 
 Only the final main-style policy change and its specific test are droppable.
-I must retain that strict candidate only after an owned real browser records
+The release operator must retain that strict candidate only after an owned real browser records
 **zero CSP violations** with the intended headers present. If it fails, omit
 only that final candidate; keep security-header retention and fallback styling.
 The Google-template helper policy is not included in main-style tightening.
@@ -1216,6 +1308,6 @@ outside the gate ([release-operations.md](release-operations.md)).
 | H8 nonce and five helper routes | SEC-01 fresh per-response nonce via `api/auth-helper.ts`, GET/HEAD only; production auth smoke required |
 | H9 COOP/CORP and main auth-origin reduction | Redirect-only source compatible; verify final public headers and share-image override |
 | Main strict style candidate | Not approved by source alone; retain only with exact-header browser proof |
-| H10 instance limiter + WAF | Per-instance limits cannot stop distributed-instance abuse; the per-IP WAF rule runs in Log mode until its 429 switch, so parent/I enforcement evidence is required |
+| H10 instance limiter + WAF | Per-instance limits cannot stop distributed-instance abuse; the per-IP WAF rule runs in Log mode until its 429 switch, so operator enforcement evidence is required |
 | H12 npm ci/signatures | Local install/build gate only; no runtime account change |
 | H14 controls | Parent's dated black-box evidence above; App Check/reCAPTCHA accepted risks, not enforced. Authenticated console still required for UID setup and rules publication. |

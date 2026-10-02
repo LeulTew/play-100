@@ -58,17 +58,17 @@ rollback and readback, and the
   version `a3158d3e06e2728b1301b15724935b331f1c6815acbe578a4ef027b5588814db`.
 
 **Post-promotion production checks.** With the first verifier fix, the
-integrator's `npm run release:verify` (Node 24.21.0) passed 43 of 44 and the
-integrator's cross-check 49 of 50. Both missed only the source-map row:
+release operator's `npm run release:verify` (Node 24.21.0) passed 43 of 44 and the
+release operator's cross-check 49 of 50. Both missed only the source-map row:
 `/assets/index-CXM-K923.js.map` answered 403 instead of 404. The project has
 Vercel's protected source maps on (`protectedSourcemaps`), so every public
 `*.map` path answers the same 1-byte 403, even for files that don't exist,
 while other missing paths answer 404; the build contains no source maps. The
-coordinator checked production independently, ruled the 403 not an exposure and
+release operator checked production independently, ruled the 403 not an exposure and
 fixed the verifier forward in `d107420b`: the row now passes on a 404, or when
 the entry map and a random absent map return an identical 403 body of 64 bytes
 or less, and still fails on a 200, a large body or a 403 unlike the absent
-map's. From `d107420b`, the coordinator's production `release:verify` passed
+map's. From `d107420b`, the release operator's production `release:verify` passed
 44/44, with the map row measuring 403 for both. The verifiers agree on the
 index, the worker, the PWA assets and the version.
 
@@ -91,25 +91,25 @@ HTML: "Boot error initially hidden" and "Shell buttons disabled without inert".
 Its tokenizer read `d<n.length` in the minified inline boot script as a tag
 whose quoted "attributes" ran past the real `</script>`, so it skipped the rest
 of the page. A spec parser found one hidden boot notice and five disabled shell
-buttons, and the coordinator reproduced the fault independently (changing only
+buttons, and the release operator reproduced the fault independently (changing only
 `d<n.length` to `d< n.length` made both rows pass) and ruled the two rows false
 negatives. The fix `81575910` makes raw-text elements jump to their literal end
 tag and adds a regression test. With it, the candidate passed 44/44 (42/44
 before). The R22 recovery deployment passed 44/44 from R22's own checkout with
 exactly the fix's verifier patch applied, because the verifier reads the
 checkout's `vercel.json` and R22's header group and CSP hashes differ (42/44
-before); the coordinator accepted that deviation. The second fix, `d107420b`,
+before); the release operator accepted that deviation. The second fix, `d107420b`,
 is described under the production checks above.
 
 **Pre-promotion evidence: owner-authorized deviation.** The owner's release
 order of 2026-09-30 replaced the committed gate with this lean path.
-- The coordinator's pre-flight on the identical tree (Node 24.21.0): static
+- The release operator's pre-flight on the identical tree (Node 24.21.0): static
   checks pass; unit 3,323; browser 249 (one load-timing miss passed 3 of 3 on
   re-run); configured and offline builds with `check:csp` and budgets 14/14;
   production e2e 1,282 passed, 0 failed; development 189/0; offline 36/36;
   cloud-UI desktop 0 failures and mobile 124/0 (a first mobile run lost its dev
   server mid-run); emulator rules 10/10.
-- The integrator's configured build of `b08efa85`: build, `check:csp` and
+- The release operator's configured build of `b08efa85`: build, `check:csp` and
   `check:budgets` pass, and the Vercel build printed the same first-paint
   hashes.
 - Candidate verification: 44/44 with the fixed verifier, and the 50-row
@@ -123,7 +123,7 @@ order of 2026-09-30 replaced the committed gate with this lean path.
   transaction-lock contention in `friendships.spec.ts:49` (REL-08) plus
   `review-repairs.spec.ts:312` (REL-09). All three are registered in
   [intermittents](intermittents.md).
-- Harness faults in the integrator's own scripts: a cold WSL start timed out the
+- Harness faults in the release operator's own scripts: a cold WSL start timed out the
   first owner-API readback before the candidate deployment, a CSP lookup used
   Release 6's rule source, and a status comparison expected an untrimmed
   string. None changed a result or a deployment.
@@ -132,7 +132,7 @@ order of 2026-09-30 replaced the committed gate with this lean path.
 
 | Receipt | SHA-256 |
 | --- | --- |
-| Promotion receipt (binds every step's receipt and the coordinator's messages) | `7719a193aa04429fddbfdd46b4eeaf99e8232922c7cf92206eafa85fb9838e09` |
+| Promotion receipt (binds every step's receipt and the release operator's messages) | `7719a193aa04429fddbfdd46b4eeaf99e8232922c7cf92206eafa85fb9838e09` |
 | Push and PR | `4f91be24b6a5d6ef5280457bf8c9c4997b8166c7ba8dbba8047bcb436579c05a` |
 | Push of the second verifier fix | `a011a8fdc4649e9bf04ab069690afb47fbd4031e962abf27ff3ab78c7e50b921` |
 | Release deployment | `999ea930fd55251b59865f8e6a18d0912c14f4afe5c651e07b126acb8a42a1b2` |
@@ -143,7 +143,7 @@ order of 2026-09-30 replaced the committed gate with this lean path.
 | Verifier defect record | `a824540aeee3eed018fb5974d13fac71f37e036cd174210de67249832abf0804` |
 | Promotion, readback and settle | `2542be6fe63517f1faa1d572c8413aac6e071f9a336dc39665f6e86ba4e095bd` |
 | Production `release:verify` (first fix, 43/44) | `969845d7d16a0d76fafe3345dc2f46ca70fad23e85c1f67cf30040504f336049` |
-| Production `release:verify` (`d107420b`, 44/44, the coordinator's) | `806be219664e5746f04f4e1b6b9d43e331714a3fe7a7ed540ebe55f59d38afd6` |
+| Production `release:verify` (`d107420b`, 44/44, the release operator's) | `806be219664e5746f04f4e1b6b9d43e331714a3fe7a7ed540ebe55f59d38afd6` |
 | Production cross-check (49/50) | `96278b7925dfa879b2df21e10ed8a6efc7b48b1a19819533815ac95880024e19` |
 | Service-worker arm | `868618fca2df03b8bd69a170eae3fb85eeb1ffec791f7b5ea22c70126e630864` |
 | Service-worker probe | `b3ccba96a5ae39356d1913bc3efb727bb1efaf0d8abefc08c534ba4c2f740bde` |
@@ -221,7 +221,7 @@ actions on 2026-10-01:
     Chrome or Android System WebView.
 
 **Waivers.** As for Release 6: no iOS Safari, screen-reader or OS install and
-launch runs; the release coordinator waived them. The real-device evidence is
+launch runs; the release operator waived them. The real-device evidence is
 the Test Lab runs above, not a hands-on session. The real mobile Google smoke
 is still pending action 5.
 
@@ -291,7 +291,7 @@ the details.
   version `b3036a0bbcb6b183459e0517efbc481e2f745378c1b97acbb8f4a97b9e2f1cf4`.
 
 **Post-promotion production checks.** `npm run release:verify` passed 43/43
-on Node 24.21.0. The integrator's cross-check passed 50/50: the Release 5 set
+on Node 24.21.0. The release operator's cross-check passed 50/50: the Release 5 set
 plus the offline style hash, with every hash and `Permissions-Policy` checked
 against `vercel.json`. They agree on the index, the worker, the PWA assets and
 the version. No rollback rule triggered.
@@ -331,7 +331,7 @@ its carry-forward or waiver.
 - Offline characterization partition: `root-navigation-guards` 36/36 on an
   unconfigured build of the same commit, with its own manifest.
 - Candidate verification: 43/43 and 50/50.
-- Gitleaks 8.30.1 over `228493e8..129e73ee` (30 commits): the parent's receipt
+- Gitleaks 8.30.1 over `228493e8..129e73ee` (30 commits): the release operator's receipt
   records no leaks found; the scanner's redacted JSON report and log are kept
   with it.
 
@@ -351,7 +351,7 @@ fixed before promotion; the rest were test, host or harness issues.
   native-zoom test's context close, a cross-tab autosave race in
   `release-review.spec.ts`, a Google script load in the cloud-UI identity
   spec, and a budget-script unit test.
-- Harness defects in the integrator's own scripts: an extra dist-identity check
+- Harness defects in the release operator's own scripts: an extra dist-identity check
   assumed an offline header class, and the fresh-profile CSP probe read the
   wrong profile's counter. Neither changed a result.
 
@@ -382,7 +382,7 @@ commit-wide pass that doesn't decide the outcome; see the save-commit
 evaluation limit in [security](security.md).
 
 **Waivers.** As for Release 5: no physical-device, iOS Safari, screen-reader
-or OS install and launch runs; the release coordinator waived them. The real
+or OS install and launch runs; the release operator waived them. The real
 Google smoke is still pending action 5.
 
 **Known issues at release.**
@@ -450,7 +450,7 @@ the details.
   version `8ea0c046f28c917c575e78661327069da8b1b79deba6a4e3e681e32ebb556f7b`.
 
 **Post-promotion production checks.** `npm run release:verify` passed 43/43
-on Node 24.21.0. The integrator's cross-check passed 49/49: the Release 4 set
+on Node 24.21.0. The release operator's cross-check passed 49/49: the Release 4 set
 plus `Permissions-Policy` and the boot-script hash, both checked against
 `vercel.json`. They agree on the index, the worker, the PWA assets and the
 version. No rollback rule triggered.
@@ -486,7 +486,7 @@ its carry-forward.
   `mobile-nav-readability.spec.ts` 3/3 (plus its 3 skips by design),
   `played-ranking.spec.ts` 14/14, and the progress-sync cloud-UI test 2/2.
 - Candidate verification: 43/43 and 49/49.
-- Gitleaks 8.30.1 over `c877a04b..228493e8` (33 commits): the parent's receipt
+- Gitleaks 8.30.1 over `c877a04b..228493e8` (33 commits): the release operator's receipt
   records no leaks found. That receipt summarizes the result; it is not the
   scanner's raw report.
 
@@ -501,7 +501,7 @@ its carry-forward.
 - The cross-check still expected Release 4's 47 rows after two were added.
   The count was raised to 49 and the check re-run.
 - The push script ran under Windows PowerShell 5.1, which stopped on git's
-  `remote:` output after the branch push had succeeded. The integrator
+  `remote:` output after the branch push had succeeded. The release operator
   confirmed the push with `ls-remote` and continued steps 2–3 under
   PowerShell 7 without pushing again.
 
@@ -524,7 +524,7 @@ is now `firestore.rules` SHA-256
 rules, so publish them only while Release 5 or later is serving.
 
 **Waivers.** As for Release 4: no physical-device, iOS Safari, screen-reader
-or OS install and launch runs; the release coordinator waived them. The real
+or OS install and launch runs; the release operator waived them. The real
 Google smoke is still pending action 5.
 
 **Known issues at release.** None known.
@@ -581,7 +581,7 @@ has the details. This closes Release 3's four known issues.
   version `b972762946f9c768ec01bbd37c90ed5dd3ee622978adf937629b6bd728e077e6`.
 
 **Post-promotion production checks.** `npm run release:verify` passed 43/43,
-and the integrator's cross-check passed 47/47 (the Release 3 set). They agree
+and the release operator's cross-check passed 47/47 (the Release 3 set). They agree
 on the index, the worker, the PWA assets and the version. No rollback rule
 triggered.
 
@@ -620,7 +620,7 @@ its decision.
 - Candidate verification: 43/43 and 47/47. The first candidate,
   `dpl_FQWRzCpyXNm2rNfRQohV9gSSrv9o` (built from `720082df`), was superseded
   and never promoted.
-- Gitleaks 8.30.1 over `f8ba8549..c877a04b` (26 commits): the parent's receipt
+- Gitleaks 8.30.1 over `f8ba8549..c877a04b` (26 commits): the release operator's receipt
   records no leaks found. That receipt summarizes the result; it is not the
   scanner's raw report. An independent review of the runtime commits found no
   issues.
@@ -651,7 +651,7 @@ its decision.
 (pending action 3), and the client-first window continues.
 
 **Waivers.** As for Release 3: no physical-device, iOS Safari, screen-reader
-or OS install and launch runs; the release coordinator waived them. The real
+or OS install and launch runs; the release operator waived them. The real
 Google smoke is still pending action 5.
 
 **Known issues at release.** None known.
@@ -752,7 +752,7 @@ The probe used no account; its test game exists only in the probe's own
 browser profile.
 
 **Rollback drill: completed, with one readback miss.** Practised once after the
-probe. The release coordinator approved it in the Release 3 GO, acting under
+probe. The release operator approved it in the Release 3 GO, acting under
 the owner's standing delegation; the owner did not approve it individually.
 
 | UTC | Step | Result |
@@ -772,7 +772,7 @@ response 02:50:02.247Z, first Release 3 response 02:50:26.932Z; bounds 13.5 to
 still returned Release 2's index, 4.3 s after the poller first saw Release 3.
 The next request and every one since returned Release 3, including 30 of 30
 samples from 02:52:55Z to 02:54:25Z, with the alias on Release 3 before and
-after. The coordinator ruled it edge propagation, not a failed promotion.
+after. The release operator ruled it edge propagation, not a failed promotion.
 [Release operations §9](release-operations.md#9-rollback-readback-and-undo)
 now waits for consecutive matching responses before that readback.
 
@@ -788,7 +788,7 @@ carry-forward.
   intermittent). `friend-all-review` three times: 54/54.
 - Ranking with 2,000 games: opens in 82 ms with 25 rows mounted.
 - Candidate verification: 47/47. Gitleaks 8.30.1 over `80df63f9..f8ba8549`
-  (59 commits): the parent's receipt records no leaks found. That receipt
+  (59 commits): the release operator's receipt records no leaks found. That receipt
   summarizes the result; it is not the scanner's raw report.
 
 **Receipts,** kept outside the repository:
@@ -809,7 +809,7 @@ PR #6 records, the client works with the published rules. Pending action 3 now
 names these rules.
 
 **Waivers.** No physical-device, iOS Safari, screen-reader or OS install and
-launch runs were made for this release; the release coordinator waived them.
+launch runs were made for this release; the release operator waived them.
 The probe above ran in headless Chromium, which is not physical-device
 evidence. The real Google smoke is still pending action 5.
 
@@ -868,7 +868,7 @@ rules will be recorded with the release that ships them.
 **WAF (pending action 4, partly done).** Vercel Firewall rule
 `rule_api_per_ip_xpgBNf` ("api-per-ip") was created through the Vercel API on
 2026-09-25 (config updated 09:49:22Z) and has run in **Log** mode since then
-(parent ruling WAF-01). Its conditions are (path starts with `/api/` AND method
+(operator ruling WAF-01). Its conditions are (path starts with `/api/` AND method
 GET) OR (path starts with `/__/auth/` AND method GET or HEAD), fixed window
 60 s, 60 requests, key IP. Creating the project's first firewall config also
 enabled Vercel's default OWASP rule set (gen, rce, xss, sqli) in **log mode

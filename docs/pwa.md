@@ -12,6 +12,13 @@ standalone display mode supplies that indication.
 
 ## What offline access stores
 
+Offline preparation needs module service workers, including Firefox 147 or
+newer. Browsing still supports the README's lower browser floor. If registration
+ignores the `type: 'module'` option or rejects it as unsupported, preparation
+reports "Offline access needs a newer version of this browser." Network and
+storage failures retain their separate retry guidance. This does not unregister
+an existing worker or erase its cache, and does not change the emitted worker.
+
 User-facing instructions describe public files and storage limits, not workers
 or an app shell. They still exclude private/account data, online-only pages,
 sign-in details, live catalog results, films and workbooks from offline preparation.
@@ -310,7 +317,7 @@ permission denial, browser eviction or manually clearing site data.
 
 [`tests/storage-quota.spec.ts`](../tests/storage-quota.spec.ts) is the focused,
 Chromium-only production campaign on both configured desktop and mobile
-projects. It uses a fresh synthetic guest profile on the integrator-owned
+projects. It uses a fresh synthetic guest profile on the release operator-owned
 loopback preview, measures `navigator.storage.estimate()`, and applies actual
 CDP `Storage.overrideQuotaForOrigin` quotas. The three cases cover a large
 2,000-game backup import, an unsaved manual-game form, and preparation with
@@ -320,7 +327,7 @@ offline navigation after readiness. Exact quota/usage and cleanup receipts
 are attached; overrides are always lifted in `finally`. No user profile,
 deployed origin, real disk filler or private account is used.
 
-With the matching production build already prepared by the integrator:
+With the matching production build already prepared by the release operator:
 
 ```powershell
 $env:PLAY100_TEST_BUILD = 'production'
@@ -329,7 +336,7 @@ npm run test:e2e -- tests/storage-quota.spec.ts --project=desktop --project=mobi
 
 Keep the existing local-preview safety defaults and retain the result,
 attachments and trace with the release receipt. This authored campaign is
-**UNRUN until the parent/integrator records its execution**. It demonstrates
+**not yet run until the release operator records its execution**. It demonstrates
 Chromium quota refusal, not physical full-disk or Safari behavior. The
 [library storage contract](architecture.md#storage-failures) distinguishes
 persisted snapshots from unsaved tab-only drafts.
@@ -456,15 +463,19 @@ profile for recovery, rather than erasing evidence of an OS registration.
 The script prints a redacted JSON receipt path and SHA-256 outside the repo.
 Keep failures too. A script or passing pure unit test is not OS-run evidence.
 
-The companion refuses to start while `%USERPROFILE%\.copilot\mizan-host.lock`
-exists or free RAM is below 6 GiB, and rechecks before install and relaunch.
-Only with explicit coordinator approval for a single-browser burst, set
+Set `PLAY100_HOST_LOCK` to an optional operator-managed lock-file path on shared
+hosts; there is no default path. An existing lock blocks the companion unless
+the ownership check below succeeds. It also refuses free RAM below 6 GiB,
+and rechecks before install and relaunch.
+Only with explicit release-operator approval for a single-browser burst, set
 `PLAY100_OS_MIN_FREE_GIB=4`; the receipt records this threshold. The default
 remains six, and no other override is accepted.
-For a coordinator-reserved slot, acquire that file atomically with `CreateNew`;
-an unexpired lock owned by this lane is accepted only when its random `token`
+For a reserved slot, acquire the configured file atomically with `CreateNew`;
+an unexpired lock owned by this job is accepted only when its random `token`
 matches `PLAY100_HOST_LOCK_TOKEN` in the child environment. Never read another
 holder's token to bypass the lock, replace their file, or extend the agreed slot.
+The JSON lock must include that nonempty `token` and an `expectedRelease`
+timestamp; malformed files fail the check. Holder names are not an identity check.
 Its work deadline is twelve minutes, reserving time for uninstall within a
 fifteen-minute host burst. Do not run alongside another foreground device job.
 Missing experimental CDP methods are a blocker, not permission to substitute

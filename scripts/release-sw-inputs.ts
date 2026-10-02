@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { lstat, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { requireObject, requireText } from '../src/lib/guards';
+import { routePattern } from '../src/lib/vercel-routes';
 
 const sha = (bytes: string | Buffer) => createHash('sha256').update(bytes).digest('hex');
 const digest = (value: unknown) => {
@@ -124,7 +125,7 @@ export async function verifySwBuild(
   // The baseline can predate the exact auth-helper exclusion. Identify its main rule by its root match.
   const main = configuration.headers
     .map((value) => requireObject(value))
-    .filter((rule) => new RegExp(`^${requireText(rule.source)}$`).test('/'));
+    .filter((rule) => routePattern(requireText(rule.source)).test('/'));
   assert.equal(main.length, 1, 'Expected exactly one root-document header rule.');
   const [mainRule] = main;
   assert.ok(mainRule && Array.isArray(mainRule.headers), 'Missing root headers.');

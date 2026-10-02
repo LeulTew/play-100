@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   assertAppWindow,
   assertOsHost,
@@ -20,7 +24,7 @@ describe('Windows PWA evidence boundaries', () => {
     ])
       expect(() => parseOsArguments(args)).toThrow();
   });
-  it('requires the host lock absent and at least six GiB available', () => {
+  it('requires the host lock absent or owned and at least six GiB available', () => {
     const minimum = 6 * 1024 ** 3;
     expect(() => assertOsHost({ lockPresent: false, freeBytes: minimum })).not.toThrow();
     for (const freeBytes of [minimum - 1, 0, NaN, Infinity])
@@ -32,6 +36,44 @@ describe('Windows PWA evidence boundaries', () => {
     expect(() => assertOsHost({ lockPresent: false, freeBytes: 4 * 1024 ** 3 - 1 }, 4)).toThrow();
     expect(() => assertOsHost({ lockPresent: false, freeBytes: minimum }, 3)).toThrow();
   });
+  it.runIf(process.platform === 'win32')(
+    'checks only the configured host lock and validates token and expiry',
+    () => {
+      const directory = mkdtempSync(join(tmpdir(), 'play100-host-guard-'));
+      const path = join(directory, 'host.lock');
+      const run = (lockPath: string, token: string) => {
+        const result = spawnSync(
+          'powershell.exe',
+          ['-NoProfile', '-NonInteractive', '-File', 'scripts\\release-pwa-os-windows.ps1', '-Action', 'guard'],
+          {
+            encoding: 'utf8',
+            timeout: 10000,
+            windowsHide: true,
+            env: { ...process.env, PLAY100_HOST_LOCK: lockPath, PLAY100_HOST_LOCK_TOKEN: token },
+          },
+        );
+        expect(result.error).toBeUndefined();
+        expect(result.status, result.stderr).toBe(0);
+        return JSON.parse(result.stdout) as { lockPresent: boolean; lockOwned: boolean; lockExpiresAt: string | null };
+      };
+      try {
+        expect(run('', 'fixture')).toMatchObject({ lockPresent: false, lockOwned: false, lockExpiresAt: null });
+        expect(run(path, 'fixture')).toMatchObject({ lockPresent: false, lockOwned: false });
+        const future = new Date(Date.now() + 600000).toISOString();
+        writeFileSync(path, JSON.stringify({ token: 'fixture', expectedRelease: future, holder: 'another job name' }));
+        expect(run(path, 'fixture')).toMatchObject({ lockPresent: true, lockOwned: true, lockExpiresAt: future });
+        for (const token of ['', 'wrong', 'Fixture'])
+          expect(run(path, token)).toMatchObject({ lockPresent: true, lockOwned: false, lockExpiresAt: null });
+        for (const expectedRelease of ['2000-01-01T00:00:00Z', 'invalid', null]) {
+          writeFileSync(path, JSON.stringify({ token: 'fixture', expectedRelease }));
+          expect(run(path, 'fixture')).toMatchObject({ lockPresent: true, lockOwned: false, lockExpiresAt: null });
+        }
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    },
+    30000,
+  );
   it('derives a deterministic Chrome application identifier', () => {
     expect(chromeAppId('https://www.chromestatus.com/features')).toBe('fedbieoalmbobgfjapopkghdmhgncnaa');
     expect(chromeAppId('https://example.com/subapp')).toBe('ghmpeckcpimfdekfodogbnnpmkppngmo');

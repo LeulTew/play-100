@@ -31,7 +31,7 @@ export function assertOsHost(value: { lockPresent: boolean; lockOwned?: boolean;
     minimumGiB === 4 || minimumGiB === 6,
     'Only the default or explicitly approved four-GiB burst is supported.',
   );
-  assert.ok(!value.lockPresent || value.lockOwned === true, 'Host is reserved by Mizan.');
+  assert.ok(!value.lockPresent || value.lockOwned === true, 'Another job holds the host lock.');
   assert.ok(
     Number.isFinite(value.freeBytes) && value.freeBytes >= minimumGiB * 1024 ** 3,
     `At least ${minimumGiB} GiB free RAM is required.`,

@@ -14,6 +14,7 @@ import author from './author.json' with { type: 'json' };
 import deployment from './vercel.json' with { type: 'json' };
 import { appCheckCspProblems, readAppCheckConfiguration } from './src/lib/app-check-config.ts';
 import { readFirebaseConfiguration } from './src/lib/online-config.ts';
+import { MAIN_DOCUMENT_RULE } from './src/lib/vercel-routes.ts';
 
 const publicUrl =
   process.env.VITE_SITE_URL ||
@@ -37,9 +38,7 @@ export default defineConfig(({ mode }) => {
   if (appCheck.config) {
     const policy =
       deployment.headers
-        .find(
-          (rule) => rule.source === '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
-        )
+        .find((rule) => rule.source === MAIN_DOCUMENT_RULE)
         ?.headers.find((header) => header.key === 'Content-Security-Policy')?.value ?? '';
     const problems = appCheckCspProblems(policy);
     if (problems.length)

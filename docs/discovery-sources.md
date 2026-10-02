@@ -319,9 +319,9 @@ usable; it does not delay or gate detail interaction.
 
 ### Integration and focused proof
 
-D owns the API/helper/parser/session/child UI and Discover projection. I owns
-App/CatalogDetail activation, the existing `api/catalog.ts` transport extraction,
-package/runtime upgrade and central build/browser/release. The shared transport
+The API/helper/parser/session/child UI and Discover projection are separate
+from App/CatalogDetail activation, the existing `api/catalog.ts` transport extraction,
+package/runtime upgrade and combined build/browser/release validation. The shared transport
 retains S2's HTTP-error/oversize body cancellation and sanitized cleanup logging;
 its migration must pass the existing catalog API regressions.
 
@@ -392,7 +392,7 @@ referenced file, SHA-256, dimensions, byte counts and total directory budget.
 publishes nothing. The collector test suite also runs a fully offline dry
 provider fixture through collection, conversion and isolated publication.
 Commands print measured counts/checksums; capture stdout for a rerun report.
-The integrator owns optional package-script aliases. No cron, CI crawler,
+The release operator owns optional package-script aliases. No cron, CI crawler,
 background service, paid database or automatic scheduled refresh is introduced.
 
 ## Bounds, identity and repeatability
@@ -503,7 +503,7 @@ Missing-art breakdown: 417 FreeToGame records with unestablished thumbnail
 rights; 158 Wikidata records without a referenced reusable image/logo; and
 15 records excluded by the stricter license/creator/restriction/raster checks.
 No image was omitted due to the 240-file review cap in this run. The online
-provider search remains the integration lane's fallback for games outside this
+provider search remains the fallback for games outside this
 bounded snapshot.
 
 Validation: 61 focused pure/collector tests passed, including complete offline
@@ -518,7 +518,7 @@ and reproduced the report above.
 
 One earlier attempt was stopped by Wikidata `maxlag` before publishing any
 manifest; bounded maxlag backoff was then implemented and verified. No full app
-install, browser/emulator, CI or deployment was run by this lane. A small
+install, browser/emulator, CI or deployment was run for this change. A small
 isolated tool cache supplied tsx 4.21.0, sharp 0.34.5, TypeScript 5.9.3 and Vitest
 3.2.4 after local tools were absent; repository manifests/lockfiles were not
-changed. The integrator owns validation against the combined app toolchain.
+changed. The release operator owns validation against the combined app toolchain.

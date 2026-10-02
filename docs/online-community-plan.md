@@ -515,24 +515,24 @@ Measure actual guest, account and public-page payloads separately. Do not reuse
 an earlier Lighthouse score as evidence for the new release. Treat emulated
 device measurements as emulation, not a physical low-end-device guarantee.
 
-## 12. Gauntlet: executable release gates
+## 12. Executable release gates
 
-"Gauntlet" here means the following evidence-driven workflow, not an unavailable
+The release checks follow this evidence-driven workflow, not an unavailable
 tool mode. The user's production-review rules and current Web Interface
 Guidelines apply. Implementation is authorized; discovered defects must be fixed.
 
 | Gate | Required proof |
 | --- | --- |
-| A: scope and contracts | Explicit requirements/assumptions, real provider APIs, data boundaries and invariants mapped to code |
-| B: storage and protocol | Legacy guest migration, atomic state/outbox, two-account separation, size/digest failures, revision conflicts and deletion epochs |
-| C: access rules | Emulator direct requests for guest, unverified, A, B, creator, spoofed admin and malformed public/private payloads |
-| D: authentication | Google configuration and actual flow where possible, email verification/recovery, cancellation, blocked popup, remembered session and sign-out |
-| E: two-device workflows | Independent browsers, offline edits/restart, concurrent edit conflict, switching users mid-save, import/backup and quota failure |
-| F: publication | Preview redaction, unique handle race, directory opt-in, atomic update/unpublish, stale reads/writers, safe copy and moderation |
-| G: interface | Desktop/mobile/tablet, keyboard, 200% zoom, long text, focus/scroll/safe areas, axe plus manual interaction; avatar chooser and 32px/96px readability |
-| H: regressions | Exact original data/workbook hashes, author/private score separation, manual ranks, Played, draft exit flush, imports and current 3D |
-| I: release | Type/lint/build, focused and full relevant suites, staged/history secret scans, local prebuilt upload, real production checks (superseded; see release-path amendment) |
-| J: re-review | Fresh read-only review of the final diff and affected lifecycles; repair real findings, rerun affected gates, record remaining limits |
+| Scope and contracts | Explicit requirements/assumptions, real provider APIs, data boundaries and invariants mapped to code |
+| Storage and protocol | Legacy guest migration, atomic state/outbox, two-account separation, size/digest failures, revision conflicts and deletion epochs |
+| Access rules | Emulator direct requests for guest, unverified, A, B, creator, spoofed admin and malformed public/private payloads |
+| Authentication | Google configuration and actual flow where possible, email verification/recovery, cancellation, blocked popup, remembered session and sign-out |
+| Two-device workflows | Independent browsers, offline edits/restart, concurrent edit conflict, switching users mid-save, import/backup and quota failure |
+| Publication | Preview redaction, unique handle race, directory opt-in, atomic update/unpublish, stale reads/writers, safe copy and moderation |
+| Interface | Desktop/mobile/tablet, keyboard, 200% zoom, long text, focus/scroll/safe areas, axe plus manual interaction; avatar chooser and 32px/96px readability |
+| Regressions | Exact original data/workbook hashes, author/private score separation, manual ranks, Played, draft exit flush, imports and current 3D |
+| Release | Type/lint/build, focused and full relevant suites, staged/history secret scans, local prebuilt upload, real production checks (superseded; see release-path amendment) |
+| Re-review | Fresh read-only review of the final diff and affected lifecycles; repair real findings, rerun affected gates, record remaining limits |
 
 Specific adversarial cases are mandatory:
 
@@ -573,7 +573,7 @@ as not run, not passing. No merge approval is fabricated when no PR exists.
    automatic account-side effects.
 3. Add auth, first-connect and account UX; prove two-client saving and recovery.
 4. Add sanitized public publishing, profiles, community and creator moderation.
-5. Run the gauntlet, repair findings, inspect one batched desktop/mobile pass and
+5. Run the release checks, repair findings, inspect one batched desktop/mobile pass and
    a final confirmation pass, then freeze the release.
 6. Commit/push the clean source with the existing attribution policy.
 7. Build in the owned isolated release staging area and deploy prebuilt artifacts (superseded; see release-path amendment)

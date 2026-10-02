@@ -45,7 +45,7 @@ describe('builtAuthDomain', () => {
 });
 
 describe('the local authDomain frame report', () => {
-  const policy = "frame-src 'self' https://accounts.google.com";
+  const policy = "frame-src 'self'";
   const refused = (url: string, directive = policy) =>
     `Refused to frame '${url}' because it violates the following Content Security Policy directive: "${directive}".`;
   const helper = localAuthOrigin('http://127.0.0.1:4187', 'auth.example.test');

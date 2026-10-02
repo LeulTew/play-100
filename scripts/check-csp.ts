@@ -7,10 +7,15 @@
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cspProblems, directiveSources, inlineBlocks, mainDocumentPolicy } from './first-paint/csp.ts';
-import type { CspDocument } from './first-paint/csp.ts';
+import {
+  cspProblems,
+  directiveSources,
+  inlineBlocks,
+  mainDocumentPolicy,
+  type CspDocument,
+} from './first-paint/csp.ts';
 import { expectedDocumentHeaders } from './release-verify.ts';
-import { MAIN_DOCUMENT_RULE } from './first-paint/csp.ts';
+import { MAIN_DOCUMENT_RULE, matchingRules } from '../src/lib/vercel-routes.ts';
 
 export function authHeaderCoverageProblems(configuration: unknown): string[] {
   if (
@@ -24,7 +29,7 @@ export function authHeaderCoverageProblems(configuration: unknown): string[] {
     (rule: unknown): rule is { source: string } =>
       !!rule && typeof rule === 'object' && 'source' in rule && typeof rule.source === 'string',
   );
-  const matches = (pathname: string) => rules.filter((rule) => new RegExp(`^${rule.source}$`).test(pathname));
+  const matches = (pathname: string) => matchingRules(rules, pathname);
   const problems: string[] = [];
   for (const pathname of ['/__/auth/unknown', '/__/auth/', '/__/auth/handler/child', '/__/auth/handler.js.map']) {
     if (!matches(pathname).some((rule: { source: string }) => rule.source === MAIN_DOCUMENT_RULE))

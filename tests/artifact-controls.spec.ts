@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
 import { expectReadableSurface } from './readability-helpers';
 import { countShownFrames, countStillPoseChanges } from './artifact-helpers';
+import { motionHintKey } from '../src/lib/motion-hint';
 
 async function selectQuality(page: Page, name: 'Auto' | 'Full' | 'Lite') {
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
@@ -148,6 +149,76 @@ test('Lite removes fan controls and retains the settled illustration and browsin
   await page.locator('.game-card .game-link').first().click();
   await expect(page.locator('.game-dialog[open]')).toBeVisible();
 });
+
+for (const mode of ['Lite', 'reduced motion'] as const) {
+  test(`${mode}: a failed illustration keeps a named sleeve motif without moving the stage`, async ({ page }) => {
+    const quality = mode === 'Lite' ? 'lite' : 'full';
+    if (mode === 'reduced motion') await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addInitScript(
+      ({ quality, hintKey }) => {
+        localStorage.setItem('play100.library.v1', JSON.stringify({ version: 1, motion: quality, progress: {} }));
+        localStorage.setItem(hintKey, quality);
+      },
+      { quality, hintKey: motionHintKey('guest') },
+    );
+    const chunk = /\/assets\/ArtifactStill-[^/]+\.js(?:\?|$)/;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let requests = 0;
+    await page.route(chunk, async (route) => {
+      requests++;
+      await gate;
+      await route.abort('failed');
+    });
+    try {
+      await page.goto('/?catalogs=off', { waitUntil: 'domcontentloaded' });
+      await expect.poll(() => requests).toBe(1);
+      await expect(page.locator('.save-game').first()).toBeEnabled();
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      });
+      const artifact = page.locator('.collection-artifact');
+      const geometry = () =>
+        artifact.evaluate((element) => {
+          const bounds = (selector: string) => {
+            const target = element.querySelector(selector);
+            if (!target) throw new Error(`Missing artifact ${selector}.`);
+            const { x, y, width, height } = target.getBoundingClientRect();
+            return { x, y, width, height };
+          };
+          return { stage: bounds('.artifact-stage'), footer: bounds('.artifact-footer') };
+        });
+      const before = await geometry();
+      release();
+      await expect(artifact).toHaveAccessibleName('Static sleeve motif');
+      await expect(artifact).toHaveAccessibleDescription(/Art unavailable/);
+      await expect(artifact.locator('.artifact-status')).toHaveText('Art unavailable');
+      await expect(artifact).not.toContainText('Illustrated view');
+      await expect(artifact.locator('[data-artifact-fallback]')).toBeVisible();
+      await expect(artifact.locator('[data-artifact-fallback]')).toHaveCSS('position', 'absolute');
+      await expect(artifact.locator('.artifact-control, canvas')).toHaveCount(0);
+      expect(await artifact.evaluate((element) => element.getAnimations({ subtree: true }).length)).toBe(0);
+      expect(await geometry()).toEqual(before);
+      await page.locator('.game-card .game-link').first().click();
+      await expect(page.locator('.game-dialog[open]')).toBeVisible();
+      await page.keyboard.press('Escape');
+      await page.unroute(chunk);
+      await page.reload();
+      await expect(artifact.locator('.artifact-still')).toBeVisible();
+      await expect(artifact.locator('[data-artifact-fallback]')).toHaveCount(0);
+      await expect(artifact.locator('.artifact-caption-title')).toHaveText('The 100 game sleeves');
+      await expect(artifact.locator('.artifact-status')).toHaveText(
+        `Illustrated view · ${mode === 'Lite' ? 'Lite mode' : mode}`,
+      );
+      await expect(artifact.locator('.artifact-control, canvas')).toHaveCount(0);
+    } finally {
+      release();
+    }
+  });
+}
 
 test('system reduction removes the control even in Full and restores it only when motion is allowed', async ({
   page,

@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import configuration from '../../vercel.json';
+import { MAIN_DOCUMENT_RULE } from './vercel-routes';
 
 describe('optional strict main-document style policy', () => {
   it("allows only self and the two first-paint variants' critical CSS hashes, without an inline override", () => {
     const policy =
       configuration.headers
-        .find(
-          (rule) => rule.source === '/((?!__/auth/(?:handler|iframe|handler[.]js|iframe[.]js|experiments[.]js)$).*)',
-        )
+        .find((rule) => rule.source === MAIN_DOCUMENT_RULE)
         ?.headers.find((header) => header.key === 'Content-Security-Policy')?.value ?? '';
     const directives = policy.split(';').map((directive) => directive.trim().split(/\s+/));
     const styles = directives.find(([name]) => name === 'style-src')?.slice(1) ?? [];
