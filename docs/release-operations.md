@@ -907,7 +907,9 @@ gate's builds and environment:
 - `e2e-prod` and `lighthouse` use the configured build (`VITE_FIREBASE_REQUIRED=true`
   and the public `VITE_FIREBASE_*` and `VITE_SITE_URL` repository variables);
 - `e2e-offline` uses a build with every `VITE_FIREBASE_*` variable absent;
-- `e2e-dev` uses the configured development server;
+- `e2e-dev` uses the configured development server; `playwright.config.ts` then
+  matches only its source-fixture specs (`menu.spec.ts`, `public-browsing.spec.ts`
+  and the rest of that list), and other specs report "No tests found";
 - `cloud-rules` and `cloud-ui` use Java 21 and the pinned `firebase-tools`
   emulators (`demo-play100`, auth and Firestore). `cloud-rules` starts a fresh
   `emulators:exec` for each repeat, as the convergence loop does. `cloud-ui`
@@ -953,7 +955,7 @@ cloud suites), and the optional `grep` is passed as `--grep` or `-t`.
 sha=FULL_40_CHARACTER_SHA
 ref=BRANCH_WITH_THE_WORKFLOW
 gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=e2e-prod -f project=both -f specs='tests/frequent-action-focus.spec.ts' -f repeat=3
-gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=e2e-dev -f project=desktop -f specs='tests/unified-search.spec.ts' -f repeat=10
+gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=e2e-dev -f project=desktop -f specs='tests/menu.spec.ts' -f repeat=3
 gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=e2e-offline -f project=both -f specs='tests/root-navigation-guards.spec.ts'
 gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=cloud-rules -f specs='tests-cloud/friend-all.test.ts' -f repeat=20
 gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=cloud-ui -f project=desktop -f specs='tests-cloud-ui/identity.spec.ts' -f grep='cross-tab identity change' -f repeat=20
