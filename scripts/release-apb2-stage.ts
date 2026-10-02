@@ -22,12 +22,13 @@ import {
   type Budget,
 } from './release-apb2-contract';
 import {
-  compareRows,
   recomputeRows,
   repetitionRecords,
+  summarizeTable,
   writeRepetitionRecords,
   type CapturedSample,
 } from './release-apb2-records';
+import { closureErrors, settleClosure, stageResult } from './release-apb2-outcome';
 
 /** The surface of the pinned v3.2 modules the runner drives; they are plain JavaScript loaded from --protocol. */
 interface FrozenProfile {
@@ -156,6 +157,7 @@ export const RUNNER_FILES = [
   'release-apb2.ts',
   'release-apb2-contract.ts',
   'release-apb2-gate.ts',
+  'release-apb2-outcome.ts',
   'release-apb2-records.ts',
   'release-apb2-stage.ts',
   'release-apb2-stats.ts',
@@ -737,7 +739,17 @@ export async function runApb2Stage(options: StageOptions) {
   } finally {
     clearTimeout(deadlineTimer);
     await closeOwned();
-    receipt.closure = await physicalClosure(chromePid, browserPort, path.join(output, 'runtime.json'));
+    receipt.closure = await settleClosure(async () => {
+      try {
+        return await physicalClosure(chromePid, browserPort, path.join(output, 'runtime.json'));
+      } catch (error) {
+        return {
+          at: new Date().toISOString(),
+          closed: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    });
     if ((receipt.closure as { closed: boolean }).closed) {
       try {
         receipt.after = await bookend();
@@ -745,6 +757,7 @@ export async function runApb2Stage(options: StageOptions) {
         receipt.errors.push({ kind: 'BOOKEND', message: error instanceof Error ? error.message : String(error) });
       }
     }
+    receipt.errors.push(...closureErrors(receipt.closure as { closed: boolean }, receipt.after));
     receipt.finishedAt = new Date().toISOString();
     receipt.withinLease = Date.now() < expires();
   }
@@ -761,15 +774,15 @@ export async function runApb2Stage(options: StageOptions) {
       receipt.errors.push({ kind: 'COLLECTION', message: error instanceof Error ? error.message : String(error) });
     }
   }
-  const complete = run?.status === 'FIXED_APB2_COLLECTION_RETAINED_NOT_ACCEPTANCE' && run.observations.length === 72;
   const collection = receipt.collection as { equal?: boolean } | undefined;
-  receipt.result = options.smoke
-    ? run && receipt.errors.length === 0 && collection?.equal === true && run.observations.length > 0
-      ? 'SMOKE_PASSED_NO_TIMING_CLAIMS'
-      : 'SMOKE_FAILED'
-    : complete && receipt.errors.length === 0 && collection?.equal === true
-      ? 'CAPTURE_COMPLETE_TABLE_RECOMPUTED'
-      : 'HOLD';
+  receipt.result = stageResult({
+    smoke: options.smoke,
+    run: run && { status: run.status, observations: run.observations.length },
+    errors: receipt.errors.length,
+    collectionEqual: collection?.equal === true,
+    closed: (receipt.closure as { closed?: boolean } | undefined)?.closed === true,
+    after: Boolean(receipt.after),
+  });
   await persistEvidence('stage.json', receipt);
   console.log(
     JSON.stringify(
@@ -870,40 +883,28 @@ export async function collectStage(input: {
     samples.map(({ sample }) => sample),
   ).results;
   const recomputed = recomputeRows(input.profile, records);
-  const differences = compareRows(frozen, recomputed);
-  const rows = frozen.map((row, position) => ({
-    journey: row.journey,
-    metric: row.metric,
-    informational: row.informational === true || row.status === 'INFORMATIONAL_NO_GATE',
-    status: row.status,
-    p75: row.p75,
-    max: row.max,
-    budget: row.budget ?? null,
-    finiteCount: row.finiteCount,
-    failedRepetitions: row.failedRepetitions ?? [],
-    recomputedStatus: recomputed[position]?.status ?? null,
-  }));
-  const gated = rows.filter((row) => !row.informational);
+  const summary = summarizeTable(frozen, recomputed);
   const table = {
     protocol: APB2_PROTOCOL,
     profile: input.profile,
     commit: run.build,
     capture: { run: runFile, sha256: sha256(runBytes), status: run.status, observations: run.observations.length },
     records: { directory: path.join(input.evidence, 'repetitions'), present: index.present, total: index.records },
-    rows,
-    gated: gated.length,
-    passed: gated.filter((row) => /^PASS/.test(String(row.status))).length,
-    recomputation: { equal: differences.length === 0, differences },
+    rows: summary.rows,
+    gated: summary.gated,
+    expectedGated: summary.expectedGated,
+    passed: summary.passed,
+    recomputation: { equal: summary.differences.length === 0, differences: summary.differences },
   };
   await writeFile(path.join(input.evidence, 'table.json'), JSON.stringify(table, null, 2) + '\n', { flag: 'wx' });
   return {
     table: path.join(input.evidence, 'table.json'),
-    rows: rows.length,
-    gated: table.gated,
-    passed: table.passed,
-    allGatedPass: table.gated > 0 && table.passed === table.gated,
-    equal: differences.length === 0,
-    differences,
+    rows: summary.rows.length,
+    gated: summary.gated,
+    passed: summary.passed,
+    allGatedPass: summary.allGatedPass,
+    equal: summary.differences.length === 0,
+    differences: summary.differences,
   };
 }
 

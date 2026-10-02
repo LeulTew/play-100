@@ -17,6 +17,7 @@ import {
   runPartitionAttempts,
   APB2_GATE_SCRIPT,
   requireApb2Runner,
+  requireApb2Operator,
   checkApb2GateReceipt,
   bindFilmAttempts,
 } from './release-gate';
@@ -126,6 +127,45 @@ describe('candidate release gate planning', () => {
       { ...receipt, source: { ...source, sha: 'c'.repeat(40) } },
     ])
       expect(() => checkApb2GateReceipt(invalid, source)).toThrow('exact candidate');
+  });
+
+  it('checks the operator APB2 settings and verifies the pinned set before the first step', async () => {
+    const folder = path.join(tmpdir(), 'pinned-apb2-v32');
+    const verified = { ok: true, files: 145, freezeSha256: 'f'.repeat(64) };
+    const env = {
+      PLAY100_APB2_PROTOCOL: folder,
+      PLAY100_APB2_QUIET_ATTESTED: '1',
+      PLAY100_APB2_BROWSER_VERSION: '154.0.8037.93',
+    };
+    const verify = vi.fn(() => Promise.resolve(verified));
+    await expect(requireApb2Operator(env, verify)).resolves.toEqual({
+      protocol: folder,
+      browserVersion: '154.0.8037.93',
+      files: 145,
+      freezeSha256: 'f'.repeat(64),
+    });
+    expect(verify).toHaveBeenCalledWith(folder);
+    for (const [change, message] of [
+      [{ PLAY100_APB2_PROTOCOL: undefined }, 'Set PLAY100_APB2_PROTOCOL'],
+      [{ PLAY100_APB2_PROTOCOL: path.join('pinned', 'apb2') }, 'absolute folder'],
+      [{ PLAY100_APB2_QUIET_ATTESTED: undefined }, 'PLAY100_APB2_QUIET_ATTESTED=1'],
+      [{ PLAY100_APB2_QUIET_ATTESTED: 'true' }, 'PLAY100_APB2_QUIET_ATTESTED=1'],
+      [{ PLAY100_APB2_BROWSER_VERSION: undefined }, 'four-part Chrome version'],
+      [{ PLAY100_APB2_BROWSER_VERSION: '154' }, 'four-part Chrome version'],
+    ] as const)
+      await expect(requireApb2Operator({ ...env, ...change }, verify)).rejects.toThrow(message);
+    expect(verify).toHaveBeenCalledTimes(1);
+    await expect(requireApb2Operator(env, () => Promise.resolve({ ...verified, ok: false }))).rejects.toThrow(
+      'committed APB2 v3.2 digests',
+    );
+    const empty = await mkdtemp(path.join(tmpdir(), 'release-gate-apb2-'));
+    try {
+      await expect(requireApb2Operator({ ...env, PLAY100_APB2_PROTOCOL: empty })).rejects.toThrow(
+        'committed APB2 v3.2 digests',
+      );
+    } finally {
+      await rm(empty, { recursive: true, force: true });
+    }
   });
 
   it('retains distinct film attempts, retries once only, and never retries another partition', async () => {

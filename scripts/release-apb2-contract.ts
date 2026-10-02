@@ -97,6 +97,9 @@ export function informationalMetrics(kind: Apb2Kind): InformationalMetric[] {
   return kind === 'static-control' ? ['firstPaintMs', 'fcpMs', 'lcpAtBoundaryMs', 'firstPaintMinusDclMs'] : [];
 }
 
+/** The gated rows of every profile's table (four per returning journey and first-visit startup: 29). */
+export const APB2_GATED_ROWS = APB2_BLOCK.reduce((count, entry) => count + gatedMetrics(entry.kind).length, 0);
+
 /** The budget a gated metric is held to; startup uses the dense budget only for the dense-500 fixture. */
 export function budgetFor(profile: Apb2ProfileId, metric: GatedMetric, journey: Apb2Journey): Budget {
   const key: BudgetKey =

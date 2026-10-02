@@ -14,9 +14,11 @@ import {
   stageExitCode,
   type Apb2GateProfile,
 } from './release-apb2-gate';
+import { closureErrors, settleClosure, stageResult } from './release-apb2-outcome';
 import { apb2StepEnvironment, checkApb2GateReceipt } from './release-gate';
 import {
   APB2_BUDGETS,
+  APB2_GATED_ROWS,
   APB2_JOURNEYS_IN_ORDER,
   APB2_PROFILES,
   apb2Schedule,
@@ -34,6 +36,7 @@ import {
   recomputeRows,
   recordName,
   repetitionRecords,
+  summarizeTable,
   writeRepetitionRecords,
   type CapturedSample,
 } from './release-apb2-records';
@@ -104,6 +107,7 @@ describe('APB2 contract', () => {
     const firstBlock = schedule.filter((entry) => entry.repetition === 0);
     expect(firstBlock.flatMap((entry) => gatedMetrics(entry.kind))).toHaveLength(29);
     expect(firstBlock.flatMap((entry) => informationalMetrics(entry.kind))).toHaveLength(6);
+    expect(APB2_GATED_ROWS).toBe(29);
   });
 
   it('reports every difference between the pinned configuration and the committed contract', () => {
@@ -347,6 +351,89 @@ describe('APB2 per-repetition records', () => {
     ]);
     expect(compareRows(frozen.slice(1), rows)[0]).toBe('row count 34 != 35');
   });
+
+  it('compares whether each row is gated, so a relabelled row cannot leave the 29 gated rows', () => {
+    const rows = recomputeRows('fine1440cpu1', repetitionRecords('fine1440cpu1', population()));
+    const frozen: Record<string, unknown>[] = rows.map((row) => ({ ...row }));
+    expect(summarizeTable(frozen, rows)).toMatchObject({
+      gated: 29,
+      expectedGated: 29,
+      passed: 29,
+      allGatedPass: true,
+      differences: [],
+    });
+    const flagged = frozen.map((row, index) => (index === 4 ? { ...row, informational: true } : row));
+    const differences = [
+      'gated rows 28 != 29',
+      'fine1440cpu1 first-visit startupPolicyMs: informational true != false',
+    ];
+    expect(compareRows(flagged, rows)).toEqual(differences);
+    expect(summarizeTable(flagged, rows)).toMatchObject({ gated: 28, passed: 28, allGatedPass: false, differences });
+    const status = frozen.map((row, index) => (index === 4 ? { ...row, status: 'INFORMATIONAL_NO_GATE' } : row));
+    expect(compareRows(status, rows)).toEqual([
+      ...differences,
+      'fine1440cpu1 first-visit startupPolicyMs: status INFORMATIONAL_NO_GATE != PASS_OBSERVED_ABSOLUTE_BUDGET',
+    ]);
+    expect(summarizeTable(status, rows)).toMatchObject({ gated: 28, allGatedPass: false });
+    expect(summarizeTable(frozen.slice(0, 34), rows.slice(0, 34))).toMatchObject({
+      gated: 28,
+      allGatedPass: false,
+      differences: ['gated rows 28 != 29'],
+    });
+  });
+});
+
+describe('APB2 stage outcome', () => {
+  const finished = {
+    smoke: false,
+    run: { status: 'FIXED_APB2_COLLECTION_RETAINED_NOT_ACCEPTANCE', observations: 72 },
+    errors: 0,
+    collectionEqual: true,
+    closed: true,
+    after: true,
+  };
+
+  it('holds a stage whose Chrome did not close or whose after-run bookend is missing', () => {
+    expect(closureErrors({ closed: true }, { at: 'after' })).toEqual([]);
+    expect(closureErrors({ closed: false }, undefined).map((error) => error.kind)).toEqual(['CLOSURE']);
+    expect(closureErrors(undefined, undefined).map((error) => error.kind)).toEqual(['CLOSURE']);
+    expect(closureErrors({ closed: true }, undefined).map((error) => error.kind)).toEqual(['AFTER_BOOKEND']);
+    expect(stageResult(finished)).toBe('CAPTURE_COMPLETE_TABLE_RECOMPUTED');
+    expect(stageResult({ ...finished, closed: false })).toBe('HOLD');
+    expect(stageResult({ ...finished, after: false })).toBe('HOLD');
+    expect(stageResult({ ...finished, errors: closureErrors({ closed: true }, undefined).length })).toBe('HOLD');
+    expect(stageResult({ ...finished, collectionEqual: false })).toBe('HOLD');
+    expect(stageResult({ ...finished, run: { ...finished.run, observations: 71 } })).toBe('HOLD');
+    expect(stageResult({ ...finished, run: undefined })).toBe('HOLD');
+    const smoke = { ...finished, smoke: true, run: { status: 'STOPPED', observations: 3 } };
+    expect(stageResult(smoke)).toBe('SMOKE_PASSED_NO_TIMING_CLAIMS');
+    expect(stageResult({ ...smoke, closed: false })).toBe('SMOKE_FAILED');
+    expect(stageResult({ ...smoke, after: false })).toBe('SMOKE_FAILED');
+    expect(stageResult({ ...smoke, run: { status: 'STOPPED', observations: 0 } })).toBe('SMOKE_FAILED');
+  });
+
+  it('re-checks the physical closure until it holds, for a bounded settle time', async () => {
+    let clock = 0;
+    const timing = {
+      now: () => clock,
+      sleep: (ms: number) => {
+        clock += ms;
+        return Promise.resolve();
+      },
+    };
+    const answers = [false, false, true];
+    expect(await settleClosure(() => Promise.resolve({ closed: answers.shift() ?? false }), timing)).toEqual({
+      closed: true,
+      attempts: 3,
+      settleMs: 1000,
+    });
+    clock = 0;
+    expect(await settleClosure(() => Promise.resolve({ closed: false }), { ...timing, timeoutMs: 2000 })).toEqual({
+      closed: false,
+      attempts: 5,
+      settleMs: 2000,
+    });
+  });
 });
 
 describe('APB2 runner inputs', () => {
@@ -535,6 +622,19 @@ describe('APB2 gate receipt', () => {
         failure: 'Port 4199 is busy.',
       }),
     ).toMatchObject({ status: 'failed', complete: false, reasons: ['Port 4199 is busy.'] });
+    const relabelled = receiptFor([
+      gateProfile('fine1440cpu1', 'f', complete(), files()),
+      gateProfile(
+        'coarse393cpu4',
+        'c',
+        { ...complete(), collection: { equal: true, gated: 28, passed: 28, allGatedPass: true } },
+        files(),
+      ),
+    ]);
+    expect(relabelled).toMatchObject({ status: 'failed', complete: false });
+    expect(relabelled.reasons).toEqual(["coarse393cpu4: 28 gated rows, not the contract's 29."]);
+    expect(relabelled.profiles[1]).toMatchObject({ gated: 28, passed: 28, allGatedPass: false });
+    expect(gateExitCode(relabelled)).toBe(1);
     expect([
       stageExitCode('CAPTURE_COMPLETE_TABLE_RECOMPUTED', true),
       stageExitCode('CAPTURE_COMPLETE_TABLE_RECOMPUTED', false),
