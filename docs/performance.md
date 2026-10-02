@@ -157,12 +157,19 @@ What changed for those phones (R24):
   Friends views and the Google sign-in return path lost their queries the same way. `querySuffix`
   ([`query-suffix.ts`](../src/lib/query-suffix.ts)) builds them from the parameters' text instead, and
   `resize-observer-loop.spec.ts` replays the visit without `URLSearchParams.size`.
-- **The 3D scene's startup is marked.** Reduced motion and Lite never start the scene, nor does a constrained device in
-  Auto, and a touch screen in Auto starts it only from Fan out; elsewhere it starts at an idle moment while it is on
-  screen. Its module, WebGL context, renderer and first render each leave `p100:scene:<part>-start` and `-end` marks,
-  and all but the module a `p100:scene:<part>` measure ([`scene-timing.ts`](../src/components/scene/scene-timing.ts)),
-  so a trace or a stalled test names the call that held the page. The first render compiles the scene's shaders and
-  waits on the GPU for them.
+- **The 3D scene starts once scrolling pauses, and its startup is marked.** Reduced motion and Lite never start the
+  scene, nor does a constrained device in Auto, and a touch screen in Auto starts it only from Fan out; elsewhere it
+  starts at an idle moment while it is on screen and the page has not scrolled for 300 ms, rechecked as each start-up
+  turn begins and before its first frame ([`scroll-settle.ts`](../src/lib/scroll-settle.ts)). Those steps are long
+  tasks: in CI's software GL, building the scene took 0.52 s and its first render 0.51–0.54 s, and a scroll that met
+  them waited up to 841 ms for a frame. It waits for that quiet period rather than `scrollend`, which a scroll in steps
+  fires after every step. A scroll that begins once the start-up has begun still meets its remaining steps: in the
+  replayed low-end visit, which scrolls as soon as the cards show, a desktop's first scroll still held a frame for
+  250 ms or more in 6 of 40 visits, against 7 of 40 before. Fan out, the visitor's own request, does not wait; the
+  illustration stays until the scene's first frame either way. Its module, WebGL context, renderer and first render each
+  leave `p100:scene:<part>-start` and `-end` marks, and all but the module a `p100:scene:<part>` measure
+  ([`scene-timing.ts`](../src/components/scene/scene-timing.ts)), so a trace or a stalled test names the call that held
+  the page. The first render compiles the scene's shaders and waits on the GPU for them.
 
 Measured on 2 October 2026 under that profile. Before is live production (Release 7); after is the integrated R24
 build after the typed Windows PWA check repair (tree `7d23b21610e81728ae72a2764fb7d964a0756101`),
