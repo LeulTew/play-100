@@ -229,7 +229,7 @@ test('catalog played state follows the saved game into its library, detail and p
   ).toBeChecked();
 });
 
-test('failed rating autosave keeps the prior score and does not retry in a background loop', async ({ page }) => {
+test('failed rating save keeps the prior score and does not retry in a background loop', async ({ page, isMobile }) => {
   await page.clock.install();
   await prepare(page);
   await rate(page, a, '7');
@@ -247,6 +247,8 @@ test('failed rating autosave keeps the prior score and does not retry in a backg
     document.documentElement.dataset.failRatingSave = 'yes';
   });
   await page.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).fill('9');
+  if (isMobile)
+    await page.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).press('Enter');
   await expect(page.locator(`[data-record-id="${a.id}"] .inline-error`)).toContainText('could not be saved');
   const attempts = await page.evaluate(() => document.documentElement.dataset.ratingSaveAttempts);
   // Cover more than two 650ms autosave debounce windows without another attempt.

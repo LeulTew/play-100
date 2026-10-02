@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import { installGuestLibrary, libraryFixture, libraryRecord, libraryRecords } from './library-pagination-helpers';
-import { readLibrary } from './library-helpers';
+import { holdLibraryWrite as holdWrite, readLibrary } from './library-helpers';
 import { createLibraryBackup, emptyPersonalLibrary } from '../src/lib/personal-library';
 import { applyPersonalAction } from '../src/lib/personal-library';
 import { catalogFixture, discoveryFixture } from '../src/lib/discovery-test-fixtures';
@@ -10,49 +10,6 @@ import { withActionCleanup } from './action-cleanup';
 
 const game = libraryRecord(0);
 const provider = discoveryFixture.record;
-
-async function holdWrite(page: Page, rejected: boolean) {
-  return page.evaluateHandle((rejected) => {
-    const put = IDBObjectStore.prototype.put;
-    const state = { attempts: 0, held: false };
-    let finish: (() => void) | null = null;
-    IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
-      if (this.transaction.db.name === 'play100-personal' && this.name === 'library' && args[1] === 'state') {
-        state.attempts += 1;
-        if (state.attempts === 1) {
-          const transaction = this.transaction;
-          const name = rejected ? 'onabort' : 'oncomplete';
-          const callback = transaction[name];
-          if (!callback) throw new Error('Missing native transaction completion.');
-          transaction[name] = (event) => {
-            state.held = true;
-            finish = () => {
-              state.held = false;
-              transaction[name] = callback;
-              callback.call(transaction, event);
-            };
-          };
-        }
-        if (rejected) throw new DOMException('Synthetic action refusal', 'QuotaExceededError');
-      }
-      return put.apply(this, args);
-    };
-    return {
-      state,
-      release() {
-        if (!finish) throw new Error('No held action.');
-        const complete = finish;
-        finish = null;
-        complete();
-      },
-      restore() {
-        IDBObjectStore.prototype.put = put;
-        finish?.();
-        finish = null;
-      },
-    };
-  }, rejected);
-}
 
 test.beforeEach(async ({ page, baseURL }) => {
   if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname)) throw new Error('Loopback only.');

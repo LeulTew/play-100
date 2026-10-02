@@ -76,6 +76,7 @@ export default function LibraryPage(props: LibraryPageProps) {
     move,
     changePage,
     requestRemoval,
+    getRemovalFallback,
     removeFromQueue,
     removeRecords,
     filtered,
@@ -319,6 +320,7 @@ export default function LibraryPage(props: LibraryPageProps) {
           busy={busy}
           onClose={() => setRemoving([])}
           onRemove={removeRecords}
+          getFallbackFocus={getRemovalFallback}
         />
       )}
     </section>

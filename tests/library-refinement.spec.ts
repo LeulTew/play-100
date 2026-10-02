@@ -113,8 +113,9 @@ test('Escape from an unranked preview commits a pending rating and metadata with
   await expect(saved).toBeDisabled();
 });
 
-test('leaving after a failed autosave does not retry the rejected edit or overwrite the committed score', async ({
+test('leaving after a failed rating save does not retry the rejected edit or overwrite the committed score', async ({
   page,
+  isMobile,
 }) => {
   await page.clock.install();
   await prepareRanking(page);
@@ -131,6 +132,8 @@ test('leaving after a failed autosave does not retry the rejected edit or overwr
     document.documentElement.dataset.rejectExitSave = 'yes';
   });
   await page.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).fill('9');
+  if (isMobile)
+    await page.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).press('Enter');
   await expect(page.locator('.ranking-row-content .inline-error')).toContainText('could not be saved');
   const attempts = await page.evaluate(() => document.documentElement.dataset.exitWriteAttempts);
   await page.goBack();

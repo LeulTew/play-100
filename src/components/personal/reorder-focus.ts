@@ -1,6 +1,24 @@
-import { focusPendingEditor } from '../../lib/dialog-focus';
+import { focusPendingEditor, visibleFocusTarget } from '../../lib/dialog-focus';
+import type { LibraryRecord } from '../../lib/personal-types';
 
 export type MoveDirection = 'up' | 'down';
+
+export function removalReturnFocus(
+  records: readonly LibraryRecord[],
+  removedIds: readonly string[],
+  heading: HTMLElement | null,
+): () => HTMLElement | null {
+  const removed = new Set(removedIds);
+  const index = records.findIndex((record) => removed.has(record.id));
+  const neighbors = [...records.slice(index + 1), ...records.slice(0, Math.max(0, index)).reverse()]
+    .filter((record) => !removed.has(record.id))
+    .map((record) => record.id);
+  const section = heading?.closest('section');
+  return () =>
+    neighbors
+      .map((id) => section?.querySelector<HTMLElement>(`[data-record-id="${CSS.escape(id)}"] .record-title`) ?? null)
+      .find(visibleFocusTarget) ?? (visibleFocusTarget(heading) ? heading : null);
+}
 
 export function focusMovedRecord(
   container: HTMLElement | null,

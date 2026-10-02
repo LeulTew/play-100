@@ -78,10 +78,12 @@ export function PersonalRatingInput({
   }, [edited, draft, value]);
   useEffect(() => {
     if (!edited || busy || error || badInput.current) return;
+    const pointer = window.matchMedia('(pointer: coarse)');
+    if (pointer.matches) return;
     const next = draft.trim() === '' ? null : Number(draft);
     if (next !== null && (!Number.isFinite(next) || next < 0 || next > 10)) return;
     const timer = window.setTimeout(() => {
-      void save();
+      if (!pointer.matches) void save();
     }, PERSONAL_RATING_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [edited, draft, editVersion, busy, error, save]);
@@ -99,7 +101,8 @@ export function PersonalRatingInput({
           step="any"
           value={shown}
           placeholder="—"
-          disabled={busy}
+          readOnly={busy}
+          aria-disabled={busy || undefined}
           aria-label={`Your rating / 10 for ${title}`}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? errorId : undefined}
@@ -119,8 +122,7 @@ export function PersonalRatingInput({
           onKeyDown={(event) => {
             if (event.key !== 'Enter') return;
             event.preventDefault();
-            if (error) void save();
-            event.currentTarget.blur();
+            void save();
           }}
         />
       </label>
