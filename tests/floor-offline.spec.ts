@@ -24,10 +24,7 @@ test.beforeEach(async ({ browser, browserName, page }, info) => {
   await info.attach('offline-floor-engine', { body: JSON.stringify(engine), contentType: 'application/json' });
 });
 
-test('the current engine prepares offline through Settings and reloads the collection without a network', async ({
-  page,
-  context,
-}) => {
+async function prepareOffline(page: Page) {
   const settings = await openOfflineSettings(page);
   expect(await page.evaluate(() => navigator.serviceWorker.getRegistrations().then((values) => values.length))).toBe(0);
   await settings.getByRole('button', { name: 'Enable offline access', exact: true }).click();
@@ -39,6 +36,17 @@ test('the current engine prepares offline through Settings and reloads the colle
     .poll(() => page.evaluate(async () => (await navigator.serviceWorker.getRegistration('/'))?.active?.state))
     .toBe('activated');
   await page.keyboard.press('Escape');
+}
+
+test('the current engine prepares offline through Settings and activates the worker', async ({ page }) => {
+  await prepareOffline(page);
+});
+
+test('the prepared collection reloads without a network', async ({ page, context, browserName }) => {
+  // Playwright's WebKit 26.6 reaches "Offline files ready" with an activated worker, then page.reload() offline throws
+  // "WebKit encountered an internal error" (run 36984599664). Kept strict: an unexpected WebKit pass fails this test.
+  test.fail(browserName === 'webkit', 'WebKit 26.6 internal error on an offline reload (run 36984599664)');
+  await prepareOffline(page);
   await context.setOffline(true);
   try {
     await page.reload();

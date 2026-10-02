@@ -34,8 +34,13 @@ on `8c23ecdf`, **Firefox 155.0** and **Chromium 106.0.5249.0** passed both cases
 state with an activated worker, but its offline `page.reload()` failed with
 **"WebKit encountered an internal error"**. This is not a passing WebKit offline
 receipt or a real Safari/iOS test. The full floor run was **20 passed, 1 failed,
-0 skipped, 0 retries**; the WebKit reload remains an open validation gap, with
-its screenshot and trace retained in the run artifact. The original attempt,
+0 skipped, 0 retries**. The WebKit reload remains an open validation gap, with
+its screenshot and trace retained in the run artifact. The offline reload is now
+its own test, and on WebKit it is marked as an expected failure
+(`test.fail`). It stays strict: if WebKit ever passes it, the suite reports the
+unexpected pass, and Firefox and Chromium 106 must still pass it. Preparation,
+worker activation and the simulated old engine stay strict on all three engines.
+Real Safari offline is unverified here; the physical-device checks own it. The original attempt,
 [run 36983931439](https://github.com/LeulTew/play-100/actions/runs/36983931439),
 incorrectly required the newly prepared worker to control the already-open
 document. The corrected smoke waits for activation and checks control after
