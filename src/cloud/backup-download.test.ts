@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  applyPersonalAction,
-  emptyPersonalLibrary,
-  exportLibraryBackup,
-  readLibraryBackup,
-} from '../lib/personal-library';
+import { applyPersonalAction, emptyPersonalLibrary, exportLibraryBackup } from '../lib/personal-library';
+import { readLibraryBackup } from '../lib/backup-restore';
 import { libraryBackupText } from './backup-download';
 
 const state = applyPersonalAction(emptyPersonalLibrary(), { type: 'set-motion', motion: 'lite' });

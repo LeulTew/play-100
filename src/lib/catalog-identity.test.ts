@@ -7,17 +7,15 @@ import {
   canonicalCatalogId,
   catalogActionRecord,
   catalogOwnership,
-  catalogPageRecords,
-  catalogPickerChoices,
   catalogPinnedIds,
   catalogProgress,
   catalogSearchItems,
   collectionGameForId,
   resolveCatalogRecord,
   resolveCatalogRecords,
-  newOnlineMatchCounts,
-  collidingCatalogTitles,
 } from './catalog-identity';
+import { catalogPageRecords, collidingCatalogTitles, newOnlineMatchCounts } from './catalog-matches';
+import { catalogPickerChoices } from './catalog-picker';
 import {
   createDiscoverySearch,
   defaultDiscoveryFilters,

@@ -17,7 +17,7 @@ import { pageFromPath } from '../../lib/url';
 import type { CommittedCue } from '../../lib/route-continuity';
 import { usePendingEdits } from '../../hooks/useExitSave';
 import { useNavigationScope } from '../../hooks/useNavigationScope';
-import { useDiscoveryArtwork } from '../../hooks/useDiscoveryCatalog';
+import { useDiscoveryArtwork } from '../../hooks/useDiscoveryArtwork';
 import { useLibraryMode } from '../../lib/library-mode';
 import { focusMovedRecord, removalReturnFocus } from './reorder-focus';
 import type { MoveDirection } from './reorder-focus';

@@ -6,7 +6,7 @@ import type { AddGamesPanelState } from './AddGamesPanel';
 import type { ProgressFilter } from '../../lib/game-progress';
 import { RemoveRankingDialog } from './RemoveRankingDialog';
 import { removalReturnFocus } from './reorder-focus';
-import { formatResultRange } from '../../lib/local-pagination';
+import { formatResultRange } from '../../lib/result-range';
 import { LocalPager } from '../LocalPager';
 import { RANKING_PAGE_SIZE, useRankingsPage } from './useRankingsPage';
 import { RankingRow } from './RankingRow';
