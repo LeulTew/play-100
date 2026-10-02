@@ -2,17 +2,19 @@ import type { Manifest, ManifestChunk } from 'vite';
 
 /**
  * The tools the idle preload imports dynamically (src/lib/app-tool-preload.ts) that the online bridge also loads
- * statically, each in its own named chunk (vite.config.ts, `build.rolldownOptions.output.codeSplitting`).
+ * statically, in named chunks (vite.config.ts, `build.rolldownOptions.output.codeSplitting`).
  *
  * Shared that way, Rolldown folds such a module into an unnamed shared chunk unless something pins it, and the offline
- * core (scripts/pwa-build.ts) could not find it. This group names one chunk per module and captures only the module
- * itself (`includeDependenciesRecursively: false`), so its dependencies stay where the rest of the app puts them. A
- * group chunk has no facade, so the Vite manifest keys it `_<file>` with this `name`; `manifestEntry` resolves it.
+ * core (scripts/pwa-build.ts) could not find it. This group names their chunks and captures only the modules
+ * themselves (`includeDependenciesRecursively: false`), so their dependencies stay where the rest of the app puts them.
+ * The two comparison tools share a chunk, one file fewer in the offline core: they always load together, both by
+ * `loadComparisonTools` and statically by the bridge. Sign-in's intent keeps its own, which the Account link warms.
+ * A group chunk has no facade, so the Vite manifest keys it `_<file>` with this `name`; `manifestEntry` resolves it.
  * online-bridge-closure.test.ts fails when the bridge loads a preloaded module this list leaves out.
  */
 export const PRELOADED_TOOL_CHUNKS: Readonly<Record<string, string>> = {
-  'src/lib/comparison-game-filter.ts': 'comparison-game-filter',
-  'src/lib/friend-comparison-intent.ts': 'friend-comparison-intent',
+  'src/lib/comparison-game-filter.ts': 'comparison-tools',
+  'src/lib/friend-comparison-intent.ts': 'comparison-tools',
   'src/lib/google-intent.ts': 'google-intent',
 };
 
