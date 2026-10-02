@@ -126,6 +126,8 @@ describe('the local Vercel server', () => {
       expect(await missing.text()).toContain('Not found');
       const slash = await fetch(`${server.origin}/my-games/`, { redirect: 'manual' });
       expect([slash.status, slash.headers.get('location')]).toEqual([308, '/my-games']);
+      const query = await fetch(`${server.origin}/my-games/?page=2&view=queue`, { redirect: 'manual' });
+      expect([query.status, query.headers.get('location')]).toEqual([308, '/my-games?page=2&view=queue']);
       const api = await fetch(`${server.origin}/api/anything`);
       expect([api.status, await api.text()]).toEqual([503, '{"error":"none"}']);
       expect((await fetch(`${server.origin}/my-games`, { method: 'POST' })).status).toBe(405);
@@ -134,7 +136,9 @@ describe('the local Vercel server', () => {
       const head = await fetch(`${server.origin}/`, { method: 'HEAD' });
       expect(head.headers.get('content-length')).toBe(String('<!doctype html><title>Home</title>'.length));
       expect(server.errors).toEqual([]);
-      expect(server.requests.map((request) => request.status)).toEqual([200, 200, 404, 308, 503, 405, 200, 400, 200]);
+      expect(server.requests.map((request) => request.status)).toEqual([
+        200, 200, 404, 308, 308, 503, 405, 200, 400, 200,
+      ]);
     } finally {
       await server.stop();
     }
