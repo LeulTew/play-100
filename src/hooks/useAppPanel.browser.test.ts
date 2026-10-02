@@ -279,4 +279,24 @@ describe('secondary panel guard through the real hook', () => {
       expect(errors).toEqual([]);
     }
   });
+  it.each(['about', 'settings'])('closes an open %s sheet on browser Back (UX-027)', async (panel) => {
+    const page = await browser.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    try {
+      await page.goto(`${base}/__panel-guard?settled=1`);
+      await page.evaluate(() => history.pushState(null, '', '/__panel-guard?settled=1&step=2'));
+      await page.getByRole('button', { name: panel, exact: true }).click();
+      await browserExpect(page.locator('#panel')).toHaveText(panel);
+      await page.goBack();
+      await browserExpect(page.locator('#panel')).toHaveText('none');
+      await page.getByRole('button', { name: panel, exact: true }).click();
+      await browserExpect(page.locator('#panel')).toHaveText(panel);
+      await page.getByRole('button', { name: 'popstate', exact: true }).click();
+      await browserExpect(page.locator('#panel')).toHaveText(panel);
+    } finally {
+      await page.close();
+      expect(errors).toEqual([]);
+    }
+  });
 });
