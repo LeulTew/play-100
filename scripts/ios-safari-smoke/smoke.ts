@@ -5,6 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { tapCoordinates } from './coordinates.ts';
 import type { NativeRect, TapMeasurements } from './coordinates.ts';
 import { productionOrigin, targetOrigin } from './target.ts';
+import { touchTap } from './touch.ts';
 
 interface WebElement {
   'element-6066-11e4-a52e-4f735466cecf': string;
@@ -43,6 +44,7 @@ interface Step {
 interface NativeTap extends TapMeasurements {
   nativeType: string;
   coordinates?: { x: number; y: number };
+  actions?: ReturnType<typeof touchTap>;
 }
 
 interface Results {
@@ -319,7 +321,9 @@ async function tap(element: WebElement, label: string) {
     const record: NativeTap = { label, ...measurements, nativeAnchor };
     results.nativeTaps.push(record);
     record.coordinates = tapCoordinates(record);
-    await execute('mobile: tap', record.coordinates);
+    record.actions = touchTap(record.coordinates);
+    await wd('POST', '/actions', record.actions);
+    await wd('DELETE', '/actions');
   });
   await waitFor(
     `return window.__iosSmoke.clicks.slice(${before}).some(event => event.trusted);`,
@@ -336,6 +340,13 @@ async function nativeAction<T>(action: () => Promise<T>) {
   } finally {
     await wd('POST', '/context', { name: context });
   }
+}
+
+async function nativeTouch(element: WebElement) {
+  const id = element['element-6066-11e4-a52e-4f735466cecf'];
+  const rect = await wd<NativeRect>('GET', `/element/${id}/rect`);
+  await wd('POST', '/actions', touchTap({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }));
+  await wd('DELETE', '/actions');
 }
 
 async function dismissSafariTip() {
@@ -355,7 +366,18 @@ async function dismissSafariTip() {
     await writeFile(`${output}/safari-onboarding.xml`, await wd<string>('GET', '/source'));
     const close = buttons[0];
     assert.ok(close);
-    await wd('POST', `/element/${close['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+    await nativeTouch(close);
+    const deadline = Date.now() + 10_000;
+    let remaining: WebElement[] = tips;
+    while (remaining.length && Date.now() < deadline) {
+      remaining = await wd<WebElement[]>('POST', '/elements', {
+        using: '-ios predicate string',
+        value:
+          'type == "XCUIElementTypeStaticText" AND visible == true AND label == "View Bookmarks, Share Menu, and Open Tabs"',
+      });
+      if (remaining.length) await delay(200);
+    }
+    assert.equal(remaining.length, 0, 'The native Safari onboarding tip must actually disappear.');
     results.browserActions.push({ action: 'dismiss Safari onboarding tip', at: new Date().toISOString() });
   });
 }
@@ -370,7 +392,7 @@ async function dismissKeyboard() {
     assert.equal(buttons.length, 1, 'Safari keyboard must expose one Done button.');
     const done = buttons[0];
     assert.ok(done);
-    await wd('POST', `/element/${done['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+    await nativeTouch(done);
     assert.equal(await execute('mobile: isKeyboardShown'), false, 'Done must dismiss the Safari keyboard.');
     results.browserActions.push({ action: 'dismiss search keyboard with Done', at: new Date().toISOString() });
   });
@@ -440,7 +462,7 @@ try {
   results.capabilities = created.capabilities;
   assert.ok(session, 'The automation server must return a session ID.');
   await wd('POST', '/timeouts', { implicit: 0, script: 30_000, pageLoad: 60_000 });
-  results.interactionMode = 'XCUITest native accessibility tap';
+  results.interactionMode = 'XCUITest native W3C touch pointer';
   await step('01-cold-home', async () => {
     await wd('POST', '/url', { url: `${site}/` });
     await installCollector();
