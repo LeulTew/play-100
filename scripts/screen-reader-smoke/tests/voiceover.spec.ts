@@ -3,7 +3,8 @@ import type { VoiceOverPlaywright } from '@guidepup/playwright';
 import { macOSActivate } from '@guidepup/guidepup';
 import type { Page } from '@playwright/test';
 import { SpeechJournal } from '../src/speech.ts';
-import { journeyCompare, journeyDialog, journeyDiscover, journeySettings } from './journeys.ts';
+import { CONTROL_VARIANTS, parseSuite } from '../src/control-page.ts';
+import { journeyCompare, journeyControl, journeyDialog, journeyDiscover, journeySettings } from './journeys.ts';
 import type { JourneyContext } from './journeys.ts';
 import { FULL, delay, runJourney, writeVersions } from './support.ts';
 
@@ -50,12 +51,17 @@ test('versions', async ({ page }) => {
 });
 
 // Journey b is NVDA's browse mode, which VoiceOver has no direct equivalent of.
-const journeys = {
+const product = {
   'a-dialog': journeyDialog,
   'c-settings': journeySettings,
   'd-discover': journeyDiscover,
   'e-compare': journeyCompare,
-} as const;
+};
+
+const journeys =
+  parseSuite(process.env.SR_SUITE) === 'control'
+    ? Object.fromEntries(CONTROL_VARIANTS.map((variant) => [variant.id, journeyControl(variant)]))
+    : product;
 
 for (const [name, journey] of Object.entries(journeys)) {
   test(`${name}`, async ({ voiceOver, page }) => {

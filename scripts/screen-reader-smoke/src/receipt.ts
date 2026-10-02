@@ -27,6 +27,7 @@ const receipt = {
   gitSha: process.env.GITHUB_SHA,
   // Set when the workflow built and served this commit on 127.0.0.1 instead of testing a deployed origin.
   servedCommit: process.env.CANDIDATE_SHA || undefined,
+  suite: process.env.SR_SUITE || 'product',
   runUrl: process.env.GITHUB_RUN_ID
     ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
     : undefined,

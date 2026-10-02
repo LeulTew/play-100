@@ -12,6 +12,8 @@ import {
   spoke,
 } from '../src/speech.ts';
 import type { SpeechJournal } from '../src/speech.ts';
+import { CONTROL_OPENER, CONTROL_TITLE, controlPage, controlPath } from '../src/control-page.ts';
+import type { ControlVariant } from '../src/control-page.ts';
 import { FULL, delay, describeFocus, escapeUntilClosed, focusIsOn, key, origin, tabTo } from './support.ts';
 import type { Reader } from './support.ts';
 
@@ -89,8 +91,26 @@ export async function journeyDialog(context: JourneyContext): Promise<void> {
   const card = firstCard(page);
   const { slug, title } = await cardFacts(card);
   await tabTo(reader, journal, page, `Tab to the ${title} card`, card.locator('a.game-link'), { max: 120 });
-  const opened = await key(reader, journal, page, 'open with Enter', 'Enter');
   const dialog = detailDialog(page, title);
+  await openAndCheckOpeningSpeech(context, title, dialog, { headingSpoken: kind === 'nvda' });
+  await closeDetailAndCheckReturn(context, slug, title, dialog);
+}
+
+const OPENING_SETTLE_MS = 4_000;
+
+/**
+ * Presses Enter on the focused opener, waits for the dialog and a settle window, and checks the opening speech: name
+ * and role spoken; in NVDA the heading spoken (when expected) and "dialog" and "heading" each at most once; and the
+ * rationale's closing words not read automatically. Shared by journey (a) and the native-dialog controls.
+ */
+async function openAndCheckOpeningSpeech(
+  context: JourneyContext,
+  title: string,
+  dialog: Locator,
+  { headingSpoken }: { headingSpoken: boolean },
+): Promise<void> {
+  const { page, reader, journal, kind } = context;
+  const opened = await key(reader, journal, page, 'open with Enter', 'Enter');
   await waitForDialog(dialog, 'open with Enter');
   // Opening can load the detail after the key press's capture ends; give the reader time to finish announcing it.
   await delay(OPENING_SETTLE_MS);
@@ -102,15 +122,45 @@ export async function journeyDialog(context: JourneyContext): Promise<void> {
   journal.check(expectSpoken('the dialog name is spoken', opening, title));
   journal.check(expectSpoken('the dialog role is spoken', opening, 'dialog'));
   if (kind === 'nvda') {
-    journal.check(expectSpoken('the heading is spoken', opening, /heading/));
+    if (headingSpoken) journal.check(expectSpoken('the heading is spoken', opening, /heading/));
     journal.check(expectAtMost('the dialog is announced once', opening, 'dialog', 1));
     journal.check(expectAtMost('the heading is announced once', opening, 'heading', 1));
   }
   journal.check(expectNotSpoken('the full body is not read automatically on open', opening, tail));
-  await closeDetailAndCheckReturn(context, slug, title, dialog);
 }
 
-const OPENING_SETTLE_MS = 4_000;
+/**
+ * Native-dialog control: the same keyboard path and opening-speech checks as (a), on a minimal page served by request
+ * interception at the target origin, so it needs no build. Escape must return focus to the opener, whose name is spoken.
+ */
+export function journeyControl(variant: ControlVariant) {
+  return async (context: JourneyContext): Promise<void> => {
+    const { page, reader, journal } = context;
+    const path = controlPath(variant);
+    await page.route(new URL(path, origin).href, (route) =>
+      route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: controlPage(variant) }),
+    );
+    journal.step(`control ${variant.id}: ${JSON.stringify(variant)}`, [], []);
+    const opener = page.locator('#opener');
+    await open(context, path, opener);
+    await tabTo(reader, journal, page, `Tab to ${CONTROL_OPENER}`, opener, { max: 20 });
+    const dialog = page.getByRole('dialog', { name: CONTROL_TITLE });
+    await openAndCheckOpeningSpeech(context, CONTROL_TITLE, dialog, {
+      headingSpoken: variant.autofocus === 'heading',
+    });
+    const closing = await escapeUntilClosed(reader, journal, page, 'close the dialog', dialog);
+    const focus = await describeFocus(page);
+    journal.check(
+      expectTrue('focus returns to the opener', focus.id === 'opener', `focus is on ${focus.tag} #${focus.id ?? ''}`),
+    );
+    let returned = closing;
+    if (!spoke(returned, CONTROL_OPENER)) {
+      const { keys, label } = await context.reportFocus();
+      returned = [...returned, ...journal.step(label, keys, await reader.spokenPhraseLog(), focus)];
+    }
+    journal.check(expectSpoken('the opener name is spoken', returned, CONTROL_OPENER));
+  };
+}
 
 /** (b) NVDA browse mode: reach a card heading with the virtual cursor, activate it, close with Escape. */
 export async function journeyBrowseMode(context: JourneyContext): Promise<void> {

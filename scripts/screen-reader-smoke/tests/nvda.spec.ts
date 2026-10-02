@@ -2,7 +2,15 @@ import { nvdaTest as test } from '@guidepup/playwright';
 import type { NVDAPlaywright } from '@guidepup/playwright';
 import type { Page } from '@playwright/test';
 import { SpeechJournal } from '../src/speech.ts';
-import { journeyBrowseMode, journeyCompare, journeyDialog, journeyDiscover, journeySettings } from './journeys.ts';
+import { CONTROL_VARIANTS, parseSuite } from '../src/control-page.ts';
+import {
+  journeyBrowseMode,
+  journeyCompare,
+  journeyControl,
+  journeyDialog,
+  journeyDiscover,
+  journeySettings,
+} from './journeys.ts';
 import type { JourneyContext, NvdaCommand } from './journeys.ts';
 import { FULL, delay, runJourney, writeVersions } from './support.ts';
 
@@ -75,13 +83,18 @@ test('versions', async ({ page }) => {
   });
 });
 
-const journeys = {
+const product = {
   'a-dialog': journeyDialog,
   'b-browse-mode': journeyBrowseMode,
   'c-settings': journeySettings,
   'd-discover': journeyDiscover,
   'e-compare': journeyCompare,
-} as const;
+};
+
+const journeys =
+  parseSuite(process.env.SR_SUITE) === 'control'
+    ? Object.fromEntries(CONTROL_VARIANTS.map((variant) => [variant.id, journeyControl(variant)]))
+    : product;
 
 for (const [name, journey] of Object.entries(journeys)) {
   test(`${name}`, async ({ nvda, page }) => {
