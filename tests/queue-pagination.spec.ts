@@ -343,6 +343,59 @@ test('removing the last Queue page clamps its view without removing the stored g
   expect(Object.keys(saved.records)).toHaveLength(26);
 });
 
+for (const outcome of ['saved', 'failed'] as const) {
+  test(`a ${outcome} Queue removal superseded by a search mid-save leaves the URL page matching the view`, async ({
+    page,
+  }) => {
+    await openQueue(page);
+    await pager(page).getByRole('combobox').selectOption('3');
+    await expect(page).toHaveURL(/[?&]page=3(?:&|$)/);
+    const before = await readLibrary(page);
+    await page.evaluate((fail) => {
+      const put = IDBObjectStore.prototype.put;
+      document.documentElement.dataset.queueSave = 'armed';
+      // Hold the app's save receiver so the search changes while the removal is still in flight.
+      IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
+        if (this.transaction.db.name !== 'play100-personal' || this.name !== 'library' || args[1] !== 'state') {
+          return put.apply(this, args);
+        }
+        IDBObjectStore.prototype.put = put;
+        const transaction = this.transaction;
+        const complete = transaction.oncomplete;
+        const abort = transaction.onabort;
+        if (!complete || !abort) throw new Error('The queue save fixture needs the existing save receivers.');
+        transaction.oncomplete = (event) => {
+          document.documentElement.dataset.queueSave = 'held';
+          window.addEventListener(
+            'queue:release-save',
+            () => (fail ? abort.call(transaction, event) : complete.call(transaction, event)) as unknown,
+            { once: true },
+          );
+        };
+        // A failed save never writes, so the stored library keeps its earlier queue.
+        return fail ? ({} as IDBRequest<IDBValidKey>) : put.apply(this, args);
+      };
+    }, outcome === 'failed');
+    await row(page, 55)
+      .getByRole('button', { name: /^Remove from Play later:/ })
+      .click();
+    await expect(page.locator('html')).toHaveAttribute('data-queue-save', 'held');
+    await search(page).fill('Synthetic');
+    await expect(pager(page).getByRole('combobox')).toHaveValue('1');
+    await page.evaluate(() => window.dispatchEvent(new Event('queue:release-save')));
+    const urlPage = () => new URL(page.url()).searchParams.get('page') ?? '1';
+    await expect.poll(urlPage).toBe('1');
+    await expect(pager(page).getByRole('combobox')).toHaveValue('1');
+    await search(page).fill('');
+    await expect(pager(page).getByRole('combobox')).toHaveValue('1');
+    await expect(queue(page).locator('.personal-row')).toHaveCount(25);
+    expect(urlPage()).toBe('1');
+    const saved = await readLibrary(page);
+    expect(saved.queueOrder).toHaveLength(outcome === 'saved' ? 59 : 60);
+    if (outcome === 'failed') expect(saved).toEqual(before);
+  });
+}
+
 test('Queue removal preserves every non-queue field, while Library removal still confirms full deletion', async ({
   page,
 }) => {
