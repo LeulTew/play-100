@@ -93,6 +93,8 @@ export function useLibraryPage({
   const focusAfterPage = useRef(false);
   const removalFallback = useRef<(() => HTMLElement | null) | null>(null);
   const queueRemoval = useRef<ReturnType<typeof captureControlFocus> | null>(null);
+  // The ref guards re-entry synchronously; this state makes the URL clamp re-run when the hold ends.
+  const [queueRemovalHeld, setQueueRemovalHeld] = useState(false);
   const [removedQueue, setRemovedQueue] = useState<{
     id: string;
     neighbors: string[];
@@ -102,6 +104,11 @@ export function useLibraryPage({
   const followedQueueRemoval = useRef<typeof removedQueue>(null);
   const generation = useRef(0);
   const mounted = useRef(true);
+  const releaseQueueRemoval = useCallback((handoff: ReturnType<typeof captureControlFocus>) => {
+    if (queueRemoval.current !== handoff) return;
+    queueRemoval.current = null;
+    if (mounted.current) setQueueRemovalHeld(false);
+  }, []);
   const queuePositions = useMemo(
     () => new Map(state.queueOrder.map((id, index) => [id, index + 1])),
     [state.queueOrder],
@@ -157,17 +164,17 @@ export function useLibraryPage({
   const holdQueuePage = tab === 'later' && pendingEdits;
   useEffect(() => {
     // Removal handoffs (the dialog's and the queue's) resolve neighboring focus before the URL clamp advances navigation.
-    // A queue handoff clears its ref when removedQueue is followed, which re-runs this clamp.
+    // queueRemovalHeld is state, so ending a hold (success, failure or a superseded save) re-runs this clamp.
     if (
       active &&
       usesUrlPage &&
       !holdQueuePage &&
-      !queueRemoval.current &&
+      !queueRemovalHeld &&
       libraryPage !== boundedPage &&
       removing.length === 0
     )
       changeUrlPage(boundedPage, 'replace');
-  }, [active, usesUrlPage, holdQueuePage, removedQueue, libraryPage, boundedPage, removing.length, changeUrlPage]);
+  }, [active, usesUrlPage, holdQueuePage, queueRemovalHeld, libraryPage, boundedPage, removing.length, changeUrlPage]);
   const current = useRef({ active, tab, definition, total: records.length, offset: page.offset, libraryPage, state });
   useLayoutEffect(() => {
     if (current.current.active !== active || current.current.definition !== definition) generation.current += 1;
@@ -269,9 +276,9 @@ export function useLibraryPage({
         .find(visibleFocusTarget);
       removedQueue.handoff.focus(target ?? resultsHeading.current);
     } else removedQueue.handoff.cancel();
-    queueRemoval.current = null;
+    releaseQueueRemoval(removedQueue.handoff);
     followedQueueRemoval.current = removedQueue;
-  }, [removedQueue, state, pendingEdits, active]);
+  }, [removedQueue, state, pendingEdits, active, releaseQueueRemoval]);
   const removeFromQueue = async (record: LibraryRecord, trigger: HTMLElement) => {
     if (!active || busy || tab !== 'later' || queueRemoval.current) return;
     const request = generation.current;
@@ -280,6 +287,7 @@ export function useLibraryPage({
       mounted.current && current.current.active && generation.current === request && scopeAndNavigation();
     const handoff = captureControlFocus(trigger);
     queueRemoval.current = handoff;
+    setQueueRemovalHeld(true);
     const index = records.findIndex((item) => item.id === record.id);
     const neighbors = [...records.slice(index + 1), ...records.slice(0, index).reverse()].map((item) => item.id);
     let saved = false;
@@ -292,7 +300,7 @@ export function useLibraryPage({
     } finally {
       if (!saved || !isCurrent()) {
         handoff.cancel();
-        if (queueRemoval.current === handoff) queueRemoval.current = null;
+        releaseQueueRemoval(handoff);
       }
     }
   };
