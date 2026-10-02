@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test';
 import { SpeechJournal } from '../src/speech.ts';
 import { journeyCompare, journeyDialog, journeyDiscover, journeySettings } from './journeys.ts';
 import type { JourneyContext } from './journeys.ts';
-import { delay, runJourney, writeVersions } from './support.ts';
+import { FULL, delay, runJourney, writeVersions } from './support.ts';
 
 const READER = 'voiceover';
 
@@ -25,6 +25,10 @@ function context(voiceOver: VoiceOverPlaywright, page: Page, journal: SpeechJour
     focusBrowser: async (label) => {
       await focusChrome(page);
       journal.step(`${label}: activate Chrome`, [], await voiceOver.spokenPhraseLog());
+    },
+    reportFocus: async () => {
+      await voiceOver.perform(voiceOver.keyboardCommands.describeItemWithKeyboardFocus, FULL);
+      return { keys: ['VO+F4'], label: 'describe the focused item (VO+F4)' };
     },
   };
 }

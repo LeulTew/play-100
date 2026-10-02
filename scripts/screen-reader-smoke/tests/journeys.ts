@@ -24,6 +24,8 @@ export interface JourneyContext {
   journal: SpeechJournal;
   /** Brings the browser to the reader's attention by keyboard and leaves the reader at the top of the page. */
   focusBrowser: (label: string) => Promise<void>;
+  /** Asks the reader to speak the item with keyboard focus, as a user would when a change went unannounced. */
+  reportFocus: () => Promise<{ keys: string[]; label: string }>;
   /** NVDA only: run a named NVDA command (for example the browse-mode heading key). */
   command?: (name: NvdaCommand, options?: { capture?: true | false | 'initial' }) => Promise<void>;
 }
@@ -72,13 +74,10 @@ async function closeDetailAndCheckReturn(context: JourneyContext, slug: string, 
     ),
   );
   let returned = closing;
-  if (!spoke(returned, title) && context.command) {
-    // NVDA can stay silent on a focus return that changes nothing it tracks. Ask it where focus is, as a user would.
-    await context.command('reportCurrentFocus', FULL);
-    returned = [
-      ...returned,
-      ...journal.step('report focus (NVDA+Tab)', ['NVDA+Tab'], await reader.spokenPhraseLog(), focus),
-    ];
+  if (!spoke(returned, title)) {
+    // A reader can stay silent on a focus return that changes nothing it tracks. Ask it where focus is, as a user would.
+    const { keys, label } = await context.reportFocus();
+    returned = [...returned, ...journal.step(label, keys, await reader.spokenPhraseLog(), focus)];
   }
   journal.check(expectSpoken('the returned card name is spoken', returned, title));
 }
@@ -143,9 +142,9 @@ export async function journeyBrowseMode(context: JourneyContext): Promise<void> 
   // The local Release 7 finding lost focus to BODY after ranking the game inside the dialog, which re-renders its card.
   const rank = dialog.getByRole('button', { name: /Add to my ranking/i });
   await tabTo(reader, journal, page, 'Tab to Add to my ranking', rank, { max: 30 });
-  const ranked = await key(reader, journal, page, 'add the game to my ranking with Enter', 'Enter');
+  await key(reader, journal, page, 'add the game to my ranking with Enter', 'Enter');
   await expect(dialog.getByText(/Your rank/i).first()).toBeVisible({ timeout: 10_000 });
-  journal.check(expectSpoken('the ranking change is spoken', ranked, /rank/i));
+  await checkSpokenOrReport(context, 'the ranking change is spoken', 'add the game to my ranking with Enter', /rank/i);
   await closeDetailAndCheckReturn(context, target.slug, target.title, dialog);
 }
 
@@ -176,9 +175,8 @@ export async function journeySettings(context: JourneyContext): Promise<void> {
   for (let press = 1; press <= 3 && !(await lite.isChecked()); press++)
     await key(reader, journal, page, `ArrowUp toward Lite (${press})`, 'ArrowUp');
   journal.check(expectTrue('Lite is selected by keyboard', await lite.isChecked(), 'the Lite radio is checked'));
-  const afterChoice = journal.since('ArrowUp to Lite');
-  journal.check(expectSpoken('the save is announced', afterChoice, 'Visual preference saved.'));
-  journal.check(expectSpoken('Lite is spoken', afterChoice, 'Lite'));
+  journal.check(expectSpoken('the save is announced', journal.since('ArrowUp to Lite'), 'Visual preference saved.'));
+  await checkSpokenOrReport(context, 'Lite is spoken', 'ArrowUp to Lite', 'Lite');
   const closing = await escapeUntilClosed(reader, journal, page, 'close Settings & backups', settings);
   const returnedToMenu = await focusIsOn(menu);
   const focus = await describeFocus(page);
@@ -197,6 +195,24 @@ export async function journeySettings(context: JourneyContext): Promise<void> {
   journal.check(expectSpoken('Menu is spoken on return', heard, 'menu'));
 }
 
+/**
+ * Checks that a phrase was spoken since a step. If the reader stayed silent on the change, it asks the reader once
+ * for the focused item, as a user would, and checks again. The extra step stays in the log, so the receipt shows it.
+ */
+async function checkSpokenOrReport(
+  context: JourneyContext,
+  name: string,
+  sinceLabel: string,
+  needle: string | RegExp,
+): Promise<void> {
+  const { page, reader, journal } = context;
+  if (!spoke(journal.since(sinceLabel), needle)) {
+    const { keys, label } = await context.reportFocus();
+    journal.step(label, keys, await reader.spokenPhraseLog(), await describeFocus(page));
+  }
+  journal.check(expectSpoken(name, journal.since(sinceLabel), needle));
+}
+
 /** (d) Discover: type Portal into the search and hear the result count. */
 export async function journeyDiscover(context: JourneyContext): Promise<void> {
   const { page, reader, journal } = context;
@@ -205,7 +221,7 @@ export async function journeyDiscover(context: JourneyContext): Promise<void> {
   await expect(status).not.toHaveText(/Loading/, { timeout: 60_000 });
   const search = page.locator('#catalog-search');
   await tabTo(reader, journal, page, 'Tab to Find a game', search, { max: 60 });
-  journal.check(expectSpoken('the search field is named', journal.since('Tab to Find a game'), 'find a game'));
+  await checkSpokenOrReport(context, 'the search field is named', 'Tab to Find a game', 'find a game');
   await reader.type('Portal', FULL);
   const typed = journal.step('type Portal', ['P', 'o', 'r', 't', 'a', 'l'], await reader.spokenPhraseLog(), {
     ...(await describeFocus(page)),

@@ -8,15 +8,12 @@ on:
         type: string
         required: true
         default: https://play-100-collection.vercel.app
-  push:
-    branches:
-      - leultew-r24-screen-reader-ci
 
 permissions:
   contents: read
 
 concurrency:
-  group: screen-reader-smoke-${{ github.ref }}
+  group: screen-reader-smoke-${{ github.ref }}-${{ inputs.target_origin }}
   cancel-in-progress: false
 
 env:
