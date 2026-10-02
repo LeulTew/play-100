@@ -96,8 +96,11 @@ jobs:
       - name: Install pinned dependencies
         run: npm ci
       - name: Set up VoiceOver for automation
+        timeout-minutes: 10
         run: |
-          npx guidepup setup --ci
+          # Without --ci, setup skips the Do Not Disturb UI script, which fails on macOS 15.7. The hosted image has SIP off,
+          # so setup still enables VoiceOver AppleScript control by writing its database file.
+          npx guidepup setup
           npx guidepup install
           npx playwright install ffmpeg
       - name: Record versions
