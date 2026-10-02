@@ -29,15 +29,6 @@ export function PersonalRatingInput({
   useLayoutEffect(() => {
     if (!edited) commit.current = onCommit;
   }, [edited, onCommit]);
-  useEffect(() => {
-    if (!edited) return;
-    const beforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = '';
-    };
-    window.addEventListener('beforeunload', beforeUnload);
-    return () => window.removeEventListener('beforeunload', beforeUnload);
-  }, [edited]);
   const save = useCallback((): Promise<boolean> => {
     if (saving.current) return saving.current;
     if (!edited || committedEdit.current === edits.current) return Promise.resolve(true);
@@ -76,6 +67,28 @@ export function PersonalRatingInput({
     });
     return task;
   }, [edited, draft, value]);
+  useEffect(() => {
+    if (!edited) return;
+    const flush = () => {
+      if (!error) void save();
+    };
+    const hidden = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      flush();
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    document.addEventListener('visibilitychange', hidden);
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', hidden);
+      window.removeEventListener('pagehide', flush);
+      window.removeEventListener('beforeunload', beforeUnload);
+    };
+  }, [edited, error, save]);
   useEffect(() => {
     if (!edited || busy || error || badInput.current) return;
     const pointer = window.matchMedia('(pointer: coarse)');

@@ -33,6 +33,73 @@ async function openRating(page: Page, surface: 'detail' | 'ranking') {
 }
 
 for (const surface of ['detail', 'ranking'] as const) {
+  for (const event of ['visibilitychange', 'pagehide'] as const) {
+    test(`${surface}: ${event} saves a focused draft without waiting for blur or debounce`, async ({ page }) => {
+      const rating = await openRating(page, surface);
+      await page.clock.install({ time: new Date('2026-10-02T12:00:00Z') });
+      await page.clock.pauseAt(new Date('2026-10-02T12:00:10Z'));
+      const before = await readLibrary(page);
+      const held = await holdLibraryWrite(page);
+      await withActionCleanup(async () => {
+        await rating.fill('7.25');
+        await expect(rating).toBeFocused();
+        await page.evaluate((event) => {
+          if (event === 'visibilitychange') {
+            Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+            document.dispatchEvent(new Event(event));
+          } else dispatchEvent(new PageTransitionEvent(event));
+        }, event);
+        await expect.poll(() => held.evaluate((probe) => probe.state.held)).toBe(true);
+        await expect(rating).toBeFocused();
+        expect(await held.evaluate((probe) => probe.state.attempts)).toBe(1);
+        await held.evaluate((probe) => probe.release());
+        await expect
+          .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === game.id)?.score)
+          .toBe(7.25);
+        await expect(rating).toBeFocused();
+        expect((await readLibrary(page)).revision).toBe(before.revision + 1);
+      }, [() => held.evaluate((probe) => probe.restore()), () => held.dispose()]);
+    });
+  }
+
+  test(`${surface}: navigation immediately after typing flushes the focused draft`, async ({ page }) => {
+    const rating = await openRating(page, surface);
+    await page.clock.install({ time: new Date('2026-10-02T12:00:00Z') });
+    await page.clock.pauseAt(new Date('2026-10-02T12:00:10Z'));
+    const before = await readLibrary(page);
+    await rating.fill('7.25');
+    await expect(rating).toBeFocused();
+    if (surface === 'detail') {
+      await page.keyboard.press('Escape');
+      await expect(page.locator('.game-dialog')).toHaveCount(0);
+    } else {
+      await page.locator('.wordmark').evaluate((element: HTMLAnchorElement) => element.click());
+      await expect(page).toHaveURL((url) => url.pathname === '/');
+    }
+    await expect
+      .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === game.id)?.score)
+      .toBe(7.25);
+    expect((await readLibrary(page)).revision).toBe(before.revision + 1);
+  });
+
+  test(`${surface}: closing the tab flushes a focused rating to the device library`, async ({ page, context }) => {
+    const rating = await openRating(page, surface);
+    const observer = await context.newPage();
+    await observer.goto(new URL('/favicon.svg', page.url()).href);
+    await page.bringToFront();
+    await rating.click();
+    await rating.fill('7.25');
+    await expect(rating).toBeFocused();
+    page.on('dialog', (dialog) => void dialog.accept());
+    const closed = page.waitForEvent('close');
+    await page.close({ runBeforeUnload: true });
+    await closed;
+    await expect
+      .poll(async () => (await readLibrary(observer)).ranking.find((entry) => entry.id === game.id)?.score)
+      .toBe(7.25);
+    await observer.close();
+  });
+
   test(`${surface}: a pause between 7 and .5 keeps focus and saves the complete decimal`, async ({
     page,
     isMobile,
@@ -62,6 +129,30 @@ for (const surface of ['detail', 'ranking'] as const) {
         await expect(rating).not.toHaveAttribute('readonly');
         await expect(rating).toBeFocused();
       }
+
+      test('a nested share dialog flushes the still-focused rating without a timed save', async ({ page }) => {
+        await page.addInitScript(() => {
+          Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+          Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: {
+              writeText: () => Promise.reject(new DOMException('Synthetic clipboard refusal', 'NotAllowedError')),
+            },
+          });
+        });
+        const rating = await openRating(page, 'detail');
+        await page.clock.install({ time: new Date('2026-10-02T12:00:00Z') });
+        await page.clock.pauseAt(new Date('2026-10-02T12:00:10Z'));
+        await rating.fill('7.25');
+        await expect(rating).toBeFocused();
+        await page
+          .getByRole('button', { name: `Share ${game.title}`, exact: true })
+          .evaluate((element: HTMLButtonElement) => element.click());
+        await expect(page.getByRole('dialog', { name: 'Copy this link', exact: true })).toBeVisible();
+        await expect
+          .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === game.id)?.score)
+          .toBe(7.25);
+      });
       await rating.press('End');
       await page.keyboard.type('.5');
       await expect(rating).toHaveValue('7.5');

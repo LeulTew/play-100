@@ -1,6 +1,71 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { emptyCatalogs } from './catalog-helpers';
+import { textSpacingCSS } from './readability-helpers';
+
+for (const width of [320, 393, 1280]) {
+  test(`${width}px: expanded text spacing keeps every card's visible text inside its link`, async ({
+    page,
+    baseURL,
+  }) => {
+    if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname)) throw new Error('Loopback only.');
+    await emptyCatalogs(page);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/?catalogs=off');
+    const cards = page.locator('.game-card');
+    await expect(cards).toHaveCount(24);
+    await page.addStyleTag({ content: textSpacingCSS });
+    await page.evaluate(() => document.fonts.ready);
+    const samples = [];
+    for (let index = 0; index < 24; index++) {
+      const card = cards.nth(index);
+      await card.evaluate((element) => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+      await page.evaluate(
+        () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+      );
+      const sample = await card.evaluate((element) => {
+        const link = element.querySelector('.game-link');
+        if (!link) throw new Error('The game identity link must remain available.');
+        const bounds = link.getBoundingClientRect();
+        const clipped: string[] = [];
+        const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          const parent = node.parentElement;
+          if (!parent || !node.textContent?.trim() || parent.closest('.sr-only, [aria-hidden="true"], svg')) continue;
+          if (!parent.checkVisibility({ contentVisibilityAuto: true, checkVisibilityCSS: true })) continue;
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          if (
+            [...range.getClientRects()].some(
+              (rect) =>
+                rect.width > 0 &&
+                rect.height > 0 &&
+                (rect.top < bounds.top - 1 ||
+                  rect.bottom > bounds.bottom + 1 ||
+                  rect.left < bounds.left - 1 ||
+                  rect.right > bounds.right + 1),
+            )
+          )
+            clipped.push(node.textContent.trim());
+        }
+        return {
+          id: element.getAttribute('data-game'),
+          linkHeight: bounds.height,
+          cardHeight: element.getBoundingClientRect().height,
+          clipped,
+        };
+      });
+      samples.push(sample);
+      expect.soft(sample.clipped, JSON.stringify(sample)).toEqual([]);
+    }
+    await test.info().attach('visible-card-spacing.json', {
+      body: JSON.stringify({ width, samples }, null, 2),
+      contentType: 'application/json',
+    });
+  });
+}
 
 for (const width of [393, 1280]) {
   test(`${width}px: tall fallback-font metrics cannot push card actions into neighboring links`, async ({
