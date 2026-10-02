@@ -115,7 +115,16 @@ renders first (stored motion hint, reduced motion, constrained device, coarse
 pointer), and measures three off-screen probes to confirm that the
 metric-matched fallback faces are usable, the Impact, Arial and Roboto faces
 against the same expected boxes, within about 1% because glyph edges snap to
-device pixels. The bold probe measures "GOOD THINGS, COLLECTED.",
+device pixels. The display range is a little wider, ±1.25% of 609.6 px:
+Chromium on Linux rounds every glyph advance to a whole CSS pixel, at any device
+pixel ratio, which can move the 14-glyph display string by up to 7 px (1.15%).
+There Liberation Sans Bold, Arial Bold's metric clone and the usual stand-in for
+the missing Impact, measures 616.00 × 120 (sans 931, bold 1306, both within
+their ranges). Its line boxes keep the overridden heights, so a heading only
+changes width by those few pixels, as it does for Arial on other systems. A
+desktop without Liberation, whose display text falls to a generic face such as
+DejaVu Sans Bold, fails the probes and takes the web-font path below, as the
+phones do. The bold probe measures "GOOD THINGS, COLLECTED.",
 which a variable Roboto rendered at its default weight draws too narrow, so that
 case, which would reflow, keeps the shell hidden. Then it sets `data-boot="landing"` and
 `data-boot-art` on `<html>`. Anything unexpected leaves the shell hidden.
