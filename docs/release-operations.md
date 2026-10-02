@@ -77,18 +77,21 @@ build with the repository's public `VITE_FIREBASE_*` variables, and serves
 Each journal step also records the DOM `focusin`/`focusout` events since the
 previous step, to tell DOM focus apart from the reader's virtual focus.
 
-Journeys: (a) Tab to a The 100 card, Enter opens the detail dialog, its name,
-heading and description are spoken with the description once, and Escape
-returns focus to the card; (b) NVDA browse mode activates a card heading and
+Journeys: (a) Tab to a The 100 card and press Enter: the opening speech, plus a
+4-second settle, includes the dialog's name and role (and, in NVDA, its heading),
+NVDA announces "dialog" and "heading" at most once, a short description is
+allowed but the full body is not read automatically (the rationale's closing
+words are not spoken), and Escape returns focus to the card, whose name is
+spoken; (b) NVDA browse mode activates a card heading and
 Escape returns focus to the card, not BODY; (c) Menu, Settings & backups, Lite
 speaks "Visual preference saved." and closing returns focus to Menu;
 (d) Discover search for `Portal` speaks the result count; (e) pinning a game for
 comparison speaks the confirmation and the tray state. A job fails when any
 journey fails. The `screen-reader-<reader>` artifact keeps the phrase logs,
 versions, `receipt.json` and failure screenshots for 30 days whatever the
-outcome. Release 7 is the failing baseline for NVDA (a): the dialog text is
-spoken twice on open. In CI, Release 7 (b) returns focus to the card; the BODY
-loss seen with local NVDA did not reproduce on hosted runners. Run the light checks with
+outcome. Release 7 is the failing baseline for NVDA (a). In CI, Release 7 (b)
+returns focus to the card; the BODY loss seen with local NVDA did not
+reproduce on hosted runners. Run the light checks with
 `npm run typecheck` in `scripts/screen-reader-smoke` and
 `npx vitest run --project unit scripts/screen-reader-smoke/src/speech.test.ts`.
 

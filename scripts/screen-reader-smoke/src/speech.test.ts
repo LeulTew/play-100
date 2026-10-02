@@ -4,8 +4,12 @@ import {
   RESULT_COUNT,
   SpeechJournal,
   TRAY_STATE,
+  bodyTail,
   countSpoken,
+  countWord,
   descriptionFragment,
+  expectAtMost,
+  expectNotSpoken,
   expectSpokenTimes,
   normalizeSpeech,
   pinConfirmation,
@@ -91,6 +95,34 @@ describe('speech matching', () => {
 
   it('takes the leading words of a description', () => {
     expect(descriptionFragment('One two  three four', 3)).toBe('one two three');
+  });
+});
+
+describe('dialog opening speech', () => {
+  const body =
+    'The benchmark blockbuster: world-building, immersion, narrative detail and a frontier that keeps going.';
+  const tail = bodyTail(body);
+
+  it('takes the closing words of the body', () => {
+    expect(tail).toBe(normalizeSpeech('narrative detail and a frontier that keeps going.'));
+  });
+
+  it('accepts a name, heading and short description without the full body', () => {
+    const opening = ['Red Dead Redemption 2 dialog', 'Open-world western', 'Red Dead Redemption 2 heading level 2'];
+    expect(expectNotSpoken('no full body', opening, tail).pass).toBe(true);
+    expect(expectAtMost('dialog once', opening, 'dialog', 1).pass).toBe(true);
+    expect(expectAtMost('heading once', opening, 'heading', 1).pass).toBe(true);
+  });
+
+  it('rejects a full body read and a doubled announcement', () => {
+    const opening = ['Red Dead Redemption 2 dialog', body, 'Red Dead Redemption 2 dialog', 'heading level 2'];
+    expect(expectNotSpoken('no full body', opening, tail).pass).toBe(false);
+    expect(expectAtMost('dialog once', opening, 'dialog', 1).pass).toBe(false);
+  });
+
+  it('counts whole words only and never passes an empty needle', () => {
+    expect(countWord(['dialogs dialog', 'Dialog'], 'dialog')).toBe(2);
+    expect(expectNotSpoken('empty', ['anything'], '').pass).toBe(false);
   });
 });
 
