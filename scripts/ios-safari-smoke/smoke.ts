@@ -312,23 +312,23 @@ async function measureTarget(element: WebElement, label: string) {
 }
 
 async function nativeTarget(measurements: Awaited<ReturnType<typeof measureTarget>>, label: string) {
-    await writeFile(`${output}/native-target-${results.steps.length}.xml`, await wd<string>('GET', '/source'));
-    const value = `type == ${JSON.stringify(measurements.nativeType)} AND label == ${JSON.stringify(label)}`;
-    const deadline = Date.now() + 15_000;
-    let elements: WebElement[] = [];
-    while (!elements.length && Date.now() < deadline) {
-      elements = await wd<WebElement[]>('POST', '/elements', { using: '-ios predicate string', value });
-      if (!elements.length) await delay(300);
-    }
-    assert.equal(elements.length, 1, `Expected one native accessibility anchor for ${label}.`);
-    const anchor = elements[0];
-    assert.ok(anchor);
-    const id = anchor['element-6066-11e4-a52e-4f735466cecf'];
-    const nativeAnchor = await wd<NativeRect>('GET', `/element/${id}/rect`);
-    const record: NativeTap = { label, ...measurements, nativeAnchor };
-    results.nativeTaps.push(record);
-    record.coordinates = tapCoordinates(record);
-    return record;
+  await writeFile(`${output}/native-target-${results.steps.length}.xml`, await wd<string>('GET', '/source'));
+  const value = `type == ${JSON.stringify(measurements.nativeType)} AND label == ${JSON.stringify(label)}`;
+  const deadline = Date.now() + 15_000;
+  let elements: WebElement[] = [];
+  while (!elements.length && Date.now() < deadline) {
+    elements = await wd<WebElement[]>('POST', '/elements', { using: '-ios predicate string', value });
+    if (!elements.length) await delay(300);
+  }
+  assert.equal(elements.length, 1, `Expected one native accessibility anchor for ${label}.`);
+  const anchor = elements[0];
+  assert.ok(anchor);
+  const id = anchor['element-6066-11e4-a52e-4f735466cecf'];
+  const nativeAnchor = await wd<NativeRect>('GET', `/element/${id}/rect`);
+  const record: NativeTap = { label, ...measurements, nativeAnchor };
+  results.nativeTaps.push(record);
+  record.coordinates = tapCoordinates(record);
+  return record;
 }
 
 async function tap(element: WebElement, label: string, outbound = false) {
@@ -351,7 +351,9 @@ async function tap(element: WebElement, label: string, outbound = false) {
 
 async function drag(from: WebElement, to: WebElement) {
   const labels = await execute<string[]>(
-    'return [...arguments].map(element => element.getAttribute("aria-label"));', from, to,
+    'return [...arguments].map(element => element.getAttribute("aria-label"));',
+    from,
+    to,
   );
   const [fromLabel, toLabel] = labels;
   assert.ok(fromLabel && toLabel);
@@ -620,8 +622,20 @@ try {
     return metrics();
   });
   await runTouchUx({
-    site, step, wd, execute, waitFor, click, navigation, drag, nativeAction, nativeTouch,
-    collectErrors, installCollector, assertLoaded, capture,
+    site,
+    step,
+    wd,
+    execute,
+    waitFor,
+    click,
+    navigation,
+    drag,
+    nativeAction,
+    nativeTouch,
+    collectErrors,
+    installCollector,
+    assertLoaded,
+    capture,
     artifact: (name, text) => writeFile(`${output}/${name}`, redactOAuthUrls(text)),
   });
   await delay(1000);

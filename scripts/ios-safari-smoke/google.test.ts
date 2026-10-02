@@ -24,7 +24,9 @@ test('read direct and nested Google wiring without retaining state or nonce', ()
 });
 
 test('reject foreign origins, missing clients, conflicting wiring and unsafe callbacks', () => {
-  assert.throws(() => googleOutboundEvidence(authorization.href.replace('accounts.google.com', 'accounts.example.com')));
+  assert.throws(() =>
+    googleOutboundEvidence(authorization.href.replace('accounts.google.com', 'accounts.example.com')),
+  );
   assert.throws(() => googleOutboundEvidence('https://accounts.google.com/'));
   const unsafe = new URL(authorization);
   unsafe.searchParams.set('redirect_uri', `${callback}?state=private-state`);

@@ -77,15 +77,10 @@ async function queueReorder(context: SmokeContext) {
   await context.waitFor(`return document.querySelectorAll(${JSON.stringify(rows)}).length === 3;`, 'three queue rows');
   const before = await context.execute<QueueRecord[]>(queueSnapshot);
   assert.equal(new Set(before.map((record) => record.id)).size, 3, 'Queue record IDs must be unique.');
-  assert.deepEqual(
-    before.map((record) => record.title).sort(),
-    games.map((game) => game.title).sort(),
-  );
+  assert.deepEqual(before.map((record) => record.title).sort(), games.map((game) => game.title).sort());
   const expected = [before[1], before[0], before[2]];
   assert.ok(expected.every(Boolean));
-  await context.execute(
-    `document.querySelector(${JSON.stringify(rows)}).scrollIntoView({ block: "center" });`,
-  );
+  await context.execute(`document.querySelector(${JSON.stringify(rows)}).scrollIntoView({ block: "center" });`);
   const handles = await context.execute<WebElement[]>(
     `return [...document.querySelectorAll(${JSON.stringify(rows)})].slice(0, 2).map(row => row.querySelector('.drag-handle'));`,
   );
@@ -107,7 +102,10 @@ async function queueReorder(context: SmokeContext) {
   await context.wd('POST', '/refresh', {});
   await context.installCollector(documentBeforeReload);
   await context.assertLoaded();
-  await context.waitFor(`return document.querySelectorAll(${JSON.stringify(rows)}).length === 3;`, 'queue after reload');
+  await context.waitFor(
+    `return document.querySelectorAll(${JSON.stringify(rows)}).length === 3;`,
+    'queue after reload',
+  );
   const persisted = await context.execute<QueueRecord[]>(queueSnapshot);
   assert.deepEqual(persisted, expected, 'The physical drag order must persist after a real reload.');
   return { games, before, after, persisted, gesture };
@@ -122,7 +120,11 @@ async function nativeShare(context: SmokeContext) {
     'return document.querySelector(".game-dialog[open] #game-title")?.textContent.trim();',
     'share game detail',
   );
-  assert.equal(await context.execute('return typeof navigator.share;'), 'function', 'Native sharing must be available.');
+  assert.equal(
+    await context.execute('return typeof navigator.share;'),
+    'function',
+    'Native sharing must be available.',
+  );
   await context.execute(`
     const state = window.__iosShareEvidence = { messages: [] };
     const inspect = () => {
@@ -186,9 +188,7 @@ async function googleOutbound(context: SmokeContext) {
     'const button = document.querySelector(".google-signin"); return button && !button.disabled;',
     'Continue with Google ready on Account',
   );
-  await context.execute(
-    'window.__iosSmoke.outbound = true; sessionStorage.removeItem("ios-smoke-google-trusted");',
-  );
+  await context.execute('window.__iosSmoke.outbound = true; sessionStorage.removeItem("ios-smoke-google-trusted");');
   await context.collectErrors();
   let evidence: ReturnType<typeof googleOutboundEvidence> | undefined;
   try {
@@ -208,7 +208,10 @@ async function googleOutbound(context: SmokeContext) {
       'return /\\bplay[\\s:._-]*100\\b/i.test(document.body.innerText);',
       'Google identifies the client as Play 100',
     );
-    await context.artifact('11-google-outbound.json', JSON.stringify({ ...evidence, clientBrand: 'Play 100' }, null, 2));
+    await context.artifact(
+      '11-google-outbound.json',
+      JSON.stringify({ ...evidence, clientBrand: 'Play 100' }, null, 2),
+    );
     assert.equal(evidence.redirectUri, `${context.site}/__/auth/handler`, 'The OAuth callback must target this app.');
   } finally {
     const current = new URL(await context.wd<string>('GET', '/url'));
