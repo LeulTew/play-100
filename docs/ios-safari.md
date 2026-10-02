@@ -26,6 +26,32 @@ checks matching cards, opens a detail from The 100, checks its heading,
 closes it and checks focus returned to the exact opening element. It opens
 My games, reloads, and checks the app and heading again.
 
+The typed harness then saves three collection games, opens
+`/my-games?tab=queue`, holds the first row's drag handle for 600 ms and moves
+it down one row using a genuine W3C touch pointer. It checks the exact IDs
+and titles before and after the swap, then verifies the same order after a
+real reload. Before/after screenshots and the actual gesture payload are retained.
+No move-button, DOM-event or storage-writing substitute is used.
+
+It opens a game detail and touches Share, requires the native iOS
+`ActivityListView` or Copy option, captures the open sheet, dismisses it
+natively and verifies its disappearance. A DOM observer checks that no
+fallback toast, detail notice or manual share dialog appears during native
+sharing or cancellation.
+
+Finally it opens Account and touches Continue with Google without entering
+credentials. It requires Google's genuine HTTPS origin, a registered client
+and callback in the provider's direct or nested continuation URL, and Play 100
+branding on Google's page. The callback must be the target origin's
+`/__/auth/handler`. One browser Back must restore the app, clear the busy
+sign-in state and leave My games navigation usable. An app-origin
+session-storage marker records the trusted initiating touch across navigation.
+OAuth query strings are removed from uploaded diagnostics; structured evidence
+retains only the public client ID, callback and origin/path chain.
+This checks outbound wiring and cancellation, not completed authentication.
+Candidate origins need valid Firebase authorized-domain and callback wiring;
+the runner does not configure or bypass those checks.
+
 Every step produces a PNG. Each device's `results.json` includes step outcomes,
 user agent, viewport, navigation timing, FCP/LCP when supported, boot attributes,
 uncaught errors, and the collector's installation timing. Failed assertions
@@ -136,6 +162,28 @@ into inferred TTFB or network benchmarks.
 My games and reload were not reached in that run. The green candidate evidence
 above covers the corrected build, not the unchanged production site. No product
 code was changed by the smoke runner.
+
+## Typed baseline evidence
+
+[Run 36957093703, attempt 2](https://github.com/LeulTew/play-100/actions/runs/36957093703)
+passed the original eight steps on all four devices with the typed W3C
+harness at `c2145741f89109153d6e15efbbeb670d56e52255`. Its candidate origin was
+`https://parents-lee-purchase-cookbook.trycloudflare.com`; the inventory receipt
+records HTML SHA-256
+`0f064fa8569925f857cb21946005bc99d0c3c447911109efc53afe3115c0a4e4`.
+The initial large iOS 26.2 job failed before Appium started, without reaching
+any app step; its rerun passed. The three other jobs passed on attempt 1.
+This baseline does not certify the subsequently added three touch UX steps.
+
+The controlled legacy run
+[36955361281](https://github.com/LeulTew/play-100/actions/runs/36955361281)
+ran the immutable earlier green `.mjs` harness with the current locked
+Node/Appium toolchain against production. All four devices passed home,
+Discover and search, then reproduced the `14px` input zoom and off-viewport
+The 100 failure. That production HTML identity is
+`1da5b6af8221ce80f349ab0ccb8fa93e5650985b85a15b7ba78ce7552bd45e15`,
+not the fixed candidate. A production/candidate mismatch must not be
+misreported as a TypeScript conversion regression.
 
 ## Devices and runtimes
 

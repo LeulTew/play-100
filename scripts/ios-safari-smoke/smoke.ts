@@ -5,11 +5,10 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { tapCoordinates } from './coordinates.ts';
 import type { NativeRect, TapMeasurements } from './coordinates.ts';
 import { productionOrigin, targetOrigin } from './target.ts';
-import { touchTap } from './touch.ts';
-
-interface WebElement {
-  'element-6066-11e4-a52e-4f735466cecf': string;
-}
+import { touchDrag, touchTap } from './touch.ts';
+import { redactOAuthUrls } from './google.ts';
+import { runTouchUx } from './ux.ts';
+import type { WebElement } from './ux.ts';
 
 interface PageError {
   type: string;
@@ -70,7 +69,7 @@ interface Results {
 }
 
 function errorDetails(error: unknown) {
-  return error instanceof Error ? (error.stack ?? error.message) : String(error);
+  return redactOAuthUrls(error instanceof Error ? (error.stack ?? error.message) : String(error));
 }
 
 let site: string;
@@ -184,7 +183,7 @@ async function installCollector(previousTimeOrigin?: number) {
         performance.timeOrigin === ${JSON.stringify(previousTimeOrigin ?? null)}) return null;
     if (!window.__iosSmoke) {
       const state = window.__iosSmoke = {
-        errors: [], clicks: [], installedAtMs: performance.now(), readyState: document.readyState,
+        errors: [], clicks: [], installedAtMs: performance.now(), readyState: document.readyState, outbound: false,
         fcp: null, lcp: null, supportedEntryTypes: PerformanceObserver.supportedEntryTypes || []
       };
       addEventListener('error', event => {
@@ -196,10 +195,16 @@ async function installCollector(previousTimeOrigin?: number) {
         type: 'unhandledrejection', message: String(event.reason?.message || event.reason),
         stack: event.reason?.stack, url: location.href
       }));
-      addEventListener('click', event => state.clicks.push({
-        trusted: event.isTrusted, text: event.target.closest('a,button')?.textContent.trim(),
-        tag: event.target.tagName, url: location.href, atMs: performance.now()
-      }), true);
+      addEventListener('click', event => {
+        const control = event.target.closest('a,button');
+        state.clicks.push({
+          trusted: event.isTrusted, text: control?.textContent.trim(),
+          tag: event.target.tagName, url: location.href, atMs: performance.now()
+        });
+        if (state.outbound && event.isTrusted && control?.matches('.google-signin')) {
+          sessionStorage.setItem('ios-smoke-google-trusted', 'true');
+        }
+      }, true);
       if (state.supportedEntryTypes.includes('paint')) {
         new PerformanceObserver(list => {
           for (const entry of list.getEntries()) {
@@ -262,7 +267,7 @@ async function assertLoaded() {
   );
 }
 
-async function click(selector: string) {
+async function click(selector: string, outbound = false) {
   const element = await waitFor<WebElement>(
     `${visible}
     const element = document.querySelector(${JSON.stringify(selector)});
@@ -277,13 +282,12 @@ async function click(selector: string) {
     arguments[0].querySelector('h3')?.textContent.trim() || arguments[0].innerText.trim();`,
     element,
   );
-  await tap(element, label);
+  await tap(element, label, outbound);
   return element;
 }
 
-async function tap(element: WebElement, label: string) {
-  const before = await execute<number>('return window.__iosSmoke.clicks.length;');
-  const measurements = await execute<Omit<NativeTap, 'nativeAnchor' | 'coordinates' | 'label'>>(
+async function measureTarget(element: WebElement, label: string) {
+  return execute<Omit<NativeTap, 'nativeAnchor' | 'coordinates' | 'label'>>(
     `
     const element = arguments[0];
     const aria = element.getAttribute('aria-label');
@@ -296,7 +300,8 @@ async function tap(element: WebElement, label: string) {
     const viewport = visualViewport;
     return {
       target: rect(element.closest('.mobile-nav') ? element.querySelector('svg') : element),
-      anchor: rect(anchor), nativeType: aria ? 'XCUIElementTypeButton' : 'XCUIElementTypeStaticText',
+      anchor: rect(anchor), nativeType: element.tagName === 'BUTTON' ? 'XCUIElementTypeButton' :
+        aria && element.tagName === 'A' ? 'XCUIElementTypeLink' : 'XCUIElementTypeStaticText',
       viewport: { offsetLeft: viewport.offsetLeft, offsetTop: viewport.offsetTop,
         width: viewport.width, height: viewport.height, scale: viewport.scale }
     };
@@ -304,7 +309,9 @@ async function tap(element: WebElement, label: string) {
     element,
     label,
   );
-  await nativeAction(async () => {
+}
+
+async function nativeTarget(measurements: Awaited<ReturnType<typeof measureTarget>>, label: string) {
     await writeFile(`${output}/native-target-${results.steps.length}.xml`, await wd<string>('GET', '/source'));
     const value = `type == ${JSON.stringify(measurements.nativeType)} AND label == ${JSON.stringify(label)}`;
     const deadline = Date.now() + 15_000;
@@ -321,15 +328,44 @@ async function tap(element: WebElement, label: string) {
     const record: NativeTap = { label, ...measurements, nativeAnchor };
     results.nativeTaps.push(record);
     record.coordinates = tapCoordinates(record);
+    return record;
+}
+
+async function tap(element: WebElement, label: string, outbound = false) {
+  const before = await execute<number>('return window.__iosSmoke.clicks.length;');
+  const measurements = await measureTarget(element, label);
+  await nativeAction(async () => {
+    const record = await nativeTarget(measurements, label);
+    assert.ok(record.coordinates);
     record.actions = touchTap(record.coordinates);
     await wd('POST', '/actions', record.actions);
     await wd('DELETE', '/actions');
   });
+  if (outbound) return;
   await waitFor(
     `return window.__iosSmoke.clicks.slice(${before}).some(event => event.trusted);`,
     'trusted touch click reached the document',
     5000,
   );
+}
+
+async function drag(from: WebElement, to: WebElement) {
+  const labels = await execute<string[]>(
+    'return [...arguments].map(element => element.getAttribute("aria-label"));', from, to,
+  );
+  const [fromLabel, toLabel] = labels;
+  assert.ok(fromLabel && toLabel);
+  const fromMeasurements = await measureTarget(from, fromLabel);
+  const toMeasurements = await measureTarget(to, toLabel);
+  return nativeAction(async () => {
+    const start = await nativeTarget(fromMeasurements, fromLabel);
+    const end = await nativeTarget(toMeasurements, toLabel);
+    assert.ok(start.coordinates && end.coordinates);
+    const actions = touchDrag(start.coordinates, end.coordinates);
+    await wd('POST', '/actions', actions);
+    await wd('DELETE', '/actions');
+    return { start, end, actions };
+  });
 }
 
 async function nativeAction<T>(action: () => Promise<T>) {
@@ -582,6 +618,11 @@ try {
       'My games after reload',
     );
     return metrics();
+  });
+  await runTouchUx({
+    site, step, wd, execute, waitFor, click, navigation, drag, nativeAction, nativeTouch,
+    collectErrors, installCollector, assertLoaded, capture,
+    artifact: (name, text) => writeFile(`${output}/${name}`, redactOAuthUrls(text)),
   });
   await delay(1000);
   await collectErrors();

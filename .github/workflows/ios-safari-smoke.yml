@@ -39,9 +39,10 @@ jobs:
         run: npm ci
       - name: Check typed simulator harness and unit tests
         run: |
+          npx prettier --write scripts/ios-safari-smoke .github/workflows/ios-safari-smoke.yml .github/dependabot.yml docs/ios-safari.md
+          git diff --exit-code -- scripts/ios-safari-smoke .github/workflows/ios-safari-smoke.yml .github/dependabot.yml docs/ios-safari.md
           npx tsc -p tsconfig.node.json --noEmit
           npx eslint scripts/ios-safari-smoke --max-warnings 0
-          npx prettier --check scripts/ios-safari-smoke .github/workflows/ios-safari-smoke.yml .github/dependabot.yml docs/ios-safari.md
           npx vitest run --project unit --maxWorkers=1 scripts/ios-safari-smoke
       - name: Select installed iOS runtimes and iPhones
         id: plan
@@ -121,6 +122,7 @@ jobs:
           echo "WDA_BUNDLE_ID=$bundle" >> "$GITHUB_ENV"
           printf '{"version":"16.12.11","url":"%s","sha256":"%s","bundleId":"%s"}\n' "$url" "$sha" "$bundle" > ios-safari-artifacts/wda.json
       - name: Exercise production in Mobile Safari
+        id: exercise
         shell: bash
         run: |
           set -euo pipefail
@@ -129,7 +131,7 @@ jobs:
             exec ./node_modules/.bin/appium --address 127.0.0.1 --port 4444 --log-no-colors
           ) > ios-safari-artifacts/appium.log 2>&1 &
           driver_pid=$!
-          trap 'kill "$driver_pid" 2>/dev/null || true' EXIT
+          trap 'kill "$driver_pid" 2>/dev/null || true; wait "$driver_pid" 2>/dev/null || true' EXIT
           if [[ "${{ inputs.legacy_comparison }}" == "true" ]]; then
             revision=60231f583bedee01c5184048b46644d3714fd7e0
             git fetch --no-tags --depth=1 https://github.com/LeulTew/play-100.git "$revision"
@@ -146,8 +148,12 @@ jobs:
       - name: Capture simulator on failure
         if: failure() && env.IOS_UDID != ''
         run: xcrun simctl io "$IOS_UDID" screenshot ios-safari-artifacts/simulator-failure.png
+      - name: Remove OAuth query strings from diagnostics
+        id: redact
+        if: always() && steps.exercise.outcome != 'skipped'
+        run: scripts/ios-safari-smoke/node_modules/.bin/tsx scripts/ios-safari-smoke/redact.ts ios-safari-artifacts
       - name: Upload screenshots, results and diagnostics
-        if: always()
+        if: always() && (steps.exercise.outcome == 'skipped' || steps.redact.outcome == 'success')
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ios-safari-${{ matrix.label }}
