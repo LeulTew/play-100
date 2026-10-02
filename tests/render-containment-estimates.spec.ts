@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { emptyCatalogs } from './catalog-helpers';
+
+test('containment estimates remain authored plain lengths for Chrome 106', () => {
+  const css = readFileSync(new URL('../src/render-containment.css', import.meta.url), 'utf8');
+  const values = [...css.matchAll(/contain-intrinsic-block-size:\s*([^;]+);/g)].map((match) => match[1]!);
+  expect(values.length).toBeGreaterThanOrEqual(9);
+  for (const value of values) expect(value).toMatch(/^\d+(?:\.\d+)?px$/);
+});
 
 for (const width of [320, 393, 1024, 1280, 1920]) {
   for (const collection of [true, false]) {
@@ -14,6 +22,10 @@ for (const width of [320, 393, 1024, 1280, 1920]) {
         await page.getByRole('button', { name: view === 'grid' ? 'Grid view' : 'List view', exact: true }).click();
         const selector = collection ? `.games-${view} > .game-card` : `.discovery-cards-${view} > .discovery-card`;
         await expect(page.locator(selector)).toHaveCount(24);
+        if (collection) {
+          const coarse = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
+          await expect(page.locator(selector).first().locator('.compare-pin')).toHaveText(coarse ? 'Pin' : '');
+        }
         await page.evaluate(() => document.fonts.ready);
         const measurement = await page.locator(selector).evaluateAll(async (elements) => {
           const cards = elements.filter((element): element is HTMLElement => element instanceof HTMLElement);
@@ -34,7 +46,7 @@ for (const width of [320, 393, 1024, 1280, 1920]) {
               return { borderBox, contentBox: borderBox - edges };
             });
             const median = (values: number[]) => {
-              const sorted = values.toSorted((a, b) => a - b);
+              const sorted = [...values].sort((a, b) => a - b);
               const middle = Math.floor(sorted.length / 2);
               return sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
             };
@@ -54,10 +66,10 @@ for (const width of [320, 393, 1024, 1280, 1920]) {
         await info.attach('containment-measurement', { body: JSON.stringify(row), contentType: 'application/json' });
         expect(measurement.count).toBe(collection || view === 'list' ? 20 : 19);
         expect(measurement.estimates).toHaveLength(1);
-        const estimate = measurement.estimates[0]!;
-        expect(estimate, 'Keep plain lengths: remembered auto sizes trigger the Chrome 106 observer loop.').toMatch(
-          /^\d+(?:\.\d+)?px$/,
-        );
+        // Modern Chromium serializes an implicit auto prefix for content-visibility:auto.
+        // The separate source guard prevents authoring that prefix on the Chrome 106 path.
+        const estimate = measurement.estimates[0]!.replace(/^auto /, '');
+        expect(estimate).toMatch(/^\d+(?:\.\d+)?px$/);
         // Intrinsic lengths reserve the content box; padding and borders are added by layout.
         expect(
           Math.abs(parseFloat(estimate) - measurement.medianContentBox) / measurement.medianContentBox,
