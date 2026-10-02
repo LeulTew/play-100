@@ -89,7 +89,9 @@ speaks "Visual preference saved." and closing returns focus to Menu;
 comparison speaks the confirmation and the tray state. A job fails when any
 journey fails. The `screen-reader-<reader>` artifact keeps the phrase logs,
 versions, `receipt.json` and failure screenshots for 30 days whatever the
-outcome. Release 7 is the failing baseline for NVDA (a). In CI, Release 7 (b)
+outcome. Release 7 is the failing baseline for NVDA (a): one DOM focus move
+into the heading, yet NVDA speaks the dialog role, the whole body and the
+heading twice. In CI, Release 7 (b)
 returns focus to the card; the BODY loss seen with local NVDA did not
 reproduce on hosted runners. Run the light checks with
 `npm run typecheck` in `scripts/screen-reader-smoke` and
