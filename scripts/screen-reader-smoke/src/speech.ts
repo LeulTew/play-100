@@ -83,6 +83,21 @@ export function expectAtMost(name: string, phrases: readonly string[], word: str
   return { name, pass: count <= most, detail: `heard "${word}" ${count} time(s), at most ${most}` };
 }
 
+/** Ceilings for the opening announcement's "dialog" and "heading" words, and where they came from. */
+export interface AnnouncementLimits {
+  dialog: number;
+  heading: number;
+  source: string;
+}
+
+/**
+ * The "dialog" and "heading" counts a native-dialog control's opening speech produced. The app may not exceed them.
+ * A silent control yields zero, which fails the comparison rather than loosening it.
+ */
+export function controlLimits(phrases: readonly string[]): Pick<AnnouncementLimits, 'dialog' | 'heading'> {
+  return { dialog: countWord(phrases, 'dialog'), heading: countWord(phrases, 'heading') };
+}
+
 export function expectNotSpoken(name: string, phrases: readonly string[], needle: string): Assertion {
   const count = countSpoken(phrases, needle);
   return {

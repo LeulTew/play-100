@@ -51,7 +51,7 @@ risk for each waiver; an earlier client-first exception is not standing approval
 | Real Google Auth | Production desktop and mobile sign-in, link and reauthentication return signed in without CSP errors; emulator tests cannot certify real credentials, MFA or provider configuration. Reaching Google's sign-in page shows only that the redirect started; it is not a pass. |
 | WAF `api-per-ip` | Review seven days of Log hits; switch Log to 429 **no earlier than 2026-10-02**. Record review, decision and switch time. Log mode records matches and blocks nothing, so the rule is not an active control before that switch. Do not invent a completed switch or modify the log-only OWASP rules. |
 | Device and assistive technology | Physical low-end/mobile and iOS Safari, keyboard and screen-reader journeys, OS installation/launch/uninstall, real multi-window/two-version updates. Record devices and results or explicit waivers. Chromium emulation is not physical-device evidence. |
-| Screen-reader speech receipt | Dispatch [Screen reader smoke](#screen-reader-smoke) against the candidate origin; retain the run URL, both `receipt.json` files (origin and served `index.html` SHA-256), the NVDA, VoiceOver, Chrome and runner versions, and the per-journey phrase logs. Any failed journey stays a failure or an explicit owner waiver. It does not replace the physical-device row above. |
+| Screen-reader speech receipt | Dispatch [Screen reader smoke](#screen-reader-smoke) against the candidate origin; retain the run URL, both `receipt.json` files (origin and served `index.html` SHA-256), the NVDA, VoiceOver, Chrome and runner versions, and the per-journey phrase logs. NVDA (a) compares the app's "dialog" and "heading" counts with the native-dialog control measured in the same job, because NVDA 2026.2 with Chrome 154 announces a plain native modal twice (control run [36967581972](https://github.com/LeulTew/play-100/actions/runs/36967581972) at `b541ca9d`). That repetition is the platform's behaviour, not the app's; name, role, heading, no "clickable", no automatic body read and focus return stay absolute. Any failed journey stays a failure or an explicit owner waiver. It does not replace the physical-device row above. |
 
 See [iPhone Safari smoke](ios-safari.md) for the Mobile Safari simulator workflow,
 its retained results and the remaining physical-device boundary.
@@ -79,14 +79,29 @@ build with the repository's public `VITE_FIREBASE_*` variables, and serves
 pages served by request interception on the target origin: a `showModal`
 dialog with a short `aria-describedby` and autofocused heading, the same
 without `aria-describedby`, and one autofocusing its Close button. They use
-journey a's opening-speech checks unchanged. This separates app markup from
-generic browser and screen-reader announcement behaviour.
+journey a's opening-speech checks with "dialog" and "heading" each at most
+once. This separates app markup from generic browser and screen-reader
+announcement behaviour.
+
+Known platform behaviour: NVDA 2026.2 with Chrome 154 announces a native modal
+dialog twice on open, in one spoken phrase, even on the plain control page with
+no application code. The second pass uses browse-mode word order ("heading,
+level 2, Control Game"). Control run
+[36967581972](https://github.com/LeulTew/play-100/actions/runs/36967581972) at
+`b541ca9d` heard "dialog" twice and "heading" twice for the control that
+matches the app's dialog, with one DOM focus move; VoiceOver announced each
+once. So in the product suite, the NVDA job first opens that control
+(`control-heading-describedby`) in the same browser and records its counts.
+Journey (a) then passes only if the app's "dialog" and "heading" counts are no
+greater than the control's. A silent control records zero and fails (a). All
+other checks stay absolute.
 Each journal step also records the DOM `focusin`/`focusout` events since the
 previous step, to tell DOM focus apart from the reader's virtual focus.
 
 Journeys: (a) Tab to a The 100 card and press Enter: the opening speech, plus a
 4-second settle, includes the dialog's name and role (and, in NVDA, its heading),
-NVDA announces "dialog" and "heading" at most once, a short description is
+nothing is announced as "clickable", NVDA announces "dialog" and "heading" no
+more often than the native control in the same job (see above), a short description is
 allowed but the full body is not read automatically (the rationale's closing
 words are not spoken), and Escape returns focus to the card, whose name is
 spoken; (b) NVDA browse mode activates a card heading and
