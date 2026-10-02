@@ -15,17 +15,12 @@
  * navigation to the paint after React's first commit, with its marks beside it (.marks.json), and skips the rest of the
  * visit.
  */
-import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { createSecureServer } from 'node:http2';
-import type { Http2ServerRequest, Http2ServerResponse } from 'node:http2';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { brotliCompressSync, constants } from 'node:zlib';
 import { chromium } from '@playwright/test';
 import type { Browser } from '@playwright/test';
-import { routePattern } from '../src/lib/vercel-routes.ts';
+import { parseDeployment, startVercelStaticServer } from './vercel-static-server.ts';
 
 // DevTools' Slow 4G preset: 150 ms × 3.75 of latency per request, 1.6 Mbit/s × 0.9 down and 750 kbit/s × 0.9 up.
 export const SLOW_4G = {
@@ -45,122 +40,12 @@ export const PHONE = {
     'Mozilla/5.0 (Linux; Android 13; SM-A037U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
 } as const;
 
-const CONTENT_TYPES: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json',
-  '.webmanifest': 'application/manifest+json',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.webp': 'image/webp',
-  '.avif': 'image/avif',
-  '.woff2': 'font/woff2',
-  '.woff': 'font/woff',
-  '.ico': 'image/x-icon',
-  '.mp4': 'video/mp4',
-  '.vtt': 'text/vtt',
-  '.txt': 'text/plain; charset=utf-8',
-  '.xml': 'application/xml',
-};
-const COMPRESSIBLE = /^(?:text\/|application\/(?:json|manifest\+json|xml)|image\/svg\+xml)/;
-
-interface Deployment {
-  rewrites: { source: string; destination: string }[];
-  headers: { source: string; headers: { key: string; value: string }[] }[];
-}
-
-function certificate() {
-  const key = path.join(tmpdir(), 'play100-low-end-profile.key');
-  const cert = path.join(tmpdir(), 'play100-low-end-profile.crt');
-  if (!existsSync(key) || !existsSync(cert)) {
-    execFileSync(
-      'openssl',
-      ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '7', '-subj', '/CN=127.0.0.1'].concat([
-        '-addext',
-        'subjectAltName=IP:127.0.0.1',
-        '-keyout',
-        key,
-        '-out',
-        cert,
-      ]),
-      { stdio: 'ignore' },
-    );
-  }
-  return { key: readFileSync(key), cert: readFileSync(cert) };
-}
-
-/** Serves a build as production does; the browser applies the network profile. */
+/** Serves a build as production does, by its own checkout's vercel.json if any; the browser applies the network. */
 export async function serve(root: string) {
-  // The build's own checkout's deployment config, when it has one.
   const config = path.join(root, '..', 'vercel.json');
-  const deployment = JSON.parse(readFileSync(existsSync(config) ? config : 'vercel.json', 'utf8')) as Deployment;
-  const rewrites = deployment.rewrites
-    .filter((rule) => rule.destination === '/index.html')
-    .map((rule) => routePattern(rule.source));
-  const rules = deployment.headers.map((rule) => ({ pattern: routePattern(rule.source), headers: rule.headers }));
-  const files = new Map<string, { body: Buffer; brotli: Buffer | null; type: string }>();
-  const read = (file: string) => {
-    let entry = files.get(file);
-    if (!entry) {
-      const body = readFileSync(file);
-      const type = CONTENT_TYPES[path.extname(file)] ?? 'application/octet-stream';
-      const brotli = COMPRESSIBLE.test(type)
-        ? brotliCompressSync(body, { params: { [constants.BROTLI_PARAM_QUALITY]: 11 } })
-        : null;
-      entry = { body, brotli, type };
-      files.set(file, entry);
-    }
-    return entry;
-  };
-  const respond = (request: Http2ServerRequest, response: Http2ServerResponse) => {
-    const pathname = decodeURIComponent(new URL(request.url, 'https://127.0.0.1').pathname);
-    if (pathname.includes('\0') || pathname.includes('\\') || pathname.split('/').includes('..')) {
-      response.writeHead(400).end();
-      return;
-    }
-    if (pathname.startsWith('/api/') || !['GET', 'HEAD'].includes(request.method)) {
-      response.writeHead(503, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end('{}');
-      return;
-    }
-    let file = path.join(root, pathname);
-    let status = 200;
-    if (!existsSync(file) || !statSync(file).isFile()) {
-      if (pathname === '/' || rewrites.some((pattern) => pattern.test(pathname))) file = path.join(root, 'index.html');
-      else {
-        status = 404;
-        file = path.join(root, '404.html');
-      }
-    }
-    const entry = read(file);
-    const headers: Record<string, string> = { 'content-type': entry.type, 'cache-control': 'public, max-age=0' };
-    for (const rule of rules) {
-      if (rule.pattern.test(pathname)) for (const { key, value } of rule.headers) headers[key.toLowerCase()] = value;
-    }
-    const encoded = entry.brotli && /\bbr\b/.test(String(request.headers['accept-encoding'] ?? ''));
-    const body = encoded && entry.brotli ? entry.brotli : entry.body;
-    if (encoded) {
-      headers['content-encoding'] = 'br';
-      headers.vary = 'Accept-Encoding';
-    }
-    headers['content-length'] = String(body.length);
-    response.writeHead(status, headers);
-    if (request.method === 'HEAD') response.end();
-    else response.end(body);
-  };
-  const server = createSecureServer({ ...certificate(), allowHTTP1: true }, (request, response) => {
-    try {
-      respond(request, response);
-    } catch {
-      if (!response.headersSent) response.writeHead(500);
-      response.end();
-    }
-  });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('The profile server has no address.');
-  return { origin: `https://127.0.0.1:${address.port}`, close: () => new Promise((resolve) => server.close(resolve)) };
+  const deployment = parseDeployment(JSON.parse(readFileSync(existsSync(config) ? config : 'vercel.json', 'utf8')));
+  const server = await startVercelStaticServer({ root, deployment, protocol: 'http2', brotli: true });
+  return { origin: server.origin, close: () => server.stop() };
 }
 
 /** Runs before the page's own scripts: the phone's hints, the failing probes and the marks the driver reads. */
