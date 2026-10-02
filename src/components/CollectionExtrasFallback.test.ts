@@ -28,6 +28,12 @@ it('reserves the exact film listing text and frames without loading movies or ar
   expect(html).not.toContain('<img');
   expect(html).not.toContain('<video');
   expect(onWatch).not.toHaveBeenCalled();
+  // Each frame shows a numbered title card, artwork the opener's summary already names.
+  collectionFilms.forEach((film, index) =>
+    expect(html).toContain(
+      `<span class="film-poster-card" aria-hidden="true"><span class="jacket-series">FILM / 0${index + 1}</span><strong>${film.title.replaceAll('&', '&amp;')}</strong></span>`,
+    ),
+  );
 });
 
 it.each([
