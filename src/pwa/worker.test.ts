@@ -894,6 +894,35 @@ describe('native worker install, offline and update lifetime', () => {
     expect(fixture.stores.size).toBe(0);
   });
 
+  it('serves author symbol fragments from one precached SVG without permitting queries or other fragments', async () => {
+    const sprite: PwaAsset = {
+      url: '/icons/author-links.svg',
+      type: 'image',
+      bytes: fixtureBytes.length,
+      sha256: hash,
+    };
+    const fixture = workerFixture(false, { ...manifest, core: [...manifest.core, sprite] });
+    const fetch = fixture.fetch.getMockImplementation()!;
+    fixture.fetch.mockImplementation(async (request) =>
+      new URL(request.url).pathname === sprite.url
+        ? new Response(fixtureBytes.slice(), { headers: { 'Content-Type': 'image/svg+xml' } })
+        : fetch(request),
+    );
+    await fixture.lifetime('install');
+    fixture.fetch.mockClear().mockRejectedValue(new Error('Offline'));
+    for (const id of ['github', 'linkedin', 'telegram', 'email']) {
+      const response = await fixture.response(new Request(`${origin}${sprite.url}#${id}`));
+      expect(response?.status).toBe(200);
+      expect(response?.headers.get('content-type')).toBe('image/svg+xml');
+      expect(await response?.text()).toBe('public fixture');
+    }
+    expect(fixture.response(new Request(`${origin}${sprite.url}?private=value#github`))).toBeUndefined();
+    expect(fixture.response(new Request(`${origin}/data/collection.json#private`))).toBeUndefined();
+    expect(fixture.fetch).not.toHaveBeenCalled();
+    const cache = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${version}`);
+    expect([...cache.entries.keys()].filter((key) => key.includes('author-links'))).toEqual([`${origin}${sprite.url}`]);
+  });
+
   it('refuses wrong-version and multi-client update commands, then accepts one trusted requester', async () => {
     const fixture = workerFixture(true);
     await fixture.lifetime('install');
