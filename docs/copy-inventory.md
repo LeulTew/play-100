@@ -2782,8 +2782,8 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/Dialog.tsx:147](../src/components/Dialog.tsx#L147) | Message/fragment | Escape | Dialog(); onKeyDown |
-| [src/components/Dialog.tsx:169](../src/components/Dialog.tsx#L169) | Label/help | Close dialog | Dialog(); when its owning surface/operation is used |
+| [src/components/Dialog.tsx:170](../src/components/Dialog.tsx#L170) | Message/fragment | Escape | Dialog(); onKeyDown |
+| [src/components/Dialog.tsx:189](../src/components/Dialog.tsx#L189) | Label/help | Close dialog | Dialog(); when its owning surface/operation is used |
 ## src/components/ErrorBoundary.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -2857,55 +2857,55 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 | --- | --- | --- | --- |
 | [src/components/GameDetail.tsx:100](../src/components/GameDetail.tsx#L100) | Message/fragment | Your edit has not saved. Correct the highlighted rating or note before changing games. | changeGame(); saved is false |
 | [src/components/GameDetail.tsx:103](../src/components/GameDetail.tsx#L103) | Message/fragment | Your edit could not be saved. Keep this game open and retry. | changeGame(); operation rejected or threw; isCurrent() is true |
-| [src/components/GameDetail.tsx:128](../src/components/GameDetail.tsx#L128) | Rendered copy | #${String(game.rank).padStart(2, '0')} in the collection | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:129](../src/components/GameDetail.tsx#L129) | Rendered copy | ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:131](../src/components/GameDetail.tsx#L131) | Rendered copy | ${game.title} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:134](../src/components/GameDetail.tsx#L134) | Rendered copy | ${game.year} / ${game.studio} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:142](../src/components/GameDetail.tsx#L142) | Rendered copy | ${author.shortName}'s original rating | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:143](../src/components/GameDetail.tsx#L143) | Rendered copy | Original workbook score, based on the game's rank. | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:145](../src/components/GameDetail.tsx#L145) | Rendered copy | ${authorRatingText(game.authorRating)} ${game.authorRating &amp;&amp; &lt;small&gt; / 10&lt;/small&gt;} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:146](../src/components/GameDetail.tsx#L146) | Label/help | {game.authorRating ? &#96;Original workbook rating: ${game.authorRating.value.toFixed(2)}&#96; : undefined} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:146](../src/components/GameDetail.tsx#L146) | Message/fragment | Original workbook rating: ${game.authorRating.value.toFixed(2)} | GameDetail(); game.authorRating is true |
-| [src/components/GameDetail.tsx:156](../src/components/GameDetail.tsx#L156) | Rendered copy | ${game.artwork ? 'Workbook thumbnail' : 'Play 100 artwork'} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:156](../src/components/GameDetail.tsx#L156) | Message/fragment | Workbook thumbnail | GameDetail(); game.artwork is true |
-| [src/components/GameDetail.tsx:159](../src/components/GameDetail.tsx#L159) | Rendered copy | ${game.genre} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:161](../src/components/GameDetail.tsx#L161) | Rendered copy | Why it made the list | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:162](../src/components/GameDetail.tsx#L162) | Rendered copy | ${game.rationale} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:164](../src/components/GameDetail.tsx#L164) | Rendered copy | Source caveat: the workbook calls this "Hitman: World of Assassination", lists 2016 and supplies HITMAN III-branded artwork. We preserve all three rather than infer a release or edition. | GameDetail(); game.slug === 'hitman-world-of-assassination' &amp;&amp; |
-| [src/components/GameDetail.tsx:172](../src/components/GameDetail.tsx#L172) | Rendered copy | From the source workbook ${game.sourceNote} | GameDetail(); game.sourceNote &amp;&amp; |
-| [src/components/GameDetail.tsx:173](../src/components/GameDetail.tsx#L173) | Rendered copy | From the source workbook | GameDetail(); game.sourceNote &amp;&amp; |
-| [src/components/GameDetail.tsx:182](../src/components/GameDetail.tsx#L182) | Rendered copy | Play later | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:193](../src/components/GameDetail.tsx#L193) | Rendered copy | Completed | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:204](../src/components/GameDetail.tsx#L204) | Label/help | {&#96;Share ${game.title}&#96;} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:204](../src/components/GameDetail.tsx#L204) | Message/fragment | Share ${game.title} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:210](../src/components/GameDetail.tsx#L210) | Rendered copy | ${mode.scope === 'guest' ? 'Guest progress stays on this device.' : 'Account progress. See Account for sync status.'} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:212](../src/components/GameDetail.tsx#L212) | Message/fragment | Guest progress stays on this device. | GameDetail(); mode.scope === 'guest' is true |
-| [src/components/GameDetail.tsx:213](../src/components/GameDetail.tsx#L213) | Message/fragment | Account progress. See Account for sync status. | GameDetail(); mode.scope === 'guest' is false |
-| [src/components/GameDetail.tsx:220](../src/components/GameDetail.tsx#L220) | Label/help | {game.title} | GameDetail(); onRank &amp;&amp;; onPlayed &amp;&amp; |
-| [src/components/GameDetail.tsx:227](../src/components/GameDetail.tsx#L227) | Rendered copy | ${rankingPosition ? &#96;Your rank: #${rankingPosition}&#96; : 'Add to my ranking'} | GameDetail(); onRank &amp;&amp; |
-| [src/components/GameDetail.tsx:235](../src/components/GameDetail.tsx#L235) | Message/fragment | Add to my ranking | GameDetail(); onRank &amp;&amp;; rankingPosition is false |
-| [src/components/GameDetail.tsx:235](../src/components/GameDetail.tsx#L235) | Message/fragment | Your rank: #${rankingPosition} | GameDetail(); onRank &amp;&amp;; rankingPosition is true |
-| [src/components/GameDetail.tsx:242](../src/components/GameDetail.tsx#L242) | Label/help | {game.title} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:247](../src/components/GameDetail.tsx#L247) | Rendered copy | Your rating ranks this game; it doesn't mark it played. | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:250](../src/components/GameDetail.tsx#L250) | Live region | ${shareFeedback} | GameDetail(); shareFeedback &amp;&amp; |
-| [src/components/GameDetail.tsx:257](../src/components/GameDetail.tsx#L257) | Rendered copy | Critic scores | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:259](../src/components/GameDetail.tsx#L259) | Rendered copy | ${formatAverage(game.criticAverage)} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:263](../src/components/GameDetail.tsx#L263) | Rendered copy | Workbook snapshot. Not live or independently verified. | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:270](../src/components/GameDetail.tsx#L270) | Rendered copy | Unavailable | GameDetail(); game.critics[key] === null is true |
-| [src/components/GameDetail.tsx:273](../src/components/GameDetail.tsx#L273) | Rendered copy | ${game.critics[key]} | GameDetail(); game.critics[key] === null is false |
-| [src/components/GameDetail.tsx:274](../src/components/GameDetail.tsx#L274) | Rendered copy | / ${scale} | GameDetail(); game.critics[key] === null is false |
-| [src/components/GameDetail.tsx:282](../src/components/GameDetail.tsx#L282) | Rendered copy | Score sources &amp; method | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:286](../src/components/GameDetail.tsx#L286) | Rendered copy | The displayed average normalizes every available entered score to 100, then averages those columns. General and PC Metacritic each count when both are present. Missing scores are excluded. This is not an official aggregate or an average of independent publications. | GameDetail(); expanded "Score sources &amp; method" disclosure |
-| [src/components/GameDetail.tsx:291](../src/components/GameDetail.tsx#L291) | Rendered copy | ${author.shortName}'s ratings come from the workbook's "my rating(based on rank)" column and stay separate from critics' scores. ${game.authorRating &amp;&amp; ( &lt;&gt; Original workbook rating: &lt;strong&gt;{game.authorRating.value.toFixed(2)}&lt;/strong&gt;, shown as{' '} {authorRatingText(game.authorRating)} / 10. &lt;/&gt; )} | GameDetail(); expanded "Score sources &amp; method" disclosure |
-| [src/components/GameDetail.tsx:296](../src/components/GameDetail.tsx#L296) | Rendered copy | ${game.authorRating.value.toFixed(2)} | GameDetail(); expanded "Score sources &amp; method" disclosure; game.authorRating &amp;&amp; |
-| [src/components/GameDetail.tsx:301](../src/components/GameDetail.tsx#L301) | Rendered copy | Your rating belongs to the active library, never prefilled from ${author.shortName}'s. Public sharing requires a separate preview and publish action. | GameDetail(); expanded "Score sources &amp; method" disclosure |
-| [src/components/GameDetail.tsx:308](../src/components/GameDetail.tsx#L308) | Live region | ${navigationError} | GameDetail(); navigationError &amp;&amp; |
-| [src/components/GameDetail.tsx:312](../src/components/GameDetail.tsx#L312) | Label/help | Games in the collection | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:313](../src/components/GameDetail.tsx#L313) | Rendered copy | Previous game | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:323](../src/components/GameDetail.tsx#L323) | Rendered copy | ${position ? &#96;${position.current} of ${position.total}&#96; : 'Not in these results'} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:323](../src/components/GameDetail.tsx#L323) | Message/fragment | ${position.current} of ${position.total} | GameDetail(); position is true |
-| [src/components/GameDetail.tsx:323](../src/components/GameDetail.tsx#L323) | Message/fragment | Not in these results | GameDetail(); position is false |
-| [src/components/GameDetail.tsx:324](../src/components/GameDetail.tsx#L324) | Rendered copy | Next game | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:129](../src/components/GameDetail.tsx#L129) | Rendered copy | #${String(game.rank).padStart(2, '0')} in the collection | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:130](../src/components/GameDetail.tsx#L130) | Rendered copy | ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:132](../src/components/GameDetail.tsx#L132) | Rendered copy | ${game.title} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:135](../src/components/GameDetail.tsx#L135) | Rendered copy | ${game.year} / ${game.studio} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:143](../src/components/GameDetail.tsx#L143) | Rendered copy | ${author.shortName}'s original rating | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:144](../src/components/GameDetail.tsx#L144) | Rendered copy | Original workbook score, based on the game's rank. | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:146](../src/components/GameDetail.tsx#L146) | Rendered copy | ${authorRatingText(game.authorRating)} ${game.authorRating &amp;&amp; &lt;small&gt; / 10&lt;/small&gt;} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:147](../src/components/GameDetail.tsx#L147) | Label/help | {game.authorRating ? &#96;Original workbook rating: ${game.authorRating.value.toFixed(2)}&#96; : undefined} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:147](../src/components/GameDetail.tsx#L147) | Message/fragment | Original workbook rating: ${game.authorRating.value.toFixed(2)} | GameDetail(); game.authorRating is true |
+| [src/components/GameDetail.tsx:157](../src/components/GameDetail.tsx#L157) | Rendered copy | ${game.artwork ? 'Workbook thumbnail' : 'Play 100 artwork'} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:157](../src/components/GameDetail.tsx#L157) | Message/fragment | Workbook thumbnail | GameDetail(); game.artwork is true |
+| [src/components/GameDetail.tsx:160](../src/components/GameDetail.tsx#L160) | Rendered copy | ${game.genre} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:162](../src/components/GameDetail.tsx#L162) | Rendered copy | Why it made the list | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:163](../src/components/GameDetail.tsx#L163) | Rendered copy | ${game.rationale} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:165](../src/components/GameDetail.tsx#L165) | Rendered copy | Source caveat: the workbook calls this "Hitman: World of Assassination", lists 2016 and supplies HITMAN III-branded artwork. We preserve all three rather than infer a release or edition. | GameDetail(); game.slug === 'hitman-world-of-assassination' &amp;&amp; |
+| [src/components/GameDetail.tsx:173](../src/components/GameDetail.tsx#L173) | Rendered copy | From the source workbook ${game.sourceNote} | GameDetail(); game.sourceNote &amp;&amp; |
+| [src/components/GameDetail.tsx:174](../src/components/GameDetail.tsx#L174) | Rendered copy | From the source workbook | GameDetail(); game.sourceNote &amp;&amp; |
+| [src/components/GameDetail.tsx:183](../src/components/GameDetail.tsx#L183) | Rendered copy | Play later | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:194](../src/components/GameDetail.tsx#L194) | Rendered copy | Completed | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:205](../src/components/GameDetail.tsx#L205) | Label/help | {&#96;Share ${game.title}&#96;} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:205](../src/components/GameDetail.tsx#L205) | Message/fragment | Share ${game.title} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:211](../src/components/GameDetail.tsx#L211) | Rendered copy | ${mode.scope === 'guest' ? 'Guest progress stays on this device.' : 'Account progress. See Account for sync status.'} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:213](../src/components/GameDetail.tsx#L213) | Message/fragment | Guest progress stays on this device. | GameDetail(); mode.scope === 'guest' is true |
+| [src/components/GameDetail.tsx:214](../src/components/GameDetail.tsx#L214) | Message/fragment | Account progress. See Account for sync status. | GameDetail(); mode.scope === 'guest' is false |
+| [src/components/GameDetail.tsx:221](../src/components/GameDetail.tsx#L221) | Label/help | {game.title} | GameDetail(); onRank &amp;&amp;; onPlayed &amp;&amp; |
+| [src/components/GameDetail.tsx:228](../src/components/GameDetail.tsx#L228) | Rendered copy | ${rankingPosition ? &#96;Your rank: #${rankingPosition}&#96; : 'Add to my ranking'} | GameDetail(); onRank &amp;&amp; |
+| [src/components/GameDetail.tsx:236](../src/components/GameDetail.tsx#L236) | Message/fragment | Add to my ranking | GameDetail(); onRank &amp;&amp;; rankingPosition is false |
+| [src/components/GameDetail.tsx:236](../src/components/GameDetail.tsx#L236) | Message/fragment | Your rank: #${rankingPosition} | GameDetail(); onRank &amp;&amp;; rankingPosition is true |
+| [src/components/GameDetail.tsx:243](../src/components/GameDetail.tsx#L243) | Label/help | {game.title} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:248](../src/components/GameDetail.tsx#L248) | Rendered copy | Your rating ranks this game; it doesn't mark it played. | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:251](../src/components/GameDetail.tsx#L251) | Live region | ${shareFeedback} | GameDetail(); shareFeedback &amp;&amp; |
+| [src/components/GameDetail.tsx:258](../src/components/GameDetail.tsx#L258) | Rendered copy | Critic scores | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:260](../src/components/GameDetail.tsx#L260) | Rendered copy | ${formatAverage(game.criticAverage)} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:264](../src/components/GameDetail.tsx#L264) | Rendered copy | Workbook snapshot. Not live or independently verified. | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:271](../src/components/GameDetail.tsx#L271) | Rendered copy | Unavailable | GameDetail(); game.critics[key] === null is true |
+| [src/components/GameDetail.tsx:274](../src/components/GameDetail.tsx#L274) | Rendered copy | ${game.critics[key]} | GameDetail(); game.critics[key] === null is false |
+| [src/components/GameDetail.tsx:275](../src/components/GameDetail.tsx#L275) | Rendered copy | / ${scale} | GameDetail(); game.critics[key] === null is false |
+| [src/components/GameDetail.tsx:283](../src/components/GameDetail.tsx#L283) | Rendered copy | Score sources &amp; method | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:287](../src/components/GameDetail.tsx#L287) | Rendered copy | The displayed average normalizes every available entered score to 100, then averages those columns. General and PC Metacritic each count when both are present. Missing scores are excluded. This is not an official aggregate or an average of independent publications. | GameDetail(); expanded "Score sources &amp; method" disclosure |
+| [src/components/GameDetail.tsx:292](../src/components/GameDetail.tsx#L292) | Rendered copy | ${author.shortName}'s ratings come from the workbook's "my rating(based on rank)" column and stay separate from critics' scores. ${game.authorRating &amp;&amp; ( &lt;&gt; Original workbook rating: &lt;strong&gt;{game.authorRating.value.toFixed(2)}&lt;/strong&gt;, shown as{' '} {authorRatingText(game.authorRating)} / 10. &lt;/&gt; )} | GameDetail(); expanded "Score sources &amp; method" disclosure |
+| [src/components/GameDetail.tsx:297](../src/components/GameDetail.tsx#L297) | Rendered copy | ${game.authorRating.value.toFixed(2)} | GameDetail(); expanded "Score sources &amp; method" disclosure; game.authorRating &amp;&amp; |
+| [src/components/GameDetail.tsx:302](../src/components/GameDetail.tsx#L302) | Rendered copy | Your rating belongs to the active library, never prefilled from ${author.shortName}'s. Public sharing requires a separate preview and publish action. | GameDetail(); expanded "Score sources &amp; method" disclosure |
+| [src/components/GameDetail.tsx:309](../src/components/GameDetail.tsx#L309) | Live region | ${navigationError} | GameDetail(); navigationError &amp;&amp; |
+| [src/components/GameDetail.tsx:313](../src/components/GameDetail.tsx#L313) | Label/help | Games in the collection | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:314](../src/components/GameDetail.tsx#L314) | Rendered copy | Previous game | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:324](../src/components/GameDetail.tsx#L324) | Rendered copy | ${position ? &#96;${position.current} of ${position.total}&#96; : 'Not in these results'} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:324](../src/components/GameDetail.tsx#L324) | Message/fragment | ${position.current} of ${position.total} | GameDetail(); position is true |
+| [src/components/GameDetail.tsx:324](../src/components/GameDetail.tsx#L324) | Message/fragment | Not in these results | GameDetail(); position is false |
+| [src/components/GameDetail.tsx:325](../src/components/GameDetail.tsx#L325) | Rendered copy | Next game | GameDetail(); when its owning surface/operation is used |
 ## src/components/games/GameArtwork.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -3067,8 +3067,8 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/personal/CatalogDetail.tsx:102](../src/components/personal/CatalogDetail.tsx#L102) | Message/fragment | This change could not be saved. Your library is unchanged. Try again. | failure(); result === 'failed' is true; error &#124;&#124; feedback &#124;&#124; |
-| [src/components/personal/CatalogDetail.tsx:104](../src/components/personal/CatalogDetail.tsx#L104) | Message/fragment | Saving changes… | status(); result === 'pending' is true |
+| [src/components/personal/CatalogDetail.tsx:101](../src/components/personal/CatalogDetail.tsx#L101) | Message/fragment | This change could not be saved. Your library is unchanged. Try again. | failure(); result === 'failed' is true; error &#124;&#124; feedback &#124;&#124; |
+| [src/components/personal/CatalogDetail.tsx:103](../src/components/personal/CatalogDetail.tsx#L103) | Message/fragment | Saving changes… | status(); result === 'pending' is true |
 | [src/components/personal/CatalogDetail.tsx:115](../src/components/personal/CatalogDetail.tsx#L115) | Rendered copy | ${record.title} | CatalogDetail(); when its owning surface/operation is used |
 | [src/components/personal/CatalogDetail.tsx:118](../src/components/personal/CatalogDetail.tsx#L118) | Rendered copy | ${SOURCE_LABELS[record.source]} ${record.collectionRank !== null ? &#96; · original rank #${record.collectionRank}&#96; : &#96; · Unranked in ${author.shortName}'s collection&#96;} | CatalogDetail(); when its owning surface/operation is used |
 | [src/components/personal/CatalogDetail.tsx:121](../src/components/personal/CatalogDetail.tsx#L121) | Message/fragment | · original rank #${record.collectionRank} | CatalogDetail(); record.collectionRank !== null is true |
@@ -3237,17 +3237,17 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/personal/PersonalRatingInput.tsx:45](../src/components/personal/PersonalRatingInput.tsx#L45) | Message output | 'Enter a rating from 0 to 10, or clear the field to remove your rating. Your saved rating is unchanged.' | save(); badInput.current is true |
-| [src/components/personal/PersonalRatingInput.tsx:46](../src/components/personal/PersonalRatingInput.tsx#L46) | Message/fragment | Enter a rating from 0 to 10, or clear the field to remove your rating. Your saved rating is unchanged. | save(); badInput.current is true |
-| [src/components/personal/PersonalRatingInput.tsx:52](../src/components/personal/PersonalRatingInput.tsx#L52) | Message output | 'Use a rating from 0 to 10, or leave it blank.' | save(); next !== null &amp;&amp; (!Number.isFinite(next) &#124;&#124; next &lt; 0 &#124;&#124; next &gt; 10) is true |
-| [src/components/personal/PersonalRatingInput.tsx:52](../src/components/personal/PersonalRatingInput.tsx#L52) | Message/fragment | Use a rating from 0 to 10, or leave it blank. | save(); next !== null &amp;&amp; (!Number.isFinite(next) &#124;&#124; next &lt; 0 &#124;&#124; next &gt; 10) is true |
-| [src/components/personal/PersonalRatingInput.tsx:70](../src/components/personal/PersonalRatingInput.tsx#L70) | Message output | 'The rating could not be saved. Your previous rating is unchanged. Press Enter in this field to retry.' | task(); when its owning surface/operation is used |
-| [src/components/personal/PersonalRatingInput.tsx:70](../src/components/personal/PersonalRatingInput.tsx#L70) | Message/fragment | The rating could not be saved. Your previous rating is unchanged. Press Enter in this field to retry. | task(); when its owning surface/operation is used |
-| [src/components/personal/PersonalRatingInput.tsx:93](../src/components/personal/PersonalRatingInput.tsx#L93) | Rendered copy | Your rating / 10 | PersonalRatingInput(); when its owning surface/operation is used |
-| [src/components/personal/PersonalRatingInput.tsx:106](../src/components/personal/PersonalRatingInput.tsx#L106) | Label/help | {&#96;Your rating / 10 for ${title}&#96;} | PersonalRatingInput(); when its owning surface/operation is used |
-| [src/components/personal/PersonalRatingInput.tsx:106](../src/components/personal/PersonalRatingInput.tsx#L106) | Message/fragment | Your rating / 10 for ${title} | PersonalRatingInput(); when its owning surface/operation is used |
-| [src/components/personal/PersonalRatingInput.tsx:123](../src/components/personal/PersonalRatingInput.tsx#L123) | Message/fragment | Enter | PersonalRatingInput(); onKeyDown |
-| [src/components/personal/PersonalRatingInput.tsx:130](../src/components/personal/PersonalRatingInput.tsx#L130) | Live region | ${error} | PersonalRatingInput(); error &amp;&amp; |
+| [src/components/personal/PersonalRatingInput.tsx:36](../src/components/personal/PersonalRatingInput.tsx#L36) | Message output | 'Enter a rating from 0 to 10, or clear the field to remove your rating. Your saved rating is unchanged.' | save(); badInput.current is true |
+| [src/components/personal/PersonalRatingInput.tsx:37](../src/components/personal/PersonalRatingInput.tsx#L37) | Message/fragment | Enter a rating from 0 to 10, or clear the field to remove your rating. Your saved rating is unchanged. | save(); badInput.current is true |
+| [src/components/personal/PersonalRatingInput.tsx:43](../src/components/personal/PersonalRatingInput.tsx#L43) | Message output | 'Use a rating from 0 to 10, or leave it blank.' | save(); next !== null &amp;&amp; (!Number.isFinite(next) &#124;&#124; next &lt; 0 &#124;&#124; next &gt; 10) is true |
+| [src/components/personal/PersonalRatingInput.tsx:43](../src/components/personal/PersonalRatingInput.tsx#L43) | Message/fragment | Use a rating from 0 to 10, or leave it blank. | save(); next !== null &amp;&amp; (!Number.isFinite(next) &#124;&#124; next &lt; 0 &#124;&#124; next &gt; 10) is true |
+| [src/components/personal/PersonalRatingInput.tsx:61](../src/components/personal/PersonalRatingInput.tsx#L61) | Message output | 'The rating could not be saved. Your previous rating is unchanged. Press Enter in this field to retry.' | task(); when its owning surface/operation is used |
+| [src/components/personal/PersonalRatingInput.tsx:61](../src/components/personal/PersonalRatingInput.tsx#L61) | Message/fragment | The rating could not be saved. Your previous rating is unchanged. Press Enter in this field to retry. | task(); when its owning surface/operation is used |
+| [src/components/personal/PersonalRatingInput.tsx:107](../src/components/personal/PersonalRatingInput.tsx#L107) | Rendered copy | Your rating / 10 | PersonalRatingInput(); when its owning surface/operation is used |
+| [src/components/personal/PersonalRatingInput.tsx:120](../src/components/personal/PersonalRatingInput.tsx#L120) | Label/help | {&#96;Your rating / 10 for ${title}&#96;} | PersonalRatingInput(); when its owning surface/operation is used |
+| [src/components/personal/PersonalRatingInput.tsx:120](../src/components/personal/PersonalRatingInput.tsx#L120) | Message/fragment | Your rating / 10 for ${title} | PersonalRatingInput(); when its owning surface/operation is used |
+| [src/components/personal/PersonalRatingInput.tsx:137](../src/components/personal/PersonalRatingInput.tsx#L137) | Message/fragment | Enter | PersonalRatingInput(); onKeyDown |
+| [src/components/personal/PersonalRatingInput.tsx:144](../src/components/personal/PersonalRatingInput.tsx#L144) | Live region | ${error} | PersonalRatingInput(); error &amp;&amp; |
 ## src/components/personal/RankingRow.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
