@@ -3,16 +3,16 @@ import type { Locator, Page } from '@playwright/test';
 import {
   RESULT_COUNT,
   TRAY_STATE,
-  countSpoken,
-  descriptionFragment,
+  bodyTail,
+  expectAtMost,
+  expectNotSpoken,
   expectSpoken,
-  expectSpokenTimes,
   expectTrue,
   pinConfirmation,
   spoke,
 } from '../src/speech.ts';
 import type { SpeechJournal } from '../src/speech.ts';
-import { FULL, describeFocus, escapeUntilClosed, focusIsOn, key, origin, tabTo } from './support.ts';
+import { FULL, delay, describeFocus, escapeUntilClosed, focusIsOn, key, origin, tabTo } from './support.ts';
 import type { Reader } from './support.ts';
 
 export type ReaderKind = 'nvda' | 'voiceover';
@@ -92,21 +92,25 @@ export async function journeyDialog(context: JourneyContext): Promise<void> {
   const opened = await key(reader, journal, page, 'open with Enter', 'Enter');
   const dialog = detailDialog(page, title);
   await waitForDialog(dialog, 'open with Enter');
-  const description = (await dialog.locator('.rationale').first().textContent()) ?? '';
-  const fragment = descriptionFragment(description);
-  journal.check(expectSpoken('the dialog name is spoken', opened, title));
-  journal.check(expectSpoken('the dialog role is spoken', opened, 'dialog'));
+  // Opening can load the detail after the key press's capture ends; give the reader time to finish announcing it.
+  await delay(OPENING_SETTLE_MS);
+  const opening = [
+    ...opened,
+    ...journal.step('opening speech settles', [], await reader.spokenPhraseLog(), await describeFocus(page)),
+  ];
+  const tail = bodyTail((await dialog.locator('.rationale').first().textContent()) ?? '');
+  journal.check(expectSpoken('the dialog name is spoken', opening, title));
+  journal.check(expectSpoken('the dialog role is spoken', opening, 'dialog'));
   if (kind === 'nvda') {
-    journal.check(expectSpoken('the heading is spoken', opened, /heading/));
-    journal.check(expectSpokenTimes('the description is spoken once', opened, fragment, 1));
-  } else {
-    const count = countSpoken(opened, fragment);
-    journal.check(
-      expectTrue('the description is not spoken twice', count <= 1, `heard "${fragment}" ${count} time(s), at most 1`),
-    );
+    journal.check(expectSpoken('the heading is spoken', opening, /heading/));
+    journal.check(expectAtMost('the dialog is announced once', opening, 'dialog', 1));
+    journal.check(expectAtMost('the heading is announced once', opening, 'heading', 1));
   }
+  journal.check(expectNotSpoken('the full body is not read automatically on open', opening, tail));
   await closeDetailAndCheckReturn(context, slug, title, dialog);
 }
+
+const OPENING_SETTLE_MS = 4_000;
 
 /** (b) NVDA browse mode: reach a card heading with the virtual cursor, activate it, close with Escape. */
 export async function journeyBrowseMode(context: JourneyContext): Promise<void> {

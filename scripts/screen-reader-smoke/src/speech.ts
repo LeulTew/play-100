@@ -64,6 +64,34 @@ export function descriptionFragment(description: string, words = 8): string {
   return normalizeSpeech(description).split(' ').slice(0, words).join(' ');
 }
 
+/**
+ * The closing words of a long body text. A reader that reads the whole body on open speaks them; a short description
+ * or the dialog's name and heading do not.
+ */
+export function bodyTail(text: string, words = 8): string {
+  return normalizeSpeech(text).split(' ').filter(Boolean).slice(-words).join(' ');
+}
+
+/** Counts whole-word occurrences of a word, for example how many times "dialog" was announced. */
+export function countWord(phrases: readonly string[], word: string): number {
+  const pattern = new RegExp(`\\b${escapeRegExp(normalizeSpeech(word))}\\b`, 'g');
+  return transcript(phrases).match(pattern)?.length ?? 0;
+}
+
+export function expectAtMost(name: string, phrases: readonly string[], word: string, most: number): Assertion {
+  const count = countWord(phrases, word);
+  return { name, pass: count <= most, detail: `heard "${word}" ${count} time(s), at most ${most}` };
+}
+
+export function expectNotSpoken(name: string, phrases: readonly string[], needle: string): Assertion {
+  const count = countSpoken(phrases, needle);
+  return {
+    name,
+    pass: Boolean(normalizeSpeech(needle)) && count === 0,
+    detail: `heard "${normalizeSpeech(needle)}" ${count} time(s), expected 0`,
+  };
+}
+
 /** Discover's search status, for example "1 catalog match shown" or "12 catalog matches shown". */
 export const RESULT_COUNT = /\b\d[\d,]* catalog match(?:es)? shown\b/;
 
