@@ -173,6 +173,9 @@ records HTML SHA-256
 `0f064fa8569925f857cb21946005bc99d0c3c447911109efc53afe3115c0a4e4`.
 The initial large iOS 26.2 job failed before Appium started, without reaching
 any app step; its rerun passed. The three other jobs passed on attempt 1.
+For large iOS 26.2, use the passing rerun
+[artifact ID 11206549312](https://github.com/LeulTew/play-100/actions/runs/36957093703/artifacts/11206549312),
+not the identically named failed startup artifact ID 11207050060.
 This baseline does not certify the subsequently added three touch UX steps.
 
 The controlled legacy run

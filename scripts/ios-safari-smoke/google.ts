@@ -22,7 +22,10 @@ export function googleOutboundEvidence(value: string) {
     if (redirect) {
       const callback = new URL(redirect);
       assert.equal(callback.protocol, 'https:', 'The OAuth callback must use HTTPS.');
-      assert.ok(!callback.username && !callback.password && !callback.search && !callback.hash, 'Invalid OAuth callback.');
+      assert.ok(
+        !callback.username && !callback.password && !callback.search && !callback.hash,
+        'Invalid OAuth callback.',
+      );
       assert.ok(!redirectUri || redirectUri === callback.href, 'The continuation chain must use one OAuth callback.');
       redirectUri = callback.href;
     }
