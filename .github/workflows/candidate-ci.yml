@@ -163,13 +163,14 @@ jobs:
         id: suite
         working-directory: candidate
         env:
-          # The development suite runs against the configured dev server, as the gate's development step does.
-          VITE_FIREBASE_API_KEY: ${{ inputs.suite == 'e2e-dev' && vars.VITE_FIREBASE_API_KEY || '' }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ inputs.suite == 'e2e-dev' && vars.VITE_FIREBASE_AUTH_DOMAIN || '' }}
-          VITE_FIREBASE_PROJECT_ID: ${{ inputs.suite == 'e2e-dev' && vars.VITE_FIREBASE_PROJECT_ID || '' }}
-          VITE_FIREBASE_APP_ID: ${{ inputs.suite == 'e2e-dev' && vars.VITE_FIREBASE_APP_ID || '' }}
-          VITE_SITE_URL: ${{ inputs.suite == 'e2e-dev' && vars.VITE_SITE_URL || '' }}
-          VITE_FIREBASE_REQUIRED: ${{ inputs.suite == 'e2e-dev' && 'true' || '' }}
+          # The development suite runs against the configured dev server, as the gate's development step does, and the
+          # CSP refresh builds the configured production build.
+          VITE_FIREBASE_API_KEY: ${{ (inputs.suite == 'e2e-dev' || inputs.suite == 'csp-refresh') && vars.VITE_FIREBASE_API_KEY || '' }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ (inputs.suite == 'e2e-dev' || inputs.suite == 'csp-refresh') && vars.VITE_FIREBASE_AUTH_DOMAIN || '' }}
+          VITE_FIREBASE_PROJECT_ID: ${{ (inputs.suite == 'e2e-dev' || inputs.suite == 'csp-refresh') && vars.VITE_FIREBASE_PROJECT_ID || '' }}
+          VITE_FIREBASE_APP_ID: ${{ (inputs.suite == 'e2e-dev' || inputs.suite == 'csp-refresh') && vars.VITE_FIREBASE_APP_ID || '' }}
+          VITE_SITE_URL: ${{ (inputs.suite == 'e2e-dev' || inputs.suite == 'csp-refresh') && vars.VITE_SITE_URL || '' }}
+          VITE_FIREBASE_REQUIRED: ${{ (inputs.suite == 'e2e-dev' || inputs.suite == 'csp-refresh') && 'true' || '' }}
         run: |
           set -euo pipefail
           for name in VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_APP_ID VITE_SITE_URL VITE_FIREBASE_REQUIRED; do

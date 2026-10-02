@@ -36,7 +36,48 @@ run_playwright() {
     npx --no-install playwright "$@" 2>&1 | tee "$OUT/$name.log"
 }
 
+# Runs one named check, logging to $OUT/<name>.log and recording its exit code; later checks still run.
+failed_checks=()
+check() {
+  local name="$1"; shift
+  echo "== $name: $*"
+  local status=0
+  "$@" 2>&1 | tee "$OUT/$name.log" || status=$?
+  echo "$name $status" >>"$OUT/checks.txt"
+  if [[ $status -ne 0 ]]; then failed_checks+=("$name"); fi
+}
+finish_checks() {
+  cat "$OUT/checks.txt"
+  if [[ ${#failed_checks[@]} -gt 0 ]]; then
+    echo "Failed: ${failed_checks[*]}" >&2
+    exit 1
+  fi
+}
+
 case "$SUITE" in
+  checks)
+    : >"$OUT/checks.txt"
+    check tsc-build npx --no-install tsc -b
+    check typecheck-functions npm run typecheck:functions
+    check eslint npx --no-install eslint . --max-warnings 0
+    check format-check npm run format:check
+    for project in unit browser; do
+      check "vitest-$project" npx --no-install vitest run --project "$project" --reporter=default --reporter=json \
+        --reporter=junit "--outputFile.json=$OUT/vitest-$project.json" "--outputFile.junit=$OUT/vitest-$project.junit.xml"
+    done
+    finish_checks
+    ;;
+  csp-refresh)
+    : >"$OUT/checks.txt"
+    check csp-write npm run csp:write
+    git diff --binary >"$OUT/csp-refresh.patch"
+    git status --porcelain --untracked-files=no >"$OUT/csp-refresh.files.txt"
+    echo "Files changed by csp:write:"
+    cat "$OUT/csp-refresh.files.txt"
+    check check-csp npm run check:csp
+    check check-budgets npm run check:budgets -- --json "$OUT/budgets.json"
+    finish_checks
+    ;;
   e2e-prod | e2e-offline)
     playwright_args playwright.config.ts "${WORKERS:-3}"
     PLAY100_TEST_BUILD=production run_playwright playwright "${args[@]}"
