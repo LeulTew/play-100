@@ -471,7 +471,9 @@ Collection-only table, additional-result and film implementations share the
 guarded `CollectionExtras` entry. The default grid does not import those
 implementations. Table hover, focus or pointer-down preloads the entry; a table
 deep link requests it directly. Films request it within 800px of their section,
-after collection metadata settles. Additional results mount only for an
+after collection metadata settles; on a constrained device only when they are
+used (focus inside the section, or Watch film), never because a scroll passes
+them. Additional results mount only for an
 eligible search or matching saved additions, so mounting requests their tools
 immediately rather than waiting for proximity. A no-query landing with no
 additional matches retains deferred film loading.
