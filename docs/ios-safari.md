@@ -204,7 +204,49 @@ The 100 failure. That production HTML identity is
 not the fixed candidate. A production/candidate mismatch must not be
 misreported as a TypeScript conversion regression.
 
-## Touch UX evidence status
+## Green touch UX evidence
+
+[Run 36972801363, attempt 2](https://github.com/LeulTew/play-100/actions/runs/36972801363)
+is green across inventory and all four devices. It tested harness
+`eeb8cd9d18b767216532aeb4cda64dcc7649832b` against
+`https://dealers-porcelain-encryption-promotion.trycloudflare.com`.
+The target receipt records UTC `2026-10-02T06:18:17.918Z`, 34486 bytes and
+HTML SHA-256
+`0f064fa8569925f857cb21946005bc99d0c3c447911109efc53afe3115c0a4e4`.
+Formatting, full node-project types, focused lint and 24 unit tests passed
+under Node 24.21.0.
+
+All 40 executed steps passed: the original eight checks, held touch reordering
+with exact DOM and reload-persisted order, and native sharing with dismissal
+and no fallback feedback. All four Google steps were neutrally skipped because
+the temporary origin is outside the API key's referrer list. This is candidate
+evidence, not production Google outbound certification or physical-device testing.
+
+| Device | iOS | Steps | loadEventEnd (ms) | FCP (ms) | LCP (ms) | Observed hold (ms) | Passing artifact ID |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| iPhone SE (3rd generation) | 18.5 | 10/10 | 1584 | 1623 | Unsupported | 594 | `11213258967` |
+| iPhone 16 Pro Max | 18.5 | 10/10 | 1512 | 1559 | Unsupported | 623 | `11212631367` |
+| iPhone SE (3rd generation) | 26.2 | 10/10 | 1525 | 2197 | 2197 | 605 | `11213830469` |
+| iPhone 17 Pro Max | 26.2 | 10/10 | 965 | 996 | 996 | 626 | `11213567076` |
+
+Artifact names are `ios-safari-{small|large}-ios-{18.5|26.2}`.
+Pro Max/iOS 18.5 passed on attempt 1; the other three passed on attempt 2.
+The run retains identically named failed attempt-1 artifacts; select the exact
+passing IDs above. Inventory artifact ID is `11212207959`.
+The initial failures were an undelivered Close touch, native Safari onboarding
+interception, and a requested 600 ms hold observed as only 323 ms.
+The latter physically reordered the list, but correctly failed the stricter
+hold-duration assertion. No assertion was loosened for the rerun.
+
+Each passing result has zero observed uncaught errors and an empty allowlist.
+Cold-document collector installation ranged from 5.675 to 13.400 seconds;
+the preceding observation gap remains uncertified. iOS 26 native screenshots
+show the translucent sheet container without legible content on this simulator;
+the paired native trees independently identify visible `ActivityListView`.
+iOS 18.5 screenshots show the native Copy option. All four sheets were dismissed
+and the app's fallback-message observers remained empty.
+
+### Earlier touch diagnostics
 
 [Run 36966798400](https://github.com/LeulTew/play-100/actions/runs/36966798400)
 tested the same fixed candidate HTML identity with harness `b195d516`.
@@ -224,7 +266,8 @@ dismissal controls before capturing and dismissing.
 The preceding synchronization change passed the typed inventory gate in
 [run 36970334659](https://github.com/LeulTew/play-100/actions/runs/36970334659),
 but the candidate's DNS failed before simulator jobs could run.
-This is partial evidence, not a green four-device expanded suite.
+These earlier runs alone were partial evidence; the green run above supersedes
+their outstanding expanded-suite limitation.
 Google outbound was neutrally skipped on the temporary origin, as described above.
 
 ## Devices and runtimes
