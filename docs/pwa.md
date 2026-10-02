@@ -146,8 +146,9 @@ registration; it still does not bootstrap an account.
 The conditional collection table, additional results and film UI share an
 explicitly precached `CollectionExtras` entry. A prepared offline
 `/?view=table` deep link and subsequent grid/table toggles can therefore load
-without a network. The three existing sign-in/comparison intent roots keep
-their source-keyed manifest entries; no offline root is removed or remapped.
+without a network. The three sign-in/comparison intent roots stay offline roots;
+the two comparison roots, which always load together, share one chunk and so
+one core file (scripts/preloaded-tool-chunks.ts).
 Movie/poster files remain outside the core. The 51-file limit, including the
 two metadata entries, remains unchanged and is enforced against emitted output.
 
