@@ -219,3 +219,19 @@ test('guest Community states its purpose and retains one publish action during r
   await expect(page.getByText('Browse rankings people chose to list publicly.', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Publish (a )?ranking$/ })).toHaveCount(1);
 });
+test('short landscape compacts the sticky header without shrinking its controls', async ({ page }, info) => {
+  await page.setViewportSize({ width: 851, height: 393 });
+  await page.goto('/?catalogs=off');
+  const header = page.locator('.site-header');
+  await expect(header).toBeVisible();
+  const box = await header.boundingBox();
+  expect(box?.height).toBeGreaterThanOrEqual(56);
+  expect(box?.height).toBeLessThanOrEqual(58);
+  for (const control of await header.locator('a:visible, button:visible').all()) {
+    const target = await control.boundingBox();
+    expect(target?.height).toBeGreaterThanOrEqual(44);
+  }
+  await info.attach('landscape-header-851', { body: await header.screenshot(), contentType: 'image/png' });
+  await page.setViewportSize({ width: 393, height: 851 });
+  expect((await header.boundingBox())?.height).toBeGreaterThanOrEqual(66);
+});
