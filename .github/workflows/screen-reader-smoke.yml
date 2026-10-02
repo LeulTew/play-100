@@ -35,8 +35,30 @@ env:
   TARGET_ORIGIN: ${{ inputs.sha != '' && 'http://127.0.0.1:4173' || inputs.target_origin || 'https://play-100-collection.vercel.app' }}
 
 jobs:
+  harness:
+    name: Type-check and lint the harness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.21.0'
+      - name: Install root and harness dependencies
+        run: |
+          npm ci --no-audit --no-fund
+          npm ci --no-audit --no-fund --prefix scripts/screen-reader-smoke
+      - name: Type-check the harness against the pinned Guidepup types
+        run: npm run typecheck --prefix scripts/screen-reader-smoke
+      - name: Lint the harness with type information
+        env:
+          SR_SMOKE_LINT: '1'
+        run: npx eslint scripts/screen-reader-smoke
   nvda:
     name: NVDA with Chrome (Windows)
+    needs: harness
     runs-on: windows-2022
     timeout-minutes: 60
     defaults:
@@ -102,6 +124,8 @@ jobs:
           node-version: '22.23.2'
       - name: Install pinned dependencies
         run: npm ci
+      - name: Type-check the harness against the pinned Guidepup types
+        run: npm run typecheck
       - name: Set up NVDA for automation
         run: |
           npx guidepup setup --ci
@@ -138,6 +162,7 @@ jobs:
 
   voiceover:
     name: VoiceOver with Chrome (macOS)
+    needs: harness
     runs-on: macos-15
     timeout-minutes: 60
     defaults:
@@ -199,6 +224,8 @@ jobs:
           node-version: '22.23.2'
       - name: Install pinned dependencies
         run: npm ci
+      - name: Type-check the harness against the pinned Guidepup types
+        run: npm run typecheck
       - name: Set up VoiceOver for automation
         timeout-minutes: 10
         run: |

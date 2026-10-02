@@ -117,9 +117,15 @@ outcome. Release 7 is the failing baseline for NVDA (a): one DOM focus move
 into the heading, yet NVDA speaks the dialog role, the whole body and the
 heading twice. In CI, Release 7 (b)
 returns focus to the card; the BODY loss seen with local NVDA did not
-reproduce on hosted runners. Run the light checks with
-`npm run typecheck` in `scripts/screen-reader-smoke` and
-`npx vitest run --project unit scripts/screen-reader-smoke/src/speech.test.ts`.
+reproduce on hosted runners. The harness keeps Guidepup and its Playwright in
+its own lockfile, so the root `npm ci`, `eslint .` and `tsconfig.node.json`
+leave out `tests/` and `playwright.config.ts`; the pure `src/` modules and their
+unit tests stay in the root lint and vitest `unit` project. Each workflow run
+first runs a `harness` job that installs both lockfiles, runs
+`npm run typecheck` in `scripts/screen-reader-smoke` against the pinned
+Guidepup types, and lints the whole folder with
+`SR_SMOKE_LINT=1 npx eslint scripts/screen-reader-smoke`; the reader jobs
+type-check again after their own `npm ci`.
 
 For consented Windows OS evidence, run
 `npm run release:pwa-os -- --url https://play-100-collection.vercel.app`
