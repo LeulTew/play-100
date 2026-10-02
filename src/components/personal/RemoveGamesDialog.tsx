@@ -10,12 +10,14 @@ export function RemoveGamesDialog({
   busy,
   onClose,
   onRemove,
+  getFallbackFocus,
 }: {
   records: LibraryRecord[];
   state: PersonalLibraryState;
   busy: boolean;
   onClose: () => void;
   onRemove: (ids: string[]) => Promise<boolean>;
+  getFallbackFocus?: () => HTMLElement | null;
 }) {
   const mode = useLibraryMode();
   const [removing, setRemoving] = useState(false);
@@ -38,6 +40,7 @@ export function RemoveGamesDialog({
       open
       titleId="remove-games-title"
       descriptionId="remove-games-description"
+      getFallbackFocus={getFallbackFocus}
       onClose={() => {
         if (!removing) onClose();
       }}

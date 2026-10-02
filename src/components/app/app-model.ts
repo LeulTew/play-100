@@ -66,6 +66,7 @@ export interface AppModel {
   page: AppPage;
   personalPage: AppPage;
   gamesView: UrlState['gamesView'];
+  titlePanel: AppPanel | 'compare-tray' | 'share';
   filters: Filters;
   selectedSlug: string | null;
   publicHandle: string;

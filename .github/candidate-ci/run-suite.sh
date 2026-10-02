@@ -36,7 +36,48 @@ run_playwright() {
     npx --no-install playwright "$@" 2>&1 | tee "$OUT/$name.log"
 }
 
+# Runs one named check, logging to $OUT/<name>.log and recording its exit code; later checks still run.
+failed_checks=()
+check() {
+  local name="$1"; shift
+  echo "== $name: $*"
+  local status=0
+  "$@" 2>&1 | tee "$OUT/$name.log" || status=$?
+  echo "$name $status" >>"$OUT/checks.txt"
+  if [[ $status -ne 0 ]]; then failed_checks+=("$name"); fi
+}
+finish_checks() {
+  cat "$OUT/checks.txt"
+  if [[ ${#failed_checks[@]} -gt 0 ]]; then
+    echo "Failed: ${failed_checks[*]}" >&2
+    exit 1
+  fi
+}
+
 case "$SUITE" in
+  checks)
+    : >"$OUT/checks.txt"
+    check tsc-build npx --no-install tsc -b
+    check typecheck-functions npm run typecheck:functions
+    check eslint npx --no-install eslint . --max-warnings 0
+    check format-check npm run format:check
+    for project in unit browser; do
+      check "vitest-$project" npx --no-install vitest run --project "$project" --reporter=default --reporter=json \
+        --reporter=junit "--outputFile.json=$OUT/vitest-$project.json" "--outputFile.junit=$OUT/vitest-$project.junit.xml"
+    done
+    finish_checks
+    ;;
+  csp-refresh)
+    : >"$OUT/checks.txt"
+    check csp-write npm run csp:write
+    git diff --binary >"$OUT/csp-refresh.patch"
+    git status --porcelain --untracked-files=no >"$OUT/csp-refresh.files.txt"
+    echo "Files changed by csp:write:"
+    cat "$OUT/csp-refresh.files.txt"
+    check check-csp npm run check:csp
+    check check-budgets npm run check:budgets -- --json "$OUT/budgets.json"
+    finish_checks
+    ;;
   e2e-prod | e2e-offline)
     playwright_args playwright.config.ts "${WORKERS:-3}"
     PLAY100_TEST_BUILD=production run_playwright playwright "${args[@]}"
@@ -46,19 +87,23 @@ case "$SUITE" in
     PLAY100_TEST_BUILD=development run_playwright playwright "${args[@]}"
     ;;
   cloud-rules)
-    # Each iteration gets fresh emulators, as the gate's convergence-N and handle-race-N steps do.
+    # Each iteration gets fresh emulators, as the gate's convergence-N and handle-race-N steps do. emulators:exec
+    # runs its command under /bin/sh, so GREP and SPECS stay in the environment and only this script's path is
+    # quoted into the command string.
+    printf -v command '%q ' bash "$here/run-suite.sh"
+    for ((i = 1; i <= REPEAT; i++)); do
+      echo "== cloud-rules iteration $i/$REPEAT"
+      SUITE=cloud-rules-inner ITERATION=$i npx --no-install firebase emulators:exec --project demo-play100 \
+        --only auth,firestore "$command" 2>&1 | tee "$OUT/cloud-rules-$i.log"
+    done
+    ;;
+  cloud-rules-inner)
     filter=()
     if [[ -n "${GREP:-}" ]]; then filter=(-t "$GREP"); fi
-    for ((i = 1; i <= REPEAT; i++)); do
-      inner=(npx --no-install vitest run --config vitest.cloud.config.ts "--maxWorkers=${WORKERS:-1}" --retry=0
-        --reporter=default --reporter=json --reporter=junit
-        "--outputFile.json=$OUT/vitest-$i.json" "--outputFile.junit=$OUT/vitest-$i.junit.xml"
-        "${filter[@]}" "${specs[@]}")
-      printf -v command '%q ' "${inner[@]}"
-      echo "== cloud-rules iteration $i/$REPEAT"
-      npx --no-install firebase emulators:exec --project demo-play100 --only auth,firestore "$command" 2>&1 |
-        tee "$OUT/cloud-rules-$i.log"
-    done
+    npx --no-install vitest run --config vitest.cloud.config.ts "--maxWorkers=${WORKERS:-1}" --retry=0 \
+      --reporter=default --reporter=json --reporter=junit \
+      "--outputFile.json=$OUT/vitest-${ITERATION:?}.json" "--outputFile.junit=$OUT/vitest-$ITERATION.junit.xml" \
+      "${filter[@]}" "${specs[@]}"
     ;;
   cloud-ui)
     printf -v command '%q ' bash "$here/run-suite.sh"
@@ -95,6 +140,20 @@ case "$SUITE" in
     fi
     playwright_args playwright.cloud.config.ts "$workers"
     run_playwright playwright "${args[@]}"
+    ;;
+  floor)
+    # The gate's floor-smoke partition: Firefox, WebKit and the old Chromium on the configured build, two workers.
+    : "${PLAY100_FLOOR_CHROMIUM:?The floor suite needs the old Chromium}"
+    export PLAY100_FLOOR_CHROMIUM
+    args=(test --config playwright.floor.config.ts --forbid-only --retries=0 "--workers=${WORKERS:-2}"
+      "--repeat-each=$REPEAT" --trace=retain-on-failure --reporter=list,json,junit "--output=$OUT/test-results"
+      --project=floor-firefox --project=floor-webkit --project=floor-chromium)
+    if [[ -n "${GREP:-}" ]]; then args+=(--grep "$GREP"); fi
+    args+=("${specs[@]}")
+    PLAY100_TEST_BUILD=production run_playwright playwright "${args[@]}"
+    # The gate wants all 15 configured cases per pass with no skips.
+    node -e 'const s=require(process.argv[1]).stats; console.log(JSON.stringify(s)); if (s.skipped || s.unexpected || s.flaky) process.exit(1); if (!process.argv[2] && s.expected !== 15 * Number(process.argv[3])) { console.error(`Expected ${15 * Number(process.argv[3])} passes`); process.exit(1); }' \
+      "$OUT/playwright.json" "${GREP:-}${SPECS:-}" "$REPEAT"
     ;;
   lighthouse)
     bash "$here/lighthouse.sh"

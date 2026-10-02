@@ -33,9 +33,12 @@ async function mockGames(page: Page) {
 
 async function rate(page: Page, record: LibraryRecord, value: string) {
   await openActions(page, record);
-  await row(page, record)
-    .getByRole('spinbutton', { name: `Your rating / 10 for ${record.title}`, exact: true })
-    .fill(value);
+  const rating = row(page, record).getByRole('spinbutton', {
+    name: `Your rating / 10 for ${record.title}`,
+    exact: true,
+  });
+  await rating.fill(value);
+  if (await page.evaluate(() => matchMedia('(pointer: coarse)').matches)) await rating.press('Enter');
   await expect
     .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === record.id)?.score)
     .toBe(value ? Number(value) : null);
@@ -347,6 +350,7 @@ test('failed load-more retries the failed page without losing prior records or d
 
 test('a quota failure keeps an unranked rating draft without partially importing or endlessly retrying', async ({
   page,
+  isMobile,
 }) => {
   await page.clock.install();
   await mockGames(page);
@@ -369,6 +373,7 @@ test('a quota failure keeps an unranked rating draft without partially importing
     document.documentElement.dataset.failImport = 'yes';
   });
   await row(page, a).getByRole('spinbutton').fill('7');
+  if (isMobile) await row(page, a).getByRole('spinbutton').press('Enter');
   await expect(row(page, a).locator('.inline-error')).toContainText('could not be saved');
   await expect(row(page, a).getByRole('spinbutton')).toHaveValue('7');
   expect(await readLibrary(page)).toEqual(before);

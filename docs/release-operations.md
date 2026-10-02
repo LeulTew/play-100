@@ -172,6 +172,9 @@ redacted JSON report and command log, not only a summary of its result.
 The committed runner is the default entry point. It follows the release operator's
 ordered local partitions, pins **Node 24.21.0**, refuses occupied suite ports
 (including IPv6), and stops on the first failure without cleanup of evidence.
+It sets `PLAY100_SOURCE_COMMIT` and `PLAY100_SOURCE_TREE` from the frozen
+candidate, embeds them in Playwright reports and writes hash/command-bound
+identity sidecars for native reports and generated command receipts.
 Every partition is zero-retry except the isolated FLAKE-01 film-download
 partition described below. The old, disabled hosted workflow was removed rather than kept as a
 second, incomplete definition. No CI, push or deployment is performed.
@@ -182,8 +185,9 @@ The full `npm run release:gate` **remains the default**. Lean mode is supported
 when the release operator schedules the required partitions separately to fit
 shared-host, device-lab or foreground screen-reader windows. It is an evidence
 collection mode, not a shorter list of checks or a deployment command. Every
-required result must cover the same clean candidate tree; rebasing an unchanged
-tree is acceptable, carrying a receipt from a different tree is not. Freeze
+required result must identify the same clean candidate commit and tree at
+creation; neither an index assertion nor rebasing an unchanged tree replaces
+that identity. Freeze
 source, the lockfile and the intermittent register before collecting evidence.
 Any change to them requires a new candidate and matching evidence.
 
@@ -208,8 +212,54 @@ Required evidence identifiers in the lean index:
 | `gitleaks` | Full reachable-history scan, pinned scanner identity and redacted native result |
 | `npm-audit`, `npm-signatures` | Audit and signature receipts for both installed build profiles; advisories remain visible for review |
 
-Keep raw logs, native reports and artifacts outside the checkout. At execution
-time record each file in a JSON index with its full tested tree, byte count,
+Keep raw logs, native reports and artifacts outside the checkout. Before each
+command, derive `PLAY100_SOURCE_COMMIT` and `PLAY100_SOURCE_TREE` from the clean
+candidate's `HEAD`, never from a previously recorded report. All four
+`playwright*.config.ts` configurations put them in `metadata`; Playwright's
+native JSON contains them under `config.metadata`. Ordinary local runs without
+these variables still work but do not produce identified release evidence.
+Setting only one variable or an invalid SHA stops config loading.
+
+For Vitest JSON and tools that cannot embed identity, run the creation command
+through the committed wrapper. It reads and exports both values itself before
+spawning, refuses existing report/sidecar paths, preserves the real exit code
+and checks that source stayed clean and unchanged before issuing
+`<report>.identity.json`. Each sidecar contains `schemaVersion: 1`, full
+`commit` and `tree`, the exact report `sha256`, and the creation `command`
+array. Failed reports get sidecars too; this does not turn failure into a pass.
+There is intentionally no command to stamp an already-existing receipt.
+
+```powershell
+$env:PLAY100_SOURCE_COMMIT = (git rev-parse HEAD).Trim()
+$env:PLAY100_SOURCE_TREE = (git rev-parse 'HEAD^{tree}').Trim()
+if (git status --porcelain) { throw 'Freeze the candidate before collecting evidence' }
+
+# Native Playwright metadata and a per-report sidecar, with zero retries.
+$env:PLAYWRIGHT_JSON_OUTPUT_FILE = "$evidence\e2e-production.json"
+$env:PLAY100_TEST_BUILD = 'production'
+$filmCase = 'optional films stay unloaded until Watch, play and seek natively, switch without overlap and restore focus'
+npm exec --no -- tsx scripts/release-evidence.ts --report "$evidence\e2e-production.json" -- npm exec --no -- playwright test --reporter=list,json --retries=0 --grep-invert "$filmCase"
+if ($LASTEXITCODE -ne 0) { throw 'Production partition failed; preserve the evidence' }
+
+# Vitest does not embed the source, so its sidecar is mandatory.
+npm exec --no -- tsx scripts/release-evidence.ts --report "$evidence\unit-browser.json" -- npm exec --no -- vitest run --reporter=default --reporter=json --outputFile="$evidence\unit-browser.json"
+if ($LASTEXITCODE -ne 0) { throw 'Unit/browser partition failed; preserve the evidence' }
+
+# For stdout-only checks, the wrapper captures a log and binds it.
+npm exec --no -- tsx scripts/release-evidence.ts --log "$evidence\types.log" -- npm exec --no -- tsc -b
+if ($LASTEXITCODE -ne 0) { throw 'Type check failed; preserve the evidence' }
+```
+
+Apply the same wrapper to each separately scheduled creation command, naming
+every output with repeatable `--report` arguments; `--log` optionally captures
+stdout/stderr. Keep device reports, screenshots and archives together and
+identify them when their actual device-test or archive command creates them.
+An old iOS `results.json`, Test Lab or reader receipt without creation-time
+identity cannot be admitted by relabelling it in the index. Device operators
+must additionally verify the target build matches this candidate; the source
+environment identifies the checkout, not a mutable remote origin.
+
+At execution time record each file in a JSON index with its full tested tree, byte count,
 SHA-256, UTC recording time and result. Include every evidence file; multiple
 files may share an identifier. For the film partition, use one receipt bundle
 per attempt (with its log, native report and artifacts inside), numbered 1 and
@@ -248,14 +298,31 @@ if ($LASTEXITCODE -ne 0) { throw 'Lean evidence is incomplete, changed or belong
 This extends the existing typed `release:manifest` command; its native-report
 mode stays available. Lean collection needs no `dist` or running server. It
 binds the current commit/tree, `package-lock.json`, `docs/intermittents.md`, the
-index and every listed file's digest, size and recorded tree. It refuses
+index and every listed file's digest, size and recorded tree, plus every used
+identity sidecar's digest and size. It refuses
 missing/changed files, other-tree evidence, dirty source, duplicate files,
-in-checkout output and overwrite of an existing manifest. Where a JSON report
-declares `tree` or `source.tree`, or a text log has a `tree:` header, those
-identities must also match; the index cannot override a report's own provenance.
+in-checkout output and overwrite of an existing manifest. **Every evidence
+category needs creation-time provenance**, even if the index row has the right
+tree. Accepted native identities are a complete `commit`/`tree` pair at the
+JSON root, `source` (`sha` is also accepted there), `metadata`, or Playwright's
+`config.metadata`; text logs need both `commit:` and `tree:` headers. Otherwise
+an adjacent `<file>.identity.json` must match the candidate and exact report
+bytes. Missing, partial, conflicting or different-commit/tree declarations fail,
+even when another identity source is valid.
 
-The index is the release operator's provenance record, not independent proof
-that an arbitrary report ran on that tree. Review command headers, native
+Candidate CI's original downloaded artifacts are the explicit legacy exception
+to per-report sidecars: they contain `identity.json` with `commit`, `tree`,
+`requestedSha`, `suite` and the workflow-run URL. Keep that artifact intact.
+A sibling `identity.json` is discovered automatically; for nested reports set
+the index row's optional `"identity": "candidate-ci/identity.json"` relative to
+the index. Reports must remain beneath that identity's artifact directory and
+the identity must name this repository's Candidate CI run and exact candidate.
+The manifest binds the downloaded report and identity bytes. These older CI
+identities have no per-report digest: their association relies on the original
+workflow artifact, not proof that a detached file came from that run. Verify
+the workflow URL and artifact origin; do not mix files from different runs.
+
+Creation-time metadata is not a cryptographic execution attestation. Review command headers, native
 results, device build identity and completeness before accepting it. The
 collector does not execute checks, approve audit advisories, reinterpret
 performance failures or authorize deployment. `reviewRequired: true` must

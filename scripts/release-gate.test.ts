@@ -243,6 +243,56 @@ describe('candidate release gate planning', () => {
     }
   });
 
+  it.each([0, 1])('sets child source identity and hashes native reports even on exit %s', async (exit) => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'gate-report-identity-'));
+    try {
+      const identity = { sha: 'a'.repeat(40), tree: 'b'.repeat(40) };
+      await writeFile(path.join(directory, 'plan.json'), JSON.stringify(identity));
+      const report = path.join(directory, 'vitest.json');
+      const args = [
+        '-e',
+        `require('node:fs').writeFileSync(process.argv[1], JSON.stringify({metadata:{commit:process.env.PLAY100_SOURCE_COMMIT,tree:process.env.PLAY100_SOURCE_TREE}}));process.exitCode=${exit}`,
+        report,
+      ];
+      const command = runCommand(
+        'native',
+        directory,
+        directory,
+        process.execPath,
+        args,
+        { ...process.env, PLAY100_SOURCE_COMMIT: 'stale', PLAY100_SOURCE_TREE: 'stale' },
+        undefined,
+        [report],
+      );
+      if (exit) await expect(command).rejects.toThrow('failed; retain');
+      else await command;
+      expect(JSON.parse(await readFile(report, 'utf8'))).toEqual({
+        metadata: { commit: identity.sha, tree: identity.tree },
+      });
+      const sidecar = JSON.parse(await readFile(`${report}.identity.json`, 'utf8')) as Record<string, unknown>;
+      expect(sidecar).toMatchObject({
+        schemaVersion: 1,
+        commit: identity.sha,
+        tree: identity.tree,
+        command: [process.execPath, ...args],
+      });
+      expect(sidecar.sha256).toBe(commandReceipt('unused', 0, await readFile(report)).logSha256);
+      const exitIdentity: unknown = JSON.parse(
+        await readFile(path.join(directory, 'native-exit.json.identity.json'), 'utf8'),
+      );
+      expect(exitIdentity).toMatchObject({
+        commit: identity.sha,
+        tree: identity.tree,
+        command: [process.execPath, ...args],
+      });
+      await expect(
+        runCommand('duplicate', directory, directory, process.execPath, args, process.env, undefined, [report]),
+      ).rejects.toThrow('existing evidence');
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it('removes stale test overrides and isolates configured, offline and emulator environments', () => {
     const original = {
       PATH: 'runtime',

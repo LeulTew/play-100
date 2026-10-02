@@ -5,6 +5,7 @@ import AddGamesPanel from './AddGamesPanel';
 import type { AddGamesPanelState } from './AddGamesPanel';
 import type { ProgressFilter } from '../../lib/game-progress';
 import { RemoveRankingDialog } from './RemoveRankingDialog';
+import { removalReturnFocus } from './reorder-focus';
 import { formatResultRange } from '../../lib/result-range';
 import { LocalPager } from '../LocalPager';
 import { RANKING_PAGE_SIZE, useRankingsPage } from './useRankingsPage';
@@ -243,7 +244,13 @@ export default function RankingsPage(props: RankingsPageProps) {
                   canReorder={canReorder}
                   onMoveToPosition={(position) => move(record.id, position)}
                   onUseRatingOrder={() => applyRatingOrder(record.id)}
-                  onRemove={() => setRemoval({ record, scope: mode.scope })}
+                  onRemove={() =>
+                    setRemoval({
+                      record,
+                      scope: mode.scope,
+                      getFallbackFocus: removalReturnFocus(records, [record.id], heading.current),
+                    })
+                  }
                   onPin={onPin}
                   onUnpin={onUnpin}
                   pinned={pinnedIds?.has(record.id)}
@@ -288,6 +295,7 @@ export default function RankingsPage(props: RankingsPageProps) {
           busy={busy}
           onAction={onAction}
           onClose={() => setRemoval(null)}
+          getFallbackFocus={removal.getFallbackFocus}
         />
       )}
     </section>

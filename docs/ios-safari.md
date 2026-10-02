@@ -34,6 +34,15 @@ on failure. An additional simulator screenshot covers driver startup failures.
 The uncaught-error allowlist starts empty; any future exception must be narrowly
 matched, justified and linked to an issue.
 
+For the [lean release manifest](release-operations.md#lean-release-mode), a
+`results.json` file does not acquire candidate provenance from its index row or
+from the workflow's harness checkout. It needs an embedded full tested
+commit/tree or a creation-time `<report>.identity.json` binding those values,
+the report's SHA-256 and its creation command. Run new evidence producers
+through the documented wrapper and verify the remote target's build identity
+separately. Older unbound simulator results remain historical evidence, not
+passing same-candidate lean receipts.
+
 The script requests `pageLoadStrategy: none` and injects `error` and
 `unhandledrejection` listeners as soon as WebDriver can execute in each new
 target document, including after reload. This WebDriver path has no

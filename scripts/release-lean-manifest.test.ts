@@ -6,6 +6,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { collectLeanManifest, LEAN_CHECKS, parseLeanEvidence } from './release-lean-manifest';
 import { writeReleaseManifest } from './release-manifest';
+import { writeEvidenceIdentity } from './release-evidence';
 
 vi.mock('node:child_process', async (original) => ({
   ...(await original<typeof import('node:child_process')>()),
@@ -53,7 +54,13 @@ async function fixture() {
   const input = path.join(evidence, 'index.json');
   const output = path.join(evidence, 'manifest.json');
   const data = index();
-  await Promise.all(data.evidence.map((row) => writeFile(path.join(evidence, row.file), row.check)));
+  await Promise.all(
+    data.evidence.map(async (row) => {
+      const file = path.join(evidence, row.file);
+      await writeFile(file, row.check);
+      await writeEvidenceIdentity(file, { commit: sha, tree }, ['npm', 'run', row.check]);
+    }),
+  );
   await writeFile(input, JSON.stringify(data));
   return { root, evidence, input, output, data };
 }
@@ -108,7 +115,14 @@ describe('lean release manifest', () => {
       { path: 'package-lock.json', bytes: 22, sha256: digest('{"lockfileVersion":3}\n') },
       { path: 'docs/intermittents.md', bytes: 29, sha256: digest('Keep both FLAKE-01 attempts.\n') },
     ]);
-    expect(manifest.evidence).toEqual(current.data.evidence);
+    expect(manifest.evidence).toHaveLength(current.data.evidence.length);
+    expect(manifest.evidence).toMatchObject(current.data.evidence);
+    for (const row of manifest.evidence) {
+      const identity = await readFile(path.join(current.evidence, `${row.file}.identity.json`), 'utf8');
+      expect(row.identities).toEqual([
+        { file: `${row.file}.identity.json`, sha256: digest(identity), bytes: Buffer.byteLength(identity) },
+      ]);
+    }
     expect(manifest.evidenceIndex).toMatchObject({
       file: 'index.json',
       tree,
@@ -167,5 +181,139 @@ describe('lean release manifest', () => {
       args?.includes('HEAD^{tree}') ? tree : args?.includes('HEAD') ? sha : ' M README.md',
     );
     await expect(collectLeanManifest(current.root, current.output, current.input)).rejects.toThrow('clean committed');
+  });
+  it.each(LEAN_CHECKS)('refuses index-only provenance for %s', async (check) => {
+    const current = await fixture();
+    await rm(path.join(current.evidence, `${check}.txt.identity.json`));
+    await expect(collectLeanManifest(current.root, current.output, current.input)).rejects.toThrow(
+      'index alone is insufficient',
+    );
+  });
+  it.each([
+    { config: { metadata: { commit: sha, tree } }, suites: [], stats: { expected: 1 } },
+    { metadata: { commit: sha, tree }, numPassedTests: 1 },
+    { source: { sha, tree }, results: [] },
+    { commit: sha, tree, results: [] },
+  ])('accepts complete native JSON identity: %j', async (report) => {
+    const current = await fixture();
+    const first = current.data.evidence[0]!;
+    first.file = 'native.json';
+    const content = JSON.stringify(report);
+    first.bytes = Buffer.byteLength(content);
+    first.sha256 = digest(content);
+    await writeFile(path.join(current.evidence, first.file), content);
+    await writeFile(current.input, JSON.stringify(current.data));
+    expect((await collectLeanManifest(current.root, current.output, current.input)).evidence[0]!.identities).toEqual(
+      [],
+    );
+  });
+  it.each([
+    { config: { metadata: { commit: sha, tree: 'c'.repeat(40) } } },
+    { config: { metadata: { commit: 'c'.repeat(40), tree } } },
+    { config: { metadata: { tree } } },
+    { source: { sha, tree: 'c'.repeat(40) }, config: { metadata: { commit: sha, tree } } },
+  ])('rejects stale or incomplete native identity even with a current sidecar: %j', async (report) => {
+    const current = await fixture();
+    const first = current.data.evidence[0]!;
+    first.file = 'native.json';
+    const content = JSON.stringify(report);
+    first.bytes = Buffer.byteLength(content);
+    first.sha256 = digest(content);
+    const file = path.join(current.evidence, first.file);
+    await writeFile(file, content);
+    await writeEvidenceIdentity(file, { commit: sha, tree }, ['runner']);
+    await writeFile(current.input, JSON.stringify(current.data));
+    await expect(collectLeanManifest(current.root, current.output, current.input)).rejects.toThrow(
+      'index cannot override',
+    );
+  });
+  it.each(['playwright.json', 'vitest.json', 'results.json'])(
+    'requires matching creation-sidecar bytes and identity for %s',
+    async (name) => {
+      const current = await fixture();
+      const first = current.data.evidence[0]!;
+      first.file = name;
+      const content = JSON.stringify({ passed: true });
+      first.bytes = Buffer.byteLength(content);
+      first.sha256 = digest(content);
+      const file = path.join(current.evidence, name);
+      await writeFile(file, content);
+      await writeFile(current.input, JSON.stringify(current.data));
+      await expect(collectLeanManifest(current.root, current.output, current.input)).rejects.toThrow('index alone');
+      await writeEvidenceIdentity(file, { commit: sha, tree }, ['runner', '--report', name]);
+      await expect(collectLeanManifest(current.root, current.output, current.input)).resolves.toBeDefined();
+      const identity = JSON.parse(await readFile(`${file}.identity.json`, 'utf8')) as Record<string, unknown>;
+      for (const change of [
+        { tree: 'c'.repeat(40) },
+        { commit: 'c'.repeat(40) },
+        { sha256: 'd'.repeat(64) },
+        { command: [] },
+      ]) {
+        await writeFile(`${file}.identity.json`, JSON.stringify({ ...identity, ...change }));
+        await expect(collectLeanManifest(current.root, current.output, current.input)).rejects.toThrow();
+      }
+    },
+  );
+  it('accepts and binds original Candidate CI identity, not another tree or a detached report', async () => {
+    const current = await fixture();
+    const first = current.data.evidence[0]!;
+    await rm(path.join(current.evidence, `${first.file}.identity.json`));
+    const ci = {
+      commit: sha,
+      tree,
+      requestedSha: sha,
+      suite: 'checks',
+      workflow: { run: 'https://github.com/LeulTew/play-100/actions/runs/123' },
+    };
+    const file = path.join(current.evidence, 'identity.json');
+    await writeFile(file, JSON.stringify(ci));
+    const manifest = await collectLeanManifest(current.root, current.output, current.input);
+    expect(manifest.evidence[0]!.identities).toEqual([
+      { file: 'identity.json', sha256: digest(JSON.stringify(ci)), bytes: Buffer.byteLength(JSON.stringify(ci)) },
+    ]);
+    for (const change of [
+      { tree: 'c'.repeat(40) },
+      { commit: 'c'.repeat(40) },
+      { requestedSha: 'c'.repeat(40) },
+      { workflow: { run: 'made-up' } },
+    ]) {
+      await writeFile(file, JSON.stringify({ ...ci, ...change }));
+      await expect(collectLeanManifest(current.root, current.output, current.input)).rejects.toThrow();
+    }
+    const detached = path.join(current.evidence, 'different-artifact');
+    await mkdir(detached);
+    await writeFile(path.join(detached, 'identity.json'), JSON.stringify(ci));
+    await rm(file);
+    Object.assign(first, { identity: 'different-artifact/identity.json' });
+    await writeFile(current.input, JSON.stringify(current.data));
+    await expect(collectLeanManifest(current.root, current.output, current.input)).rejects.toThrow(
+      'original Candidate CI artifact',
+    );
+  });
+  it('accepts an explicit CI artifact identity for a nested report and rejects a missing identity', async () => {
+    const current = await fixture();
+    const first = current.data.evidence[0]!;
+    const nested = path.join(current.evidence, 'ci', 'iteration-1');
+    await mkdir(nested, { recursive: true });
+    first.file = 'ci/iteration-1/results.json';
+    const content = '{"numPassedTests":1}';
+    first.bytes = Buffer.byteLength(content);
+    first.sha256 = digest(content);
+    Object.assign(first, { identity: 'ci/identity.json' });
+    await writeFile(path.join(current.evidence, first.file), content);
+    await writeFile(current.input, JSON.stringify(current.data));
+    await expect(collectLeanManifest(current.root, current.output, current.input)).rejects.toThrow('Missing explicit');
+    await writeFile(
+      path.join(current.evidence, 'ci', 'identity.json'),
+      JSON.stringify({
+        commit: sha,
+        tree,
+        requestedSha: sha,
+        suite: 'cloud-rules',
+        workflow: { run: 'https://github.com/LeulTew/play-100/actions/runs/123' },
+      }),
+    );
+    const manifest = await collectLeanManifest(current.root, current.output, current.input);
+    expect(manifest.evidence[0]!.identities[0]!.file).toBe('ci/identity.json');
   });
 });
