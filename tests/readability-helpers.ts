@@ -25,18 +25,22 @@ export interface HeadingFit {
   overlap: number;
 }
 
-/**
- * How every rendered h1, h2 and h3 under `root` fits: its text inside its own box, where a clipping ancestor or a
- * text-spacing check sees it, and clear of the elements beside it. Sections that `content-visibility: auto` skips
- * are rendered first, as a visitor who scrolls to them sees them.
- */
-export async function readHeadingFit(page: Page, root = 'body'): Promise<HeadingFit[]> {
+async function renderContainedContent(page: Page) {
   await page.evaluate(async () => {
     for (const element of document.querySelectorAll<HTMLElement>('body *'))
       if (getComputedStyle(element).getPropertyValue('content-visibility') === 'auto')
         element.style.setProperty('content-visibility', 'visible');
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
   });
+}
+
+/**
+ * How every rendered h1, h2 and h3 under `root` fits: its text inside its own box, where a clipping ancestor or a
+ * text-spacing check sees it, and clear of the elements beside it. Sections that `content-visibility: auto` skips
+ * are rendered first, as a visitor who scrolls to them sees them.
+ */
+export async function readHeadingFit(page: Page, root = 'body'): Promise<HeadingFit[]> {
+  await renderContainedContent(page);
   return page
     .locator(root)
     .first()
@@ -96,6 +100,8 @@ export function expectHeadingsFit(fit: readonly HeadingFit[], when: string, tigh
 
 export async function expectReadableSurface(page: Page, surface: string, checkClipping = false) {
   await page.evaluate(() => document.fonts.ready);
+  // Inspect every card's rendered content, not its skipped intrinsic-size placeholder; skip no assertions or nodes.
+  if (checkClipping) await renderContainedContent(page);
   const report = await page.evaluate(
     ({ checkClipping }) => {
       const label = (element: Element) => {

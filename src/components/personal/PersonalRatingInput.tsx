@@ -77,6 +77,7 @@ export function PersonalRatingInput({
     };
     const beforeUnload = (event: BeforeUnloadEvent) => {
       flush();
+      // Explicitly choosing Leave accepts losing an unfinished write; keep the unsaved-data warning until it saves.
       event.preventDefault();
       event.returnValue = '';
     };

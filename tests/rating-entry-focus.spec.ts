@@ -82,7 +82,7 @@ for (const surface of ['detail', 'ranking'] as const) {
     expect((await readLibrary(page)).revision).toBe(before.revision + 1);
   });
 
-  test(`${surface}: closing the tab flushes a focused rating to the device library`, async ({ page, context }) => {
+  test(`${surface}: staying after an unsaved close lets the rating save before leaving`, async ({ page, context }) => {
     const rating = await openRating(page, surface);
     const observer = await context.newPage();
     await observer.goto(new URL('/favicon.svg', page.url()).href);
@@ -90,10 +90,17 @@ for (const surface of ['detail', 'ranking'] as const) {
     await rating.click();
     await rating.fill('7.25');
     await expect(rating).toBeFocused();
-    page.on('dialog', (dialog) => void dialog.accept());
-    const closed = page.waitForEvent('close');
+    const warned = page.waitForEvent('dialog');
     await page.close({ runBeforeUnload: true });
-    await closed;
+    const warning = await warned;
+    expect(warning.type()).toBe('beforeunload');
+    await warning.dismiss();
+    expect(page.isClosed()).toBe(false);
+    await expect(rating).toHaveValue('7.25');
+    await expect
+      .poll(async () => (await readLibrary(observer)).ranking.find((entry) => entry.id === game.id)?.score)
+      .toBe(7.25);
+    await page.close();
     await expect
       .poll(async () => (await readLibrary(observer)).ranking.find((entry) => entry.id === game.id)?.score)
       .toBe(7.25);
@@ -130,29 +137,6 @@ for (const surface of ['detail', 'ranking'] as const) {
         await expect(rating).toBeFocused();
       }
 
-      test('a nested share dialog flushes the still-focused rating without a timed save', async ({ page }) => {
-        await page.addInitScript(() => {
-          Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
-          Object.defineProperty(navigator, 'clipboard', {
-            configurable: true,
-            value: {
-              writeText: () => Promise.reject(new DOMException('Synthetic clipboard refusal', 'NotAllowedError')),
-            },
-          });
-        });
-        const rating = await openRating(page, 'detail');
-        await page.clock.install({ time: new Date('2026-10-02T12:00:00Z') });
-        await page.clock.pauseAt(new Date('2026-10-02T12:00:10Z'));
-        await rating.fill('7.25');
-        await expect(rating).toBeFocused();
-        await page
-          .getByRole('button', { name: `Share ${game.title}`, exact: true })
-          .evaluate((element: HTMLButtonElement) => element.click());
-        await expect(page.getByRole('dialog', { name: 'Copy this link', exact: true })).toBeVisible();
-        await expect
-          .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === game.id)?.score)
-          .toBe(7.25);
-      });
       await rating.press('End');
       await page.keyboard.type('.5');
       await expect(rating).toHaveValue('7.5');
@@ -214,3 +198,27 @@ for (const surface of ['detail', 'ranking'] as const) {
     });
   }
 }
+
+test('a nested share dialog flushes the still-focused rating without a timed save', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: () => Promise.reject(new DOMException('Synthetic clipboard refusal', 'NotAllowedError')),
+      },
+    });
+  });
+  const rating = await openRating(page, 'detail');
+  await page.clock.install({ time: new Date('2026-10-02T12:00:00Z') });
+  await page.clock.pauseAt(new Date('2026-10-02T12:00:10Z'));
+  await rating.fill('7.25');
+  await expect(rating).toBeFocused();
+  await page
+    .getByRole('button', { name: `Share ${game.title}`, exact: true })
+    .evaluate((element: HTMLButtonElement) => element.click());
+  await expect(page.getByRole('dialog', { name: 'Copy this link', exact: true })).toBeVisible();
+  await expect
+    .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === game.id)?.score)
+    .toBe(7.25);
+});

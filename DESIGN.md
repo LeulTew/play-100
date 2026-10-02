@@ -459,6 +459,7 @@ Personal ratings stay focused and read-only during a write; Enter saves without
 blurring. Fine pointers retain the 650ms debounce. Coarse pointers save on blur
 or Enter, not during a pause while a decimal is being typed. The pending-editor
 registry still flushes on navigation and preserves failed or invalid drafts.
+Visibility loss, pagehide and a close request also flush; explicitly choosing Leave after the unsaved-data warning accepts losing an unfinished write.
 Confirmed Library and Ranking removals return to the next surviving row title,
 then the previous row, and only use the results heading if no row remains.
 
