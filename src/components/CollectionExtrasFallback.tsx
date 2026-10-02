@@ -4,6 +4,7 @@ import type ExtendedResults from './catalog/ExtendedResults';
 import { author, authorRatingText } from '../lib/author';
 import { criticColumns, formatAverage, sortDirection } from '../lib/collection';
 import { catalogGenreLabel } from '../lib/discovery-genres';
+import { FilmPosterCard } from './FilmPosterCard';
 import { Icon } from './Icon';
 
 export function TableFallback({
@@ -202,10 +203,11 @@ const filmSummaries = [
 export function FilmsFallback({ onWatch }: { onWatch: (id: 'the-100' | 'discover-compare') => void }) {
   return (
     <ul className="films-list">
-      {filmSummaries.map((film) => (
+      {filmSummaries.map((film, index) => (
         <li key={film.id}>
           <button className="film-watch" data-film-id={film.id} aria-haspopup="dialog" onClick={() => onWatch(film.id)}>
             <span className="film-poster">
+              <FilmPosterCard number={index + 1} title={film.title} />
               <span className="film-play-mark" aria-hidden="true">
                 <svg width="20" height="20" viewBox="0 0 20 20">
                   <path d="M6 3 17 10 6 17Z" fill="currentColor" />
