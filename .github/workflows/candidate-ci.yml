@@ -53,6 +53,17 @@ on:
         type: string
         required: false
         default: ''
+      browser_env:
+        description: >-
+          Playwright browser environment: the config as is, Chromium with background throttling off (added launch
+          args), or headed under Xvfb
+        type: choice
+        required: false
+        default: default
+        options:
+          - default
+          - unthrottled
+          - xvfb-headed
 
 permissions:
   contents: read
@@ -69,6 +80,7 @@ jobs:
       REPEAT: ${{ inputs.repeat }}
       WORKERS: ${{ inputs.workers }}
       GREP: ${{ inputs.grep }}
+      BROWSER_ENV: ${{ inputs.browser_env }}
       REQUESTED_SHA: ${{ inputs.sha }}
       WORKFLOW_SHA: ${{ github.workflow_sha }}
       OUT: ${{ github.workspace }}/evidence

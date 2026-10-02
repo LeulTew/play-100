@@ -23,17 +23,45 @@ playwright_projects() {
 
 playwright_args() {
   local config="$1" workers="$2"
+  if [[ "${BROWSER_ENV:-default}" == unthrottled ]]; then
+    # An untracked wrapper beside the candidate's config (so its relative paths still resolve) that only appends
+    # Chromium launch args; assertions, timeouts and projects are the candidate's own.
+    local wrapper="${config%.ts}.candidate-ci.ts"
+    cat >"$wrapper" <<EOF
+import base from './${config%.ts}';
+
+const unthrottled = [
+  '--disable-renderer-backgrounding',
+  '--disable-background-timer-throttling',
+  '--disable-backgrounding-occluded-windows',
+];
+export default {
+  ...base,
+  use: {
+    ...base.use,
+    launchOptions: {
+      ...base.use?.launchOptions,
+      args: [...(base.use?.launchOptions?.args ?? []), ...unthrottled],
+    },
+  },
+};
+EOF
+    config="$wrapper"
+  fi
   # shellcheck disable=SC2207
   args=(test --config "$config" --forbid-only --retries=0 "--workers=$workers" "--repeat-each=$REPEAT"
     --trace=retain-on-failure --reporter=list,json,junit "--output=$OUT/test-results" $(playwright_projects))
   if [[ -n "${GREP:-}" ]]; then args+=(--grep "$GREP"); fi
+  if [[ "${BROWSER_ENV:-default}" == xvfb-headed ]]; then args+=(--headed); fi
   args+=("${specs[@]}")
 }
 
 run_playwright() {
   local name="$1"; shift
+  local launcher=()
+  if [[ "${BROWSER_ENV:-default}" == xvfb-headed ]]; then launcher=(xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24"); fi
   PLAYWRIGHT_JSON_OUTPUT_FILE="$OUT/$name.json" PLAYWRIGHT_JUNIT_OUTPUT_FILE="$OUT/$name.junit.xml" \
-    npx --no-install playwright "$@" 2>&1 | tee "$OUT/$name.log"
+    "${launcher[@]}" npx --no-install playwright "$@" 2>&1 | tee "$OUT/$name.log"
 }
 
 # Runs one named check, logging to $OUT/<name>.log and recording its exit code; later checks still run.

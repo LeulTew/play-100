@@ -72,6 +72,7 @@ export function buildIdentity(facts: IdentityFacts, env: NodeJS.ProcessEnv) {
     repeat: env.REPEAT ?? null,
     workers: orNull(env.WORKERS),
     grep: orNull(env.GREP),
+    browserEnv: orNull(env.BROWSER_ENV),
     outcome: env.SUITE_OUTCOME ?? null,
     runner: {
       imageOS: env.ImageOS ?? null,
