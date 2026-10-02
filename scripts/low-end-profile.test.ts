@@ -30,6 +30,8 @@ describe('low-end phone profile', () => {
     expect(DRIVER).toContain('result.detailUrl = location.pathname + location.search');
     for (const name of ['scrollHome', 'discover', 'scrollDiscover', 'the100', 'detail', 'back', 'myGames', 'end'])
       expect(DRIVER).toContain(`step('${name}')`);
+    // A trace of the visit finds the same boundaries as user timing marks.
+    expect(DRIVER).toContain("performance.mark('p100:' + name)");
   });
 
   it("matches vercel.json's sources as Vercel does, its :name segments included", () => {
