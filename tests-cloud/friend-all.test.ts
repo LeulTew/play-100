@@ -17,7 +17,6 @@ import {
   disableNetwork,
   doc,
   enableNetwork,
-  FirestoreError,
   getDocFromServer,
   getDocsFromServer,
   deleteDoc,
@@ -1329,19 +1328,23 @@ describe('All-sharing bounded SDK transport', () => {
           db,
           async (tx) => {
             await operation(tx);
-            throw new FirestoreError('permission-denied', 'Missing or insufficient permissions.');
+            throw Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' });
           },
           options,
         );
       vi.mocked<RunTransaction>(runTransaction)
+        .mockClear()
         .mockImplementationOnce(refuse)
         .mockImplementationOnce(actual.runTransaction)
         .mockImplementationOnce(refuse);
       await expect(a.all.cleanupPage(a.uid, 'games')).rejects.toMatchObject({ code: 'permission-denied' });
+      // The refused deletion, the reread and the one retry, refused again.
+      expect(runTransaction).toHaveBeenCalledTimes(3);
       expect(await a.all.head(a.uid, 'games')).not.toBeNull();
       expect((await getDocFromServer(jobRef)).exists()).toBe(true);
-      vi.mocked<RunTransaction>(runTransaction).mockImplementationOnce(refuse);
+      vi.mocked<RunTransaction>(runTransaction).mockClear().mockImplementationOnce(refuse);
       expect(await a.all.cleanupPage(a.uid, 'games')).toEqual({ deleted: 0, done: true });
+      expect(runTransaction).toHaveBeenCalledTimes(3);
       expect(await a.all.head(a.uid, 'games')).toBeNull();
       expect((await getDocFromServer(jobRef)).exists()).toBe(false);
     });
