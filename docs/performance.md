@@ -66,8 +66,11 @@ HEAD. The test needs the full history, not a shallow clone.
   which is at its cap.
 - **Dialogs.** The 100's game detail ([`GameDetail`](../src/components/GameDetail.tsx)) ships in the catalog detail's
   chunk rather than the eager bundle or a chunk of its own. A page warms that chunk before a detail opens: at idle on
-  every device class (not with Save-Data or on 2G), on a pointer, focus or press on a game link,
-  and beside the collection for a linked game ([`DialogHost`](../src/components/app/DialogHost.tsx)). A detail that
+  every device class and in every motion mode, on a pointer, focus or press on a game link, and beside the collection
+  for a linked game ([`DialogHost`](../src/components/app/DialogHost.tsx)). Only the data-saving signals, Save-Data
+  and 2G, stop the idle warm-up: opening a game is a primary action, and loading its code moves nothing on the page, so
+  Lite and reduced motion warm it too (R24; before, only capable devices with motion on did, with the app tools). The
+  catalog parser and the 3D scene still wait for motion (`module-prefetch.spec.ts`). A detail that
   opens before its module has loaded shows the catalog detail's pending dialog after 300 ms; one that opens after renders
   in its first commit, as before. The rating input both details share with Discover and the ranking stays in
   `app-shared` ([`app-shared-chunk.ts`](../scripts/app-shared-chunk.ts)).
