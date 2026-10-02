@@ -209,7 +209,8 @@ export function createPwaController(): PwaController {
       });
     }
     if (!current(start) || request !== refreshRequest || applying) return;
-    if (registration?.waiting)
+    // A first install has no controller; its waiting worker is the offline copy, not an update.
+    if (registration?.waiting && navigator.serviceWorker.controller)
       publish({
         updateState: 'waiting',
         message: 'An update is ready. Your current page stays open until you choose to update.',
@@ -232,7 +233,7 @@ export function createPwaController(): PwaController {
             error: 'Offline preparation failed. The current version was not replaced. Retry when connected.',
           });
         } else if (worker.state === 'installed') {
-          if (value.waiting)
+          if (value.waiting && navigator.serviceWorker.controller)
             publish({ updateState: 'waiting', message: 'An update is ready when you choose to apply it.' });
         } else if (worker.state === 'activated') {
           void refresh(start).catch((cause) =>

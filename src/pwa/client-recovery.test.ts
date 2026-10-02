@@ -20,13 +20,21 @@ it('retains a waiting worker and protects edits before a connected recovery relo
     installing: null,
   });
   const serviceWorker = Object.assign(new EventTarget(), {
-    controller: null,
+    // A waiting update implies a page controlled by the current worker (UX-031).
+    controller: Object.assign(new EventTarget(), {
+      scriptURL: 'https://play.test/sw.js',
+      state: 'activated',
+      postMessage: (_data: unknown, ports: MessagePort[]) =>
+        ports[0]?.postMessage({ channel: 'play100-pwa-v1', version: 'a'.repeat(64), ready: true }),
+    }),
     getRegistration: vi.fn(async () => registration),
   });
   vi.stubGlobal(
     'window',
     Object.assign(new EventTarget(), {
       isSecureContext: true,
+      setTimeout: globalThis.setTimeout.bind(globalThis),
+      clearTimeout: globalThis.clearTimeout.bind(globalThis),
       matchMedia: () => Object.assign(new EventTarget(), { matches: false }),
     }),
   );

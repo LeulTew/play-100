@@ -77,11 +77,11 @@ class FakeRegistration extends EventTarget {
   update = vi.fn(async () => {});
 }
 
-function fixture(pathname = '/') {
+function fixture(pathname = '/', controlled = true) {
   const registration = new FakeRegistration();
   registration.active!.version = oldVersion;
   const serviceWorker = Object.assign(new EventTarget(), {
-    controller: registration.active,
+    controller: controlled ? registration.active : null,
     getRegistration: vi.fn(async () => registration),
     register: vi.fn(async (_url: string, options?: RegistrationOptions) => {
       expect(options?.type).toBe('module');
@@ -123,6 +123,15 @@ afterEach(() => {
 });
 
 describe('truthful installation and page startup', () => {
+  it('does not call the first offline copy an update on an uncontrolled page', async () => {
+    const current = fixture('/', false);
+    await vi.waitFor(() => expect(current.serviceWorker.getRegistration).toHaveBeenCalled());
+    await vi.waitFor(() => expect(current.controller.getSnapshot().offlineState).toBe('ready'));
+    expect(current.controller.getSnapshot().updateState).not.toBe('waiting');
+    expect(current.controller.getSnapshot().message).not.toMatch(/update is ready/i);
+    current.stop();
+  });
+
   it.each(['ignored', 'unsupported'] as const)(
     'explains %s module-worker support without blaming storage',
     async (mode) => {
