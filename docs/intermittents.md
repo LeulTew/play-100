@@ -43,6 +43,7 @@ test's current line. A repair commit is not execution evidence.
 | `tests-cloud-ui/review-repairs.spec.ts:312` (REL-09): "a clean failed online check stays paused after a fresh unchanged head and a later edit until manual retry", failing at `:341`, where `.sync-state` read "Saved online" right after the test restored the valid head (mobile; desktop passed) | R22 gate attempt 2, 2026-09-30 (first seen) | A test race; restoring the head does not resume saving on its own. After a failed head check, saving is blocked until a manual retry: the head listener is detached, the work queue is blocked, and focus, online and visibility wake-ups return early. In the failing run the page's head listener rejected the invalid head before the test's "Sync now" click landed. The trace's DOM snapshots read "Saved online" at 23:17:25.647Z and "Online saving paused" at 25.843Z, just before the click was dispatched, so the assertion at `:336` passed at once. Sync now's own check was still running: its button stayed disabled from 25.917Z until after the failure, and that retry refreshes the device copy (since the legacy-writer version-barrier repair) and then waits 200 ms before checking. The test restored the head at 26.081–26.086Z, so the retry read the valid, unchanged head and correctly reported "Saved online". On desktop the click evidently landed before the listener's failure, which then cancelled the queued check, so the pause held. | Test repaired in R23: after clicking Sync now, the test waits for the button to be enabled again before it asserts the pause and restores the head. By then the retry has settled on a failed check, and a later read cannot report success over it. Every assertion is unchanged. Evidence: the release operator's `r22-attempt2-stop.json`, and the trace and emulator excerpt in `r22-attempt2-cloud-ui-failures` (no lock timeout or service-call error in that window). Loop on the intermediate R23 publication-convergence build (tree `31a80f38`), 2026-09-30: `review-repairs.spec.ts:312` ×20 on each project with two workers, 40/40 (cloud-UI receipt `r23-go-2c012012/rel09-review-repairs-312.txt`). |
 | `tests-cloud-ui/review-repairs.spec.ts:39` (REL-10): "verified unused Google registration returns from reauthentication without deleting until explicitly confirmed", failing at `:65`, where the page stayed on `/account` after "Confirm deletion" (desktop; mobile passed) | R23 pre-flight after the phase-two environment report, 2026-09-30; the same test failed the same way in Release 3 and R19 (rows above) | Test isolation, not the product and not R23's deletion changes. `security-migration.spec.ts` and `cancelled-registration.spec.ts` load Firestore rules into the emulator for the whole `demo-play100` project: the frozen `live-270f` rules, then the candidate rules again. [Security](security.md) requires one worker for them, and the gate's emulator steps use one, but the pre-flight ran with `--workers=2`. Its desktop log shows `security-migration`'s `live-270f` group (tests 117–118) starting in the other worker just after `:39` (116), and `:39` failing once the candidate group (119) had begun. `:39` fully deletes a verified account, whose cleanup lists its online chunks. The frozen rules deny that list once the head is deleted, which is what `security-migration.spec.ts:43` asserts, so the deletion stops at "Deletion is paused because the online service needs an update" and Account never navigates; the retained R19 failure shows that alert. On mobile `:39` (114) had finished before the frozen rules were loaded (118). R23's account-identity deletion guard fails only when the signed-in uid changes, and the test confirms it did not; the R19 failure predates that guard. The mobile run overwrote the desktop run's trace, so the pre-flight's own page state is not retained. | Repaired in R23 ([emulator-rules](../tests-cloud-ui/emulator-rules.ts)). Both rule-loading specs carry the `@emulator-rules` tag and check the run's worker count before loading any rules. With more than one worker they skip themselves, or fail inside the release gate, so no other test can run against rules they loaded; a multi-worker run covers them in a one-worker pass (`--workers=1 --grep @emulator-rules`). A throwaway two-group probe loaded and restored nothing with two workers, and ran both groups as before with one. The emulator reproduction and loops are pending. |
 | `tests-cloud-ui/identity.spec.ts:10` (REL-11): "a cross-tab identity change flushes the old account draft without exposing it to the next account", failing at `:52`, where `signIn` waited 15 s for `.account-heading` (mobile; desktop passed) | R24 pre-flight cloud-UI run on `44c228ab`, 2026-10-02 (first seen) | The harness, not the test or the product: the cloud-test development server on 4187 stopped answering mid-run. The trace shows that the sign-in succeeded (the header reads "Account for Player Saved online") but Account stayed at "Loading Account…": its lazy `/src/cloud/AccountPage.tsx` request at 23:31:37.069Z never got a response. The last answer from 4187 came at 23:31:36.356Z, while the Auth (9199) and Firestore (8188) emulators kept answering. From the next test on, every navigation to 4187 failed with `net::ERR_ABORTED` after 90 s, in 15 more tests across seven specs, until the run was stopped at test 63 of 131. The server stopped because nothing read its output. The operator's runner starts Vite with piped stdout and stderr, drains them only from its own event loop, and runs each Playwright pass with `spawnSync`, which blocks that loop for the whole pass and, in its synchronous loop, between passes too. On Windows a Node process writes to a pipe synchronously (Node's "A note on process I/O"), so once unread output filled the pipe, Vite's next log line blocked its event loop. The development server does log during tests: its catalog middleware runs the API handlers, which log each verified artwork transformation and each upstream failure. This run's server had served the 10 emulator-rules tests, the 131-test desktop pass and about 45 mobile tests when it stalled; the mobile run that passed on `abb9736c` (124 passed, 7 skipped) ran its 131 tests on a fresh server. A 6 s reproduction on the same host, with a child HTTP server that logs 1 KB every 10 ms: while the parent waited in `spawnSync`, the child answered for about a second and then never again (the parent had read 11 bytes); with an awaited asynchronous `spawn` it answered throughout (403 KB drained). The committed release gate is not affected: it runs Vite in its own process and awaits each Playwright command, streaming its output to a log file. | Registered harness defect; the test and the product are unchanged. The repair belongs in the operator's runner, outside this repository: await an asynchronous `spawn` for each Playwright pass instead of `spawnSync`, or send the server's stdout and stderr to a log file instead of pipes. The `abb9736c` run's first mobile attempt stopped in global setup with "Nothing answers" moments after the runner's own probe had succeeded; its server log was empty, so that cause is not established. Loop pending: `identity.spec.ts:10` ×20 on each project after the runner repair. Evidence: `cloud-ui-44c228ab.txt.live.txt`, the mobile failure's `error-context.md` and `trace.zip`, both `abb9736c` mobile logs and the reproduction scripts, identified by SHA-256 in [archived evidence](#archived-evidence). |
+| `tests-cloud-ui/friend-all.spec.ts:430` (REL-12): "All export and reversible then full deletion retain the device copy and require fresh Auth before re-enabling", failing at `:513`, where "Your online copy was deleted" never appeared (desktop) | Candidate CI run `36955254560` on `a6a57ed8`, repetition 9 of 10, 2026-10-02 (first seen; [below](#all-cleanup-denial-rel-12)) | The final step of the All cleanup was refused although nothing had changed what it deleted. That transaction reads the games job and head and deletes both. At 02:42:00.093Z it read the job (count 0) and the head; its commit at .098Z named their update times as preconditions and got HTTP 403. The emulator evaluated the job's delete rule with `resource` null (`firestore.rules:1482:54` is `resource.data…`; "Null value error"), and the head's rule, which is only `aCleanup(uid)` (it reads `friendAllPolicies/{uid}`, and `friendSettings/{uid}` while the policy is on), first as an error and then as `false`. No state of this account after 02:41:59.767Z, when Account turned the All policy off, gives those results: the job had existed since 02:41:59.061Z and the off policy passes `aCleanup`. They fit older states, before the job existed and while the default policy was on. Nothing else wrote those documents: the page was the run's only client (one worker), its trace shows no other write to the job, head, policy or settings, and the same verified token on every request. Unlike REL-08, the emulator log has no lock timeout, abort or service-call error anywhere in the run. So the emulator (v1.22.0, firebase-tools 15.31.0) judged the commit against stale documents. That is an emulator fault, not a product or test race. Just before the commit, the SDK resumed the cleanup's row query and resolved a limbo document; that this triggered the fault is not established. A real race ends the same way: when another tab's cleanup deletes the view between this tab's reads and its commit, the emulator evaluates the rules before the read preconditions, so it refuses the stale commit, with this same null, instead of letting the SDK retry it. | Fixed in R24 (`friend-all-store.ts`). A refused final cleanup reads the job and head again, as R23's publications settle a refused step (REL-08). If both are gone, another tab has finished the view, and so has this cleanup. If either changed (by document version), it reports a conflict. If both are unchanged, it tries once more, and a second refusal is reported as it came. Regressions in `tests-cloud/friend-all.test.ts`, "a refused final All cleanup": one tab's final transaction is held between its reads and its commit while another tab finishes the view; the held commit is refused with "permission-denied", and the cleanup now finishes. A refusal of an unchanged view is retried once, and a persistent one is reported. A view published again during the hold is a conflict and stays published. Loop pending: `friend-all.spec.ts` ×20 on desktop in Candidate CI. |
 
 ## R24 intermediate Candidate CI loops
 
@@ -82,7 +83,7 @@ to suite, and `.test.ts` files under `tests-cloud/` for rules.
 | Identity, Google fixture, pending upload and REL-11 | cloud UI: `identity`, all cases | Both | 20 | 160 / 0 / 0 | [36955239299](https://github.com/LeulTew/play-100/actions/runs/36955239299) | `ebb8736c52e970eaf2103f1ae1f933ef2f6764a4560e53fd2f0b0477583058c3` |
 | Compare chooser toggle/revocation race | cloud UI: `compare-orientation`, grep `one-person chooser` | Both | 20 | 40 / 0 / 0 | [36955244679](https://github.com/LeulTew/play-100/actions/runs/36955244679) | `564c3df279d67a84006873a03858f27158b76beef65960894da69a6d7bb0b128` |
 | REL-08 receiver sharing | cloud UI: `friendships` | Both | 20 | 80 / 0 / 0 | [36955249719](https://github.com/LeulTew/play-100/actions/runs/36955249719) | `174ad3275020ee85aa3d4b56fb25aafeb29903f1154b70e676d5d6099ad46e58` |
-| Release 4 All sharing / REL-07 cleanup; new denial below | cloud UI: `friend-all` | Desktop | 10 | 69 / 1 / 0 | [36955254560](https://github.com/LeulTew/play-100/actions/runs/36955254560) | `351a15d799ed05f27c00da670cfb1e68ed47887af18358ead584bbd32689d13f` |
+| Release 4 All sharing / REL-07 cleanup; REL-12 denial below | cloud UI: `friend-all` | Desktop | 10 | 69 / 1 / 0 | [36955254560](https://github.com/LeulTew/play-100/actions/runs/36955254560) | `351a15d799ed05f27c00da670cfb1e68ed47887af18358ead584bbd32689d13f` |
 | Release 4 All sharing / REL-07 cleanup | cloud UI: `friend-all` | Mobile | 10 | 70 / 0 / 0 | [36955259647](https://github.com/LeulTew/play-100/actions/runs/36955259647) | `cd3f9cc75d93fa7a373a13ec91febc9774eb56decdd32d59246b794a2926ee51` |
 | REL-10 isolation and REL-11 server lifetime, one server | cloud UI: full suite | Both | 1 | 271 / 0 / 1 | [36955265267](https://github.com/LeulTew/play-100/actions/runs/36955265267) | `313f0a540338ae39d966f365be593a7ee6633db887189870e05752ba48c2fa3c` |
 
@@ -94,7 +95,7 @@ First-paint and Menu failures remain failed attempts, not accepted retries.
 The three offline-build runs are also failed full gates, even where a particular
 registered test passed. None of these loops repeats the budget unit tests.
 
-### All cleanup denial: unresolved
+### All cleanup denial (REL-12)
 
 `tests-cloud-ui/friend-all.spec.ts:430` declares the export/reversible/full
 deletion journey. Run `36955254560`, desktop repetition 9, failed its success
@@ -113,15 +114,42 @@ an actual server refusal, not a transient message or a slow close:
   stored."**, and **"The server did not authorize this action. Check email
   verification and refresh Account. Your local copy remains safe."**
 
-The retained transaction reads and write preconditions do not explain why the
-rule saw null. No competing successful job/head deletion appears in this page's
-network trace. That does not exclude another writer or an emulator defect.
-The available evidence does **not** establish a product race, a test race or
-the older REL-08 transaction-lock failure. Leave this case **open and
-unexplained**, preserve the trace and emulator log, and stop the gate on
-recurrence. Do not add a retry, widen cleanup authorization, extend the success
-timeout or accept a refusal as success. Final-candidate cloud-UI and rules
-evidence remain required; the separate mobile loop does not erase this failure.
+**Diagnosis (R24).** The rule at `:1482` reads `resource`, the job itself; the
+head's rule at `:1428` is `aCleanup(uid)`, which reads `friendAllPolicies/{uid}`
+(and `friendSettings/{uid}` while the policy is on). The emulator evaluated the
+job's `resource` as null and the head's `aCleanup` as an error and then `false`.
+No state of this account after `02:41:59.767Z`, when Account turned the policy
+off, gives those results: the job had existed since `02:41:59.061Z`, and an off
+policy passes `aCleanup`. Nothing else changed those documents:
+
+- the page was the run's only client (one worker), and its trace shows no other
+  write to the job, head, policy or settings between the reads and the commit;
+- every request carried the same verified token;
+- unlike REL-08, the emulator log has no lock timeout, abort or service-call
+  error anywhere in the run.
+
+The emulator judged the commit against stale documents: an emulator fault, not
+a product race or a test race. Its trigger is not established. Just before the
+commit the SDK resumed the cleanup's row query and resolved a limbo document.
+
+The same refusal is also what a real race produces. When another tab's cleanup
+deletes the view between this tab's reads and its commit, the emulator evaluates
+the rules before the read preconditions and refuses the stale commit, with the
+same null at `:1482:54`, instead of letting the SDK retry it.
+
+**Repair (R24).** The cleanup's final step now settles a refusal as R23's
+publications do (REL-08), without widening any rule:
+
+- it reads the job and head again;
+- if both are gone, the view is finished;
+- if either changed (by document version), it reports a conflict;
+- if neither changed, it tries once more, and reports a second refusal as it
+  came.
+
+It never accepts a refusal of a view that still exists as success. The
+`tests-cloud` regressions are described in the REL-12 row above. Loop pending:
+`friend-all.spec.ts` ×20 on desktop in Candidate CI; until it passes, stop the
+gate on recurrence.
 
 ### Collection bulk selection: test-scope race
 
@@ -260,6 +288,9 @@ failure from 2026-09-29, not the overwritten R23 pre-flight trace.
 | `rel11-pipe/parent-fixed.mjs` (asynchronous `spawn` control) | `2d62e522265790c4007bcd276d704faeac4be707f81c17c474a7fb9164e687a8` |
 | `rel11-pipe/child.mjs` | `530b4bb0614bd93c9c9a4966437e70c36e74f162e865ee135119a8380dabb197` |
 | `rel11-pipe/probe.mjs` | `21ac4f55e41f4d16fd637de3825b606e27267e4a3fbafe3f70357dfe02b6b326` |
+| `error-context.md` (REL-12, run `36955254560` desktop repetition 9) | `466a970605f0ffe29572fd434969dab0cf24199610edb9542ababba6051138d0` |
+| `trace.zip` (REL-12, same failure) | `ddf5e1aeedc7a8e41fc747f1a8bf6e24e5c7936a829e1cd93b8d8b7e24d1f10b` |
+| `firestore-debug.log` (REL-12, run `36955254560`) | `8852e032aacbbe1528937ca871c6a93b0fae67b48bfb4a213eb633e947b32ff4` |
 
 ## Candidate gate
 
