@@ -3,7 +3,7 @@ import type { ComponentType } from 'react';
 import { AfterFirstPaint } from './AfterFirstPaint';
 import type { CollectionSceneHandle } from './scene/CollectionScene';
 import { createMemoizedModule } from '../lib/memoized-module';
-import { createScrollSettle } from '../lib/scroll-settle';
+import { followScrolling } from '../lib/scroll-settle';
 import './scene/artifact.css';
 
 const sceneModule = createMemoizedModule(() => import('./scene/CollectionScene'));
@@ -196,22 +196,19 @@ export default function CollectionArtifact({
     let createScene: (typeof import('./scene/CollectionScene'))['createCollectionScene'] | null = null;
     let idleId: number | null = null;
     let timerId: number | null = null;
-    let settleCancel: (() => void) | null = null;
     let observer: IntersectionObserver | null = null;
     // Each start-up turn is a long task (loading the module, then building the scene and its first frame), and one
     // that lands mid-scroll holds the frames the scroll needs: automatic starts wait for scrolling to pause.
-    const scrolling = createScrollSettle(window);
-    const mayStart = () => requestedRef.current || scrolling.quiet();
+    const scrolling = followScrolling(window);
+    const scrollWait = () => (requestedRef.current ? 0 : scrolling.wait());
 
     const isActive = () => visible && document.visibilityState !== 'hidden';
 
     function cancelScheduledLoad() {
       if (idleId !== null) window.cancelIdleCallback(idleId);
       if (timerId !== null) window.clearTimeout(timerId);
-      settleCancel?.();
       idleId = null;
       timerId = null;
-      settleCancel = null;
     }
 
     function fallback(reason: string) {
@@ -230,7 +227,7 @@ export default function CollectionArtifact({
       timerId = null;
       if (cancelled || failed || loading || !isActive()) return;
       // A scroll that began after this turn was scheduled defers it again.
-      if (!mayStart()) {
+      if (scrollWait() > 0) {
         reconcile();
         return;
       }
@@ -251,7 +248,9 @@ export default function CollectionArtifact({
         scene = createScene(host, {
           quality: sceneQuality,
           fanned: stillFannedRef.current,
-          active: isActive(),
+          // Started by reconcile(), below: the first frame compiles the scene's shaders, so it waits for scrolling to
+          // pause too.
+          active: false,
           onFirstFrame() {
             if (cancelled || failed) return;
             hasFrame = true;
@@ -267,7 +266,7 @@ export default function CollectionArtifact({
         fallback('Illustrated view · 3D unavailable');
       } finally {
         loading = false;
-        if (!scene) reconcile();
+        reconcile();
       }
     };
 
@@ -275,7 +274,14 @@ export default function CollectionArtifact({
       if (cancelled || failed) return;
       const active = isActive();
       if (scene) {
-        scene.setActive(active);
+        const wait = hasFrame ? 0 : scrollWait();
+        scene.setActive(active && wait === 0);
+        if (active && wait > 0 && timerId === null) {
+          timerId = window.setTimeout(() => {
+            timerId = null;
+            reconcile();
+          }, wait);
+        }
         if (hasFrame) setState({ ready: true, status: active ? 'ready' : 'paused', reason: null });
         return;
       }
@@ -283,12 +289,13 @@ export default function CollectionArtifact({
         cancelScheduledLoad();
         return;
       }
-      if (loading || idleId !== null || timerId !== null || settleCancel !== null) return;
-      if (!mayStart()) {
-        settleCancel = scrolling.whenQuiet(() => {
-          settleCancel = null;
+      if (loading || idleId !== null || timerId !== null) return;
+      const wait = scrollWait();
+      if (wait > 0) {
+        timerId = window.setTimeout(() => {
+          timerId = null;
           reconcile();
-        });
+        }, wait);
         return;
       }
       if (typeof window.requestIdleCallback === 'function') {
@@ -345,7 +352,7 @@ export default function CollectionArtifact({
       releaseFooterRef.current?.();
       requestSceneRef.current = null;
       cancelScheduledLoad();
-      scrolling.dispose();
+      scrolling.stop();
       observer?.disconnect();
       document.removeEventListener('visibilitychange', reconcile);
       window.removeEventListener('scroll', checkPosition);

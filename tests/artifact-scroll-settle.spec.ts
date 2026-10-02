@@ -60,10 +60,11 @@ test('the 3D scene starts only once scrolling has paused', async ({ page }) => {
     marks: window.sceneMarks,
     lastScrollAt: window.lastScrollAt,
   }));
-  // The page did scroll through the time a scene would otherwise start, about a second in.
-  expect(lastScrollAt).toBeGreaterThan(NUDGE_MS - 500);
   expect(marks.map(({ name }) => name)).toEqual(
     expect.arrayContaining(['p100:scene:module-start', 'p100:scene:context-start', 'p100:scene:first-render-end']),
   );
   for (const { name, at } of marks) expect(at, name).toBeGreaterThanOrEqual(lastScrollAt + 300);
+  // And the page did scroll through the time a scene would otherwise start, about a second in. (A scene that starts
+  // mid-scroll also holds the nudges, so it fails the check above first.)
+  expect(lastScrollAt).toBeGreaterThan(NUDGE_MS - 500);
 });
