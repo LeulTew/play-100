@@ -505,6 +505,21 @@ more than three IPs hit the rule, then changes only this rule to 429 and adds
 HEAD to the `/api/` condition. It reads the configuration back, smoke-tests the
 probe and the auth helper, and restores Log mode on any mismatch.
 
+**Switched to 429 (2026-10-02, 06:06Z).** The scheduled run re-read 7 days of
+firewall events: no actions at all, and none for this rule (0 entries, 0
+distinct IPs). It then patched only `api-per-ip` at 06:06:46Z. The rule now
+mitigates with `rate_limit` (429): fixed window 60 s, 60 requests, key IP, on
+(path starts with `/api/` AND method GET or HEAD) OR (path starts with
+`/__/auth/` AND method GET or HEAD). The readback is configuration version 2
+(updated 06:06:48Z): the rule is active with action 429, its shape and
+conditions match the plan, and every other rule is unchanged. The OWASP groups
+still log only. The production smoke test right after passed:
+`/api/operational-probe` and `/__/auth/handler` both returned 200, unmitigated.
+Receipt `waf-02-receipt.json`, SHA-256
+`f59998b79ae6575d99b93aba97cd63c84189a73481adb0b5df05d3c63258da17`, kept by
+the release operator. To roll back, set `rateLimit.action` back to `log` on
+this rule only and read the configuration back.
+
 **HEAD (R12).** The live conditions omit HEAD for `/api/`, unlike the table
 above. No function now does upstream work for HEAD: the catalog functions answer
 it with 405, and `api/auth-helper.ts` answers it with the helper's headers and a

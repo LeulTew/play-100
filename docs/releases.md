@@ -190,8 +190,10 @@ actions on 2026-10-01:
 - **Alert channel: chosen.** The daily `Production alert` workflow opens an
   issue and fails its run, so GitHub emails the owner (see
   [operations](release-operations.md#11-daily-and-post-deploy-operational-checks)).
-- **WAF: reviewed, switch scheduled.** No firewall events in the previous
-  7 days. The switch to 429 runs on 2026-10-02 06:05Z (see
+- **WAF: switched to 429.** No firewall events in the previous 7 days, rechecked
+  just before the switch. `api-per-ip` has rate-limited `/api/*` and the auth
+  helper with 429 since 2026-10-02 06:06:46Z, and the production smoke test
+  right after passed (see
   [the runbook](security-release-runbook.md#vercel-waf-rate-limit-for-api-and-the-auth-helper)).
 - **Real low-end phones: tested.** Firebase Test Lab, physical devices,
   2026-10-01 04:52Z and 05:06Z. A Game Loop harness (a WebView app, kept
