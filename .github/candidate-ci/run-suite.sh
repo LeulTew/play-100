@@ -87,19 +87,23 @@ case "$SUITE" in
     PLAY100_TEST_BUILD=development run_playwright playwright "${args[@]}"
     ;;
   cloud-rules)
-    # Each iteration gets fresh emulators, as the gate's convergence-N and handle-race-N steps do.
+    # Each iteration gets fresh emulators, as the gate's convergence-N and handle-race-N steps do. emulators:exec
+    # runs its command under /bin/sh, so GREP and SPECS stay in the environment and only this script's path is
+    # quoted into the command string.
+    printf -v command '%q ' bash "$here/run-suite.sh"
+    for ((i = 1; i <= REPEAT; i++)); do
+      echo "== cloud-rules iteration $i/$REPEAT"
+      SUITE=cloud-rules-inner ITERATION=$i npx --no-install firebase emulators:exec --project demo-play100 \
+        --only auth,firestore "$command" 2>&1 | tee "$OUT/cloud-rules-$i.log"
+    done
+    ;;
+  cloud-rules-inner)
     filter=()
     if [[ -n "${GREP:-}" ]]; then filter=(-t "$GREP"); fi
-    for ((i = 1; i <= REPEAT; i++)); do
-      inner=(npx --no-install vitest run --config vitest.cloud.config.ts "--maxWorkers=${WORKERS:-1}" --retry=0
-        --reporter=default --reporter=json --reporter=junit
-        "--outputFile.json=$OUT/vitest-$i.json" "--outputFile.junit=$OUT/vitest-$i.junit.xml"
-        "${filter[@]}" "${specs[@]}")
-      printf -v command '%q ' "${inner[@]}"
-      echo "== cloud-rules iteration $i/$REPEAT"
-      npx --no-install firebase emulators:exec --project demo-play100 --only auth,firestore "$command" 2>&1 |
-        tee "$OUT/cloud-rules-$i.log"
-    done
+    npx --no-install vitest run --config vitest.cloud.config.ts "--maxWorkers=${WORKERS:-1}" --retry=0 \
+      --reporter=default --reporter=json --reporter=junit \
+      "--outputFile.json=$OUT/vitest-${ITERATION:?}.json" "--outputFile.junit=$OUT/vitest-$ITERATION.junit.xml" \
+      "${filter[@]}" "${specs[@]}"
     ;;
   cloud-ui)
     printf -v command '%q ' bash "$here/run-suite.sh"
