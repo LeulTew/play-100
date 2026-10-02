@@ -224,8 +224,11 @@ export async function startVercelStaticServer(options: StaticServerOptions) {
     const intercepted = options.intercept?.(pathname);
     if (intercepted) return { path: pathname, ...intercepted };
     const route = resolveRoute(deployment, pathname, isFile);
-    if (route.kind === 'redirect')
-      return { path: pathname, status: 308, headers: { location: route.location }, body: '' };
+    if (route.kind === 'redirect') {
+      // Vercel keeps the query string on its trailing-slash and clean-URL redirects.
+      const { search } = new URL(url, 'http://127.0.0.1');
+      return { path: pathname, status: 308, headers: { location: `${route.location}${search}` }, body: '' };
+    }
     if (route.kind === 'upstream')
       return {
         path: pathname,
