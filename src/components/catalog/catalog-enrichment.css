@@ -9,12 +9,16 @@
   color: var(--muted);
   max-width: 65ch;
 }
-.catalog-enrichment-note a {
+.catalog-enrichment-note a,
+.catalog-review-links a,
+.discovery-collection-matches a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+.catalog-enrichment-note a {
   overflow-wrap: anywhere;
 }
 .catalog-detail-sleeve .catalog-external-art {
@@ -82,13 +86,8 @@
   gap: 4px 20px;
 }
 .catalog-review-links a {
-  display: inline-flex;
-  align-items: center;
   gap: 5px;
-  min-height: 44px;
   font-size: 13px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 .catalog-enrichment-sources > summary,
 .catalog-review-details > summary {
@@ -121,10 +120,5 @@
   margin-block: 8px;
 }
 .discovery-collection-matches a {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
-  min-height: 44px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }

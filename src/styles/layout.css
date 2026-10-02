@@ -78,33 +78,30 @@
   align-items: center;
   gap: 9px;
 }
-.menu-nav {
-  display: inline-flex;
+.menu-nav,
+.saved-nav {
   align-items: center;
-  justify-content: center;
-  gap: 8px;
   min-height: 44px;
-  padding: 8px 10px;
   border-radius: 4px;
   background: transparent;
   font-size: 14px;
   font-weight: 600;
+}
+.menu-nav {
+  display: inline-flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px;
 }
 .menu-nav:hover,
 .menu-nav[aria-expanded='true'] {
   background: var(--wash);
 }
 .saved-nav {
-  min-height: 44px;
-  background: transparent;
   display: flex;
-  align-items: center;
   gap: 9px;
   padding: 7px 12px;
   border: 1px solid var(--line);
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 14px;
 }
 .saved-nav:hover {
   border-color: var(--ink);

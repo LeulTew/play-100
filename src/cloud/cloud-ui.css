@@ -557,13 +557,16 @@
   line-height: 1.5;
   color: var(--muted);
 }
-.public-game a {
+.public-game a,
+.preview-source a {
   display: inline-flex;
-  gap: 5px;
   min-height: 44px;
   align-items: center;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+.public-game a {
+  gap: 5px;
 }
 .public-score {
   font-size: 19px;
@@ -732,12 +735,7 @@
   flex-wrap: wrap;
 }
 .preview-source a {
-  display: inline-flex;
-  align-items: center;
   gap: 4px;
-  min-height: 44px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 .creator-reports > li {
   padding-block: 24px;
@@ -787,7 +785,6 @@
   }
   .account-columns {
     grid-template-columns: minmax(0, 1fr);
-    gap: 28px;
   }
   .account-heading {
     gap: 12px;
@@ -892,9 +889,6 @@
   }
   .public-game .record-title {
     font-size: 15px;
-  }
-  .public-game p {
-    font-size: 12px;
   }
   .public-profile-footer {
     flex-wrap: wrap;

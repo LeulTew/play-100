@@ -127,13 +127,17 @@ svg {
 .skip-link:focus {
   transform: translateY(0);
 }
+.button,
+.text-button,
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 .button {
   min-height: 48px;
   min-width: 0;
   max-width: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   gap: 12px;
   border: 1px solid transparent;
   padding: 12px 22px;
@@ -180,10 +184,7 @@ svg {
   min-height: 44px;
   min-width: 24px;
   padding: 8px 0;
-  display: inline-flex;
   gap: 10px;
-  align-items: center;
-  justify-content: center;
   background: transparent;
   font-size: 14px;
   font-weight: 600;
@@ -197,9 +198,6 @@ svg {
   width: 44px;
   height: 44px;
   flex-shrink: 0;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
   padding: 0;
   border-radius: 4px;
   background: transparent;
