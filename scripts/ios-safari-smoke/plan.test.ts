@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
-import { compareVersions, selectDevices } from './plan.mjs';
+import { test } from 'vitest';
+import { compareVersions, selectDevices } from './plan.ts';
 
 const devicetypes = [
   { name: 'iPhone SE (3rd generation)', identifier: 'se', productFamily: 'iPhone' },
   { name: 'iPhone 16 Pro Max', identifier: 'max16', productFamily: 'iPhone' },
   { name: 'iPhone 17 Pro Max', identifier: 'max17', productFamily: 'iPhone' },
 ];
-const runtime = (version, types = ['se', 'max16', 'max17']) => ({
+const runtime = (version: string, types = ['se', 'max16', 'max17']) => ({
   identifier: `com.apple.CoreSimulator.SimRuntime.iOS-${version.replaceAll('.', '-')}`,
   version,
   isAvailable: true,

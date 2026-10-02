@@ -18,6 +18,7 @@
     "release:verify": "tsx scripts/release-verify.ts",
     "release:sw-probe": "tsx scripts/release-sw-probe.ts",
     "release:pwa-os": "tsx scripts/release-pwa-os.ts",
+    "release:apb2": "tsx scripts/release-apb2.ts",
     "release:rollback-drill": "vitest run --project unit --maxWorkers=1 scripts/release-rollback-drill.test.ts",
     "check:csp": "tsx scripts/check-csp.ts",
     "csp:write": "tsx scripts/first-paint/write-csp.ts",

@@ -11,12 +11,6 @@ import { Dialog } from '../components/Dialog';
 import { ChunkBoundary } from '../components/ChunkBoundary';
 import { ChunkRecovery } from '../components/ChunkRecovery';
 import { createMemoizedModule } from '../lib/memoized-module';
-// The idle preload (app-tool-preload.ts) imports these dynamically, and the offline core precaches each as its own
-// entry chunk (scripts/pwa-build.ts). Rolldown keeps those chunks only while this module imports them too: imported
-// only from useOnlineSession, each became an unnamed shared chunk and the build failed (online-bridge-closure.test.ts).
-import '../lib/comparison-game-filter';
-import '../lib/friend-comparison-intent';
-import '../lib/google-intent';
 import { currentDeletionApproval } from './account-deletion';
 import type { OnlineBridge } from './ui-types';
 import { withdrawDeviceLeftovers } from './device-leftovers';

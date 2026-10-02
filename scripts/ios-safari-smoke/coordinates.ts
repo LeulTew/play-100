@@ -1,12 +1,43 @@
 import assert from 'node:assert/strict';
 
-export function tapCoordinates({ target, anchor, nativeAnchor, viewport, label = 'control' }) {
+export interface Rect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+export interface NativeRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface Viewport {
+  offsetLeft: number;
+  offsetTop: number;
+  width: number;
+  height: number;
+  scale: number;
+}
+
+export interface TapMeasurements {
+  target: Rect;
+  anchor: Rect;
+  nativeAnchor: NativeRect;
+  viewport: Viewport;
+  label?: string;
+}
+
+export function tapCoordinates({ target, anchor, nativeAnchor, viewport, label = 'control' }: TapMeasurements) {
   for (const rect of [target, anchor]) {
-    for (const key of ['left', 'top', 'right', 'bottom']) assert.ok(Number.isFinite(rect[key]), `Invalid ${key}.`);
+    for (const key of ['left', 'top', 'right', 'bottom'] as const)
+      assert.ok(Number.isFinite(rect[key]), `Invalid ${key}.`);
   }
-  for (const key of ['x', 'y', 'width', 'height'])
+  for (const key of ['x', 'y', 'width', 'height'] as const)
     assert.ok(Number.isFinite(nativeAnchor[key]), `Invalid native ${key}.`);
-  for (const key of ['offsetLeft', 'offsetTop', 'width', 'height', 'scale']) {
+  for (const key of ['offsetLeft', 'offsetTop', 'width', 'height', 'scale'] as const) {
     assert.ok(Number.isFinite(viewport[key]), `Invalid viewport ${key}.`);
   }
   assert.ok(viewport.scale > 0 && viewport.width > 0 && viewport.height > 0, 'Viewport must have positive dimensions.');

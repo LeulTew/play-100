@@ -476,6 +476,20 @@ export async function collectReleaseManifest(
 }
 
 export async function writeReleaseManifest(root: string, args: string[], environment = process.env): Promise<void> {
+  if (args.includes('--lean')) {
+    if (
+      args.length !== 3 ||
+      !args[0] ||
+      args[0].startsWith('--') ||
+      args[1] !== '--lean' ||
+      !args[2] ||
+      args[2].startsWith('--')
+    )
+      throw new Error('Usage: release:manifest OUTPUT --lean EVIDENCE_INDEX.json');
+    const { writeLeanManifest } = await import('./release-lean-manifest');
+    await writeLeanManifest(root, args[0], args[2]);
+    return;
+  }
   const options = parseManifestArguments(args);
   const manifest = await collectReleaseManifest(root, options, environment);
   // Refuse to overwrite an earlier receipt or an input, even on a failed rerun.

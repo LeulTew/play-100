@@ -2,6 +2,7 @@ import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { LibraryRecord } from '../../lib/personal-types';
 import { Icon } from '../Icon';
+import { captureControlFocus } from '../../lib/control-focus';
 
 export interface ManualGameDraft {
   title: string;
@@ -43,10 +44,26 @@ export default function ManualGameForm({
     };
   }, []);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const submitting = useRef(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const submitRef = useRef<HTMLButtonElement>(null);
+  const pendingFocus = useRef<ReturnType<typeof captureControlFocus> | null>(null);
+  const focusAfterSave = useRef(false);
+  useLayoutEffect(() => () => pendingFocus.current?.cancel(), []);
+  useLayoutEffect(() => {
+    if (!focusAfterSave.current) return;
+    focusAfterSave.current = false;
+    const handoff = pendingFocus.current;
+    pendingFocus.current = null;
+    if (!title && !year) handoff?.focus(titleRef.current);
+    else handoff?.cancel();
+  });
   // Fields stay editable while a game saves; a late success clears only the draft it submitted.
   const edits = useRef(0);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (busy || submitting.current) return;
     const trimmed = title.trim();
     if (!trimmed) {
       setError('Enter a game title.');
@@ -71,7 +88,11 @@ export default function ManualGameForm({
     };
     setError('');
     const submitted = edits.current;
-    let added: boolean;
+    submitting.current = true;
+    setSaving(true);
+    const handoff = captureControlFocus(submitRef.current);
+    pendingFocus.current = handoff;
+    let added = false;
     try {
       added = await onAdd(record);
     } catch (cause) {
@@ -81,6 +102,13 @@ export default function ManualGameForm({
       );
       if (mounted.current) setError('The game could not be added. Your entry is unchanged; try again.');
       return;
+    } finally {
+      submitting.current = false;
+      if (mounted.current) setSaving(false);
+      if (!added) {
+        handoff.cancel();
+        pendingFocus.current = null;
+      }
     }
     if (mounted.current && !added) {
       setError('The game could not be added. Your entry is unchanged; try again.');
@@ -92,7 +120,11 @@ export default function ManualGameForm({
       latestDraft.current.title === title &&
       latestDraft.current.year === year
     ) {
+      focusAfterSave.current = true;
       changeDraft({ title: '', year: '', expanded: latestDraft.current.expanded });
+    } else {
+      handoff.cancel();
+      pendingFocus.current = null;
     }
   };
   return (
@@ -119,6 +151,7 @@ export default function ManualGameForm({
           <label htmlFor={`${prefix}-title`}>
             Game title
             <input
+              ref={titleRef}
               id={`${prefix}-title`}
               value={title}
               maxLength={200}
@@ -149,7 +182,16 @@ export default function ManualGameForm({
             {error}
           </p>
         )}
-        <button className="button button-dark" disabled={busy || !title.trim()} type="submit">
+        <button
+          ref={submitRef}
+          className="button button-dark"
+          aria-disabled={busy || saving || !title.trim() || undefined}
+          aria-busy={saving}
+          type="submit"
+          onClick={(event) => {
+            if (busy || submitting.current || !title.trim()) event.preventDefault();
+          }}
+        >
           <Icon name="plus" width="17" height="17" />
           {actionLabel}
         </button>

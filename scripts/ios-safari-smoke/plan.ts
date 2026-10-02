@@ -1,7 +1,26 @@
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
 
-export function compareVersions(a, b) {
+interface DeviceType {
+  name: string;
+  identifier: string;
+  productFamily: string;
+}
+
+interface Runtime {
+  identifier: string;
+  version: string;
+  isAvailable: boolean;
+  supportedDeviceTypes?: { identifier: string }[];
+}
+
+interface Inventory {
+  runtimes: Runtime[];
+  devicetypes: DeviceType[];
+}
+
+export function compareVersions(a: string, b: string) {
   const left = a.split('.').map(Number);
   const right = b.split('.').map(Number);
   for (let i = 0; i < Math.max(left.length, right.length); i++) {
@@ -11,13 +30,16 @@ export function compareVersions(a, b) {
   return 0;
 }
 
-export function selectDevices(inventory, developerDir, legacyDeveloperDir = developerDir) {
+export function selectDevices(inventory: Inventory, developerDir: string, legacyDeveloperDir = developerDir) {
   const runtimes = inventory.runtimes
     .filter((runtime) => runtime.isAvailable && runtime.identifier.includes('.iOS-'))
     .filter((runtime) => compareVersions(runtime.version, '16.4') >= 0)
     .sort((a, b) => compareVersions(a.version, b.version));
   if (!runtimes.length) throw new Error('No installed iOS runtime meets the Safari 16.4 floor.');
-  const selected = [...new Map([runtimes.at(-1), runtimes[0]].map((r) => [r.identifier, r])).values()];
+  const oldest = runtimes[0];
+  const newest = runtimes.at(-1);
+  assert.ok(oldest && newest);
+  const selected = [...new Map([newest, oldest].map((r) => [r.identifier, r])).values()];
   const include = [];
   for (const runtime of selected) {
     const supported = new Set(runtime.supportedDeviceTypes?.map((type) => type.identifier));
@@ -38,7 +60,7 @@ export function selectDevices(inventory, developerDir, legacyDeveloperDir = deve
     for (const [size, device] of [
       ['small', small],
       ['large', large],
-    ]) {
+    ] as const) {
       include.push({
         label: `${size}-ios-${runtime.version}`,
         deviceName: device.name,
@@ -52,21 +74,23 @@ export function selectDevices(inventory, developerDir, legacyDeveloperDir = deve
   return { include };
 }
 
-if (process.argv[1]?.endsWith('plan.mjs')) {
+if (process.argv[1]?.endsWith('plan.ts')) {
   mkdirSync('ios-safari-artifacts', { recursive: true });
   const xcodes = readdirSync('/Applications')
     .map((name) => ({ name, version: /^Xcode_(\d+(?:\.\d+)*)\.app$/.exec(name)?.[1] }))
-    .filter((xcode) => xcode.version)
+    .filter((xcode): xcode is { name: string; version: string } => xcode.version !== undefined)
     .sort((a, b) => compareVersions(a.version, b.version));
   writeFileSync('ios-safari-artifacts/xcodes.json', JSON.stringify(xcodes, null, 2));
   if (!xcodes.length) throw new Error('No stable Xcode installation found.');
-  const developerDir = `/Applications/${xcodes.at(-1).name}/Contents/Developer`;
+  const newestXcode = xcodes.at(-1);
+  assert.ok(newestXcode);
+  const developerDir = `/Applications/${newestXcode.name}/Contents/Developer`;
   const raw = execFileSync('xcrun', ['simctl', 'list', '--json'], {
     encoding: 'utf8',
     env: { ...process.env, DEVELOPER_DIR: developerDir },
   });
   writeFileSync('ios-safari-artifacts/inventory.json', raw);
-  const inventory = JSON.parse(raw);
+  const inventory = JSON.parse(raw) as Inventory;
   const legacy = xcodes.filter((xcode) => compareVersions(xcode.version, '26') < 0).at(-1);
   if (
     !legacy &&
@@ -86,6 +110,7 @@ if (process.argv[1]?.endsWith('plan.mjs')) {
     legacy ? `/Applications/${legacy.name}/Contents/Developer` : developerDir,
   );
   writeFileSync('ios-safari-artifacts/matrix.json', JSON.stringify(matrix, null, 2));
+  assert.ok(process.env.GITHUB_OUTPUT, 'The planner requires GITHUB_OUTPUT.');
   appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify(matrix)}\n`);
   console.log(JSON.stringify(matrix, null, 2));
 }

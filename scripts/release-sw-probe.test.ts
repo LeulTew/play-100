@@ -20,6 +20,10 @@ async function fixture() {
   const root = path.join(dir, 'dist');
   await mkdir(root);
   const config = JSON.stringify({
+    rewrites: [
+      { source: '/my-games', destination: '/index.html' },
+      { source: '/my-rankings', destination: '/index.html' },
+    ],
     headers: [
       {
         source: '/(.*)',

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -13,6 +13,12 @@ import {
   reporterArgs,
   runCommand,
   stampLogs,
+  FILM_DOWNLOAD_TEST,
+  runPartitionAttempts,
+  APB2_GATE_SCRIPT,
+  requireApb2Runner,
+  checkApb2GateReceipt,
+  bindFilmAttempts,
 } from './release-gate';
 
 describe('candidate release gate planning', () => {
@@ -55,7 +61,7 @@ describe('candidate release gate planning', () => {
     ]);
     expect(names.filter((name) => name.startsWith('handle-race-'))).toHaveLength(5);
     expect(names.filter((name) => name.startsWith('convergence-'))).toHaveLength(20);
-    expect(names.slice(-12)).toEqual([
+    expect(names.slice(-15)).toEqual([
       'configured-build',
       'configured-check-csp',
       'configured-check-budgets',
@@ -64,6 +70,9 @@ describe('candidate release gate planning', () => {
       'offline-check-budgets',
       'production',
       'development',
+      'floor-smoke',
+      'apb2',
+      'films-download',
       'cloud-ui',
       'sync-20',
       'offline-navigation',
@@ -76,11 +85,114 @@ describe('candidate release gate planning', () => {
     ]);
   });
 
+  it('isolates only the native film case and keeps all browser invocations zero-retry', () => {
+    const plan = gatePlan();
+    expect(plan.find((step) => step.name === 'production')?.args).toEqual([
+      'test',
+      '--grep-invert',
+      FILM_DOWNLOAD_TEST,
+    ]);
+    expect(plan.find((step) => step.name === 'development')?.args).toEqual(['test']);
+    expect(plan.find((step) => step.name === 'films-download')).toMatchObject({
+      args: ['test', 'tests/films.spec.ts', '--grep', FILM_DOWNLOAD_TEST],
+      expectedPassed: 2,
+    });
+    for (const step of plan.filter((step) => step.report === 'playwright'))
+      expect(reporterArgs(step, 'evidence')).toContain('--retries=0');
+  });
+
+  it('binds the three floor engines and a fail-closed typed APB2 runner hook', () => {
+    const plan = gatePlan();
+    const floor = plan.find((step) => step.name === 'floor-smoke')!;
+    expect(floor).toMatchObject({
+      args: ['test', '--config', 'playwright.floor.config.ts'],
+      expectedPassed: 15,
+    });
+    expect(reporterArgs(floor, 'evidence').filter((arg) => arg.startsWith('--project='))).toEqual([
+      '--project=floor-firefox',
+      '--project=floor-webkit',
+      '--project=floor-chromium',
+    ]);
+    expect(plan.find((step) => step.name === 'apb2')?.args).toEqual(['run', APB2_GATE_SCRIPT]);
+    expect(() => requireApb2Runner({ scripts: {} })).toThrow('hook blocked');
+    expect(() => requireApb2Runner({ scripts: { [APB2_GATE_SCRIPT]: 'tsx scripts/release-apb2.ts' } })).not.toThrow();
+    const source = { sha: 'a'.repeat(40), tree: 'b'.repeat(40) };
+    const receipt = { schemaVersion: 1, source, status: 'passed' };
+    expect(checkApb2GateReceipt(receipt, source)).toEqual(receipt);
+    for (const invalid of [
+      { ...receipt, status: 'failed' },
+      { ...receipt, schemaVersion: 0 },
+      { ...receipt, source: { ...source, tree: 'c'.repeat(40) } },
+      { ...receipt, source: { ...source, sha: 'c'.repeat(40) } },
+    ])
+      expect(() => checkApb2GateReceipt(invalid, source)).toThrow('exact candidate');
+  });
+
+  it('retains distinct film attempts, retries once only, and never retries another partition', async () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const film = gatePlan().find((step) => step.name === 'films-download')!;
+      const execute = vi.fn<Parameters<typeof runPartitionAttempts>[1]>();
+      execute.mockResolvedValueOnce();
+      expect(await runPartitionAttempts(film, execute)).toEqual([{ name: 'films-download-attempt-1', passed: true }]);
+      execute.mockReset().mockRejectedValueOnce(new Error('framing')).mockResolvedValueOnce();
+      expect(await runPartitionAttempts(film, execute)).toEqual([
+        { name: 'films-download-attempt-1', passed: false },
+        { name: 'films-download-attempt-2', passed: true },
+      ]);
+      expect(execute.mock.calls.map(([step]) => step.name)).toEqual([
+        'films-download-attempt-1',
+        'films-download-attempt-2',
+      ]);
+      execute.mockReset().mockRejectedValue(new Error('second failure'));
+      await expect(runPartitionAttempts(film, execute)).rejects.toThrow('second failure');
+      expect(execute).toHaveBeenCalledTimes(2);
+      execute.mockReset().mockRejectedValue(new Error('ordinary failure'));
+      await expect(
+        runPartitionAttempts(
+          gatePlan().find((step) => step.name === 'production')!,
+          execute,
+        ),
+      ).rejects.toThrow('ordinary failure');
+      expect(execute).toHaveBeenCalledOnce();
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
   it('uses exactly one worker option per browser partition', () => {
     for (const step of gatePlan().filter((step) => step.report === 'playwright')) {
       expect(reporterArgs(step, 'evidence').filter((arg) => arg.startsWith('--workers='))).toEqual([
         step.tool === 'emulators' ? '--workers=1' : '--workers=2',
       ]);
+    }
+  });
+
+  it('hashes both native film attempts without hiding a missing failed report or changing raw files', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'gate-film-attempts-'));
+    const attempts = [
+      { name: 'films-download-attempt-1', passed: false },
+      { name: 'films-download-attempt-2', passed: true },
+    ];
+    try {
+      for (const attempt of attempts) {
+        await writeFile(path.join(directory, `${attempt.name}.log`), `${attempt.name}\n`);
+        await writeFile(
+          path.join(directory, `${attempt.name}-exit.json`),
+          JSON.stringify({ exitCode: attempt.passed ? 0 : 1 }),
+        );
+      }
+      await writeFile(path.join(directory, 'films-download-attempt-2.json'), '{"passed":2}\n');
+      const bound = await bindFilmAttempts(directory, attempts);
+      expect(bound[0]).toMatchObject({ name: attempts[0]!.name, passed: false });
+      expect(bound[0]!.files.at(-1)).toEqual({ path: 'films-download-attempt-1.json', missing: true });
+      expect(bound[1]!.files.at(-1)).toMatchObject({ path: 'films-download-attempt-2.json', bytes: 13 });
+      expect(bound[1]!.files.at(-1)?.sha256).toMatch(/^[a-f0-9]{64}$/);
+      expect(await readFile(path.join(directory, 'films-download-attempt-1-exit.json'), 'utf8')).toBe('{"exitCode":1}');
+      await rm(path.join(directory, 'films-download-attempt-2.json'));
+      await expect(bindFilmAttempts(directory, attempts)).rejects.toThrow();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
     }
   });
 

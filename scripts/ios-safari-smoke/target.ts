@@ -7,7 +7,7 @@ export function targetOrigin(value = productionOrigin) {
   try {
     url = new URL(value);
   } catch (error) {
-    if (error.code !== 'ERR_INVALID_URL') throw error;
+    if (!(error instanceof TypeError) || !('code' in error) || error.code !== 'ERR_INVALID_URL') throw error;
     throw new Error('The target must be a valid HTTPS origin.', { cause: error });
   }
   assert.equal(url.protocol, 'https:', 'The target must use HTTPS.');

@@ -76,6 +76,7 @@ export default function LibraryPage(props: LibraryPageProps) {
     move,
     changePage,
     requestRemoval,
+    removeFromQueue,
     removeRecords,
     filtered,
     firstRunEmpty,
@@ -96,6 +97,7 @@ export default function LibraryPage(props: LibraryPageProps) {
       tab={tab}
       onSelect={toggleSelected}
       requestRemoval={requestRemoval}
+      removeFromQueue={removeFromQueue}
     />
   );
   return (

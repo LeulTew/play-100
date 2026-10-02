@@ -25,6 +25,7 @@ export function LibraryRecordRow({
   pinnedIds,
   onAction,
   requestRemoval,
+  removeFromQueue,
 }: Pick<LibraryPageProps, 'state' | 'busy' | 'onOpen' | 'onPin' | 'onUnpin' | 'pinnedIds' | 'onAction'> & {
   record: LibraryRecord;
   artwork?: CatalogArtwork;
@@ -35,6 +36,7 @@ export function LibraryRecordRow({
   tab: 'later' | 'completed' | 'all';
   onSelect: (id: string) => void;
   requestRemoval: (records: LibraryRecord[], trigger: HTMLElement) => void;
+  removeFromQueue: (record: LibraryRecord, trigger: HTMLElement) => Promise<void>;
 }) {
   return (
     <CompareDragSource record={record} disabled={!active}>
@@ -114,14 +116,15 @@ export function LibraryRecordRow({
               </button>
               <button
                 className="icon-button remove-library-action"
-                disabled={busy}
+                aria-disabled={busy || undefined}
                 aria-label={
                   tab === 'later' ? `Remove from Play later: ${record.title}` : `Remove ${record.title} from my library`
                 }
                 title={tab === 'later' ? 'Remove from Play later' : undefined}
                 onClick={(event) => {
+                  if (busy) return;
                   if (tab === 'later') {
-                    void onAction({ type: 'set-progress', records: [record], key: 'later', value: false });
+                    void removeFromQueue(record, event.currentTarget);
                   } else requestRemoval([record], event.currentTarget);
                 }}
               >

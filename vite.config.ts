@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 import catalogHandler from './api/catalog.ts';
 import catalogDetailHandler from './api/catalog-detail.ts';
 import { isAppSharedModule } from './scripts/app-shared-chunk.ts';
+import { preloadedToolChunkName } from './scripts/preloaded-tool-chunks.ts';
 import { play100Pwa } from './scripts/pwa-build.ts';
 import { publicMetadataHtml } from './scripts/public-metadata.ts';
 import { landingFontFiles } from './scripts/landing-fonts.ts';
@@ -129,6 +130,14 @@ export default defineConfig(({ mode }) => {
                 name: 'app-shared',
                 test: isAppSharedModule,
                 includeDependenciesRecursively: true,
+              },
+              {
+                // One chunk per idle-preloaded tool the online bridge also loads, holding only that module, so the
+                // offline core can precache it (scripts/preloaded-tool-chunks.ts).
+                name: preloadedToolChunkName,
+                debugName: 'preloaded-tools',
+                priority: 1,
+                includeDependenciesRecursively: false,
               },
             ],
           },

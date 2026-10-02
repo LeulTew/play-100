@@ -17,10 +17,17 @@ export type ReportHandlerOptions<T> = {
   errorEvent: string;
   admission?: Admission;
   log?: (line: string) => void;
+  /**
+   * Sees each accepted report. A promise it returns, for a due alert post, is awaited before the 204, and its
+   * outcome joins that report's one log line. It must settle within its own budget and must not reject.
+   */
+  alert?: ((value: T) => Promise<Record<string, unknown>> | null) | null;
 };
 
 // The shared skeleton of the report endpoints: method, query, media type, declared length, admission, bounded
-// read, validation, then one log line. Only reports that parse are logged; the body itself never is.
+// read, validation, then one log line. Only reports that parse are logged; the body itself never is. A due
+// production alert post delays that one report's 204 by up to five seconds, at most once per instance per hour;
+// the senders are browser beacons and CSP reports, which don't wait for the response. Its outcome joins the line.
 export function createReportHandler<T>({
   contentTypes,
   maxBytes,
@@ -30,6 +37,7 @@ export function createReportHandler<T>({
   errorEvent,
   admission = createAdmission({ maxActive: 4, maxPerWindow: 30, windowMs: 60_000 }),
   log = console.log,
+  alert = null,
 }: ReportHandlerOptions<T>) {
   return async (request: IncomingMessage, response: ServerResponse) => {
     response.setHeader('Cache-Control', 'no-store');
@@ -66,7 +74,10 @@ export function createReportHandler<T>({
       } catch {
         throw new ReportFailure(400);
       }
-      log(JSON.stringify(entry(value)));
+      const line = entry(value);
+      const pending = alert?.(value);
+      const outcome = pending ? await pending.catch(() => null) : null;
+      log(JSON.stringify(outcome ? { ...line, ...outcome } : line));
       response.writeHead(204).end();
     } catch (cause) {
       if (!(cause instanceof ReportFailure)) console.error(JSON.stringify({ event: errorEvent, count: 1 }));

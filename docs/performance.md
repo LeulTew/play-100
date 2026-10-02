@@ -26,7 +26,13 @@ Caps only move down.
 ([`scripts/budget-policy.ts`](../scripts/budget-policy.ts)). It fails when a cap is above the cap set from the
 release, or above the release's measurement plus the margin, unless a raise allows it; when a raise lacks its
 measurement or reason, or lets a cap exceed that measurement plus the margin; and when the offline worker limits
-differ from `PWA_BUDGET`.
+differ from `PWA_BUDGET`. It also reads the commit of the latest release in [`docs/releases.md`](releases.md) and,
+with `git show`, the `budgets.json` that release shipped: the committed `release` record must equal the shipped one, or
+name a newer measurement of a commit in the repository, so the record the caps are judged against can't be quietly
+edited. The same release may name another commit only as a provenance alias of the same tree: every other field must
+match byte for byte, `release.tree` must be the alias's tree and the shipped commit's (or, when the shipped commit
+isn't in the clone, a tree the latest release section of the ledger records), and the alias must be reachable from
+HEAD. The test needs the full history, not a shallow clone.
 
 ## Keeping bytes down
 
@@ -35,12 +41,13 @@ differ from `PWA_BUDGET`.
   `npx tsx scripts/css-unused.ts` lists classes that no source file produces.
 - **Chunks.** Rolldown chooses the chunks. The `app-shared` group in [`vite.config.ts`](../vite.config.ts) keeps the
   entry's whole static closure in one chunk, so already-eager modules are not split into small chunks of their own,
-  without adding steering imports to that eager closure. The deferred
-  [`OnlineController`](../src/cloud/OnlineController.tsx) does retain three bare
-  imports to preserve named offline-core entry chunks for idle-preloaded tools;
-  `online-bridge-closure.test.ts` guards that requirement.
-  [`scripts/app-shared-chunk.ts`](../scripts/app-shared-chunk.ts) lists
-  the modules that anchor it; dynamic imports stay separate, and the eager-module guard checks that boundary.
+  without adding steering imports to that eager closure.
+  [`scripts/app-shared-chunk.ts`](../scripts/app-shared-chunk.ts) lists the modules that anchor it; dynamic imports
+  stay separate, and the eager-module guard checks that boundary. A second group gives each idle-preloaded tool that the
+  deferred online bridge also loads statically its own chunk (`google-intent`, `comparison-game-filter` and
+  `friend-comparison-intent`), so the offline core can precache it; without it Rolldown folds them into an unnamed
+  shared chunk. [`scripts/preloaded-tool-chunks.ts`](../scripts/preloaded-tool-chunks.ts) lists them and finds their
+  facade-less manifest entries, and `online-bridge-closure.test.ts` fails when the bridge loads a preloaded tool it leaves out.
 
 ## Low-end phones
 
@@ -93,7 +100,8 @@ What changed for those phones (R24):
   `resize-observer-loop.spec.ts` replays the visit without `URLSearchParams.size`.
 
 Measured on 2 October 2026 under that profile. Before is live production (Release 7); after is the integrated R24
-build after the typed Windows PWA check repair, served locally with production headers. Playwright's Chromium gives medians of five first visits
+build after the typed Windows PWA check repair (tree `7d23b21610e81728ae72a2764fb7d964a0756101`),
+served locally with production headers. Playwright's Chromium gives medians of five first visits
 per build; Chromium 106.0.5249, the phone's engine, driven over the DevTools protocol, one visit per build:
 
 | Metric | Before | After | Change | Chromium 106, before → after |
@@ -118,7 +126,8 @@ runs as two tasks of 250–300 ms, about a second after it.
 
 ## R22 figures
 
-Configured build of the R22 candidate (tree `63c5500d`, after the Played-toggle test scoping repair), the release figures, which `budgets.json`
+Configured build of the R22 candidate (main commit `352117813fde9bf9233e3347abaed1eb2d7ee8c1`,
+tree `63c5500d4de6a602954a10b686a3519c06095861`), the release figures, which `budgets.json`
 records as `release`. Every figure was within its cap, 14 of 14. R23 applied the policy to them, lowering four caps:
 
 | Metric | Measured | Cap at R22 | Cap from R23 |
@@ -141,7 +150,8 @@ records as `release`. Every figure was within its cap, 14 of 14. R23 applied the
 Eager is 155,764 bytes of JavaScript and 17,308 of CSS, gzip9; the offline build measures 172,978. The offline core is
 44 public files plus 2 metadata entries.
 
-R22 itself lowered the caps on an intermediate tree (with the first `app-shared` group and the CSS
+R22 itself lowered the caps on the tree of main commit `64460f7aaab842e5fae295d19bc07fd79799d595`
+(with the first `app-shared` group and the CSS
 removals), where they stayed until R23. App CSS lost 1,731 bytes (180 gzip9) by removing rules and declarations that
 never applied and merging rules written twice, and each cap with room dropped to its measurement there plus the
 margin:
@@ -162,7 +172,8 @@ margin:
 | `largestRouteGzipBytes` | 279,529 | 282,325 |
 
 That tree's eager total was over its cap: R22 had added about 2.9 KB of eager JavaScript gzip9 (156,053 to 158,913).
-The candidate brought it back under the unchanged cap with two changes: deferred saved artwork and consolidated eager dependencies. Beyond The 100's saved additions
+The candidate brought it back under the unchanged cap with two changes in main
+commit `69da09cc65b6e2027a362b0d6e311dfab78d5218`: deferred saved artwork and consolidated eager dependencies. Beyond The 100's saved additions
 load their artwork through the existing dynamic catalog module instead of a static hook import. The `app-shared`
 group takes the entry's whole static closure (`includeDependenciesRecursively`), so the eager code ships as the
 entry, `app-shared` and the Rolldown runtime rather than as separate shared chunks. `budgets.json` `notes.r22` and

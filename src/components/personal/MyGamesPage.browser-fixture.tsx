@@ -22,7 +22,7 @@ const record = (id: string, title: string, collectionRank: number): LibraryRecor
   studio: null,
   genre: null,
 });
-const alpha = record('alpha', 'Alpha game', 1);
+const alpha = record('alpha', params.has('short-title') ? 'Halo 3' : 'Alpha game', 1);
 const beta = record('beta', 'Beta game', 2);
 // ?records=N adds N games added by the user; their titles sort after the two collection games.
 const added = Object.fromEntries(
@@ -54,8 +54,10 @@ const initial: PersonalLibraryState = {
 };
 if (params.has('moves')) {
   const ids = Object.keys(initial.records);
-  initial.queueOrder = ids;
-  initial.progress = Object.fromEntries(ids.map((id) => [id, { later: true, played: false, completed: false }]));
+  initial.queueOrder = params.has('queue-count') ? ids.slice(0, Number(params.get('queue-count'))) : ids;
+  initial.progress = Object.fromEntries(
+    ids.map((id) => [id, { later: initial.queueOrder.includes(id), played: false, completed: false }]),
+  );
   initial.ranking = ids.map((id) => ({ id, note: '', score: null, manualPosition: null }));
 }
 const filters: Filters = {
@@ -95,6 +97,7 @@ class MoveControl {
   }
 }
 const moves = new MoveControl();
+const queueRemovals = new MoveControl();
 // ?probe counts render commits and records every layout-reading call between arm() and the frame after the next click.
 type PagingTurn = Awaited<ReturnType<Window['myGamesPaging']['settled']>>;
 const probe: { armed: boolean; commits: number; reads: PagingTurn['reads']; done: Promise<PagingTurn> | null } = {
@@ -204,6 +207,11 @@ export function App() {
     onBrowse: () => exits.push('browse'),
     onPublish: () => exits.push('publish'),
     async onAction(action) {
+      if (action.type === 'set-progress' && action.key === 'later' && !action.value) {
+        const saved = await queueRemovals.request();
+        if (saved) setState((prior) => applyPersonalAction(prior, action));
+        return saved;
+      }
       if (action.type === 'move-item') {
         const saved = await moves.request();
         if (saved) setState((prior) => applyPersonalAction(prior, action));
@@ -253,6 +261,9 @@ window.myGamesFixture = {
     moves.finish(saved);
   },
   moveCount: () => moves.count,
+  holdQueueRemovals: () => queueRemovals.hold(),
+  finishQueueRemoval: (saved) => queueRemovals.finish(saved),
+  queueRemovalCount: () => queueRemovals.count,
   accept: (value) => {
     accept = value;
   },

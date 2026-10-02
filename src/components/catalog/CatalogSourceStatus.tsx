@@ -3,8 +3,7 @@ import type { RefObject } from 'react';
 import type { SourceSearchState } from '../../lib/catalog-search-session';
 import type { CatalogSource } from '../../lib/catalog-types';
 import { SOURCE_LABELS } from '../../lib/personal-types';
-import { focusPendingEditor, visibleFocusTarget } from '../../lib/dialog-focus';
-import { foregroundDialog } from '../dialog-layer';
+import { captureControlFocus } from '../../lib/control-focus';
 
 export function CatalogRetry({
   needed,
@@ -31,18 +30,9 @@ export function CatalogRetry({
     (button: HTMLButtonElement | null) => {
       if (!button) return;
       return () => {
-        if (document.activeElement !== button) return;
+        const handoff = captureControlFocus(button);
         const target = returnFocus.current;
-        queueMicrotask(() => {
-          // Only a removed, still-focused retry hands off to its surviving section.
-          if (
-            !button.isConnected &&
-            (document.activeElement === document.body || document.activeElement === button) &&
-            visibleFocusTarget(target) &&
-            target.closest('dialog') === foregroundDialog()
-          )
-            focusPendingEditor(target);
-        });
+        queueMicrotask(() => handoff.focus(target));
       };
     },
     [returnFocus],

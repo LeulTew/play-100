@@ -194,6 +194,16 @@ describe('generated public PWA build closure', () => {
     expect(() => pwaCorePaths(entries)).toThrow('missing required Vite entry');
   });
 
+  it('finds each preloaded tool in its named group chunk, which the manifest keys without a facade', () => {
+    const entries = manifest();
+    const root = 'src/lib/google-intent.ts';
+    delete entries[root];
+    entries['_google-intent-AbCd1234.js'] = { file: 'assets/google-intent-AbCd1234.js', name: 'google-intent' };
+    expect(pwaCorePaths(entries)).toContain('/assets/google-intent-AbCd1234.js');
+    entries['_google-intent-EfGh5678.js'] = { file: 'assets/google-intent-EfGh5678.js', name: 'google-intent' };
+    expect(() => pwaCorePaths(entries)).toThrow('More than one Vite chunk is named google-intent.');
+  });
+
   it('requires the stable client entry and includes its shared client and update closure', () => {
     const entries = manifest();
     const root = 'src/pwa/client-entry.ts';
