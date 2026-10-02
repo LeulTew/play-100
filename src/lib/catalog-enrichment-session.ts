@@ -73,7 +73,11 @@ export class CatalogEnrichmentSession {
     if (!request.connected) return { ...base, status: 'offline' };
     if (!refresh && prior && prior.expires > this.now()) return { ...base, status: 'ready' };
     if (this.cooldown > this.now()) {
-      return { ...base, status: 'error', error: 'A source is rate-limiting requests. Please wait before retrying.' };
+      return {
+        ...base,
+        status: 'error',
+        error: 'A catalog source is receiving too many requests. Wait a moment before retrying.',
+      };
     }
     return { ...base, status: 'loading' };
   }

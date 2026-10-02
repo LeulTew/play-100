@@ -143,7 +143,7 @@ export default function ExtendedResults({
           {online.loading
             ? 'Searching catalogs…'
             : failed
-              ? 'Online search is incomplete. Retry a provider or search your saved games.'
+              ? 'Online search is incomplete. Retry a source or search your saved games.'
               : 'No additional matches. Try a shorter title or broader filters.'}
         </p>
       )}

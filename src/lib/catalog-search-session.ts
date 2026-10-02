@@ -71,7 +71,7 @@ export class CatalogSearchSession {
       this.update(source, (state) => ({
         ...state,
         status: 'error',
-        error: 'This provider is rate-limiting requests. Wait a moment before retrying.',
+        error: 'This catalog is receiving too many requests. Wait a moment before retrying.',
         failure: 'rate-limited',
         requestOffset: offset,
       }));

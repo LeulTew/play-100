@@ -211,7 +211,7 @@ export function useOnlineSession({
   const google = (compare = false) =>
     run(async () => {
       const session = authSessionEpochRef.current;
-      if (!(await flushPendingEdits())) throw new Error('Finish or correct the open rating/note before signing in.');
+      if (!(await flushPendingEdits())) throw new Error('Finish or correct the open rating or note before signing in.');
       if (authSessionEpochRef.current !== session || cloudAuth.currentUser)
         throw new Error('The signed-in account changed. Review Account before continuing.');
       // Only a redirect the Compare tray's sign-in starts has its return continue to Compare.

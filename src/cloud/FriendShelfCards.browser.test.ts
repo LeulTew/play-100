@@ -93,7 +93,7 @@ describe('friend shelf title announcements', () => {
         await browserExpect(notice).toHaveText(`${label} pinned.`);
         expect(await notice.textContent()).not.toMatch(/\p{Cf}/u);
         await cards.getByRole('button', { name: 'Save', exact: true }).click();
-        await browserExpect(notice).toHaveText(`${label} saved to your library.`);
+        await browserExpect(notice).toHaveText(`${label} added to My games.`);
         expect(await notice.textContent()).not.toMatch(/\p{Cf}/u);
         await heading.locator('button').click();
         expect(await heading.textContent()).toBe(title);

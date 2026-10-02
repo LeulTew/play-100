@@ -14,7 +14,7 @@ export const DISCOVERY_GENRE_FAMILIES = [
   { id: 'cards', label: 'Cards' },
   { id: 'casual-social', label: 'Casual & social' },
   { id: 'rhythm', label: 'Rhythm' },
-  { id: 'other', label: 'Other / unclassified' },
+  { id: 'other', label: 'Other or unclassified' },
 ] as const;
 export type DiscoveryGenreFamily = (typeof DISCOVERY_GENRE_FAMILIES)[number]['id'];
 

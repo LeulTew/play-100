@@ -97,7 +97,7 @@ function SourceStatus({
                   ? 'Rate limited'
                   : source.failure === 'offline'
                     ? 'Offline'
-                    : 'Provider unavailable'
+                    : 'Source unavailable'
               : count === 0
                 ? 'No new online matches'
                 : `${count} new online ${count === 1 ? 'match' : 'matches'}`}

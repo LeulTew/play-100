@@ -53,7 +53,7 @@ describe('compact catalog card markup', () => {
     expect(html).toContain('<p class="discovery-card-meta">2018 · Role-playing</p>');
     expect(html).toContain('<strong>Source classification:</strong> RPG');
     expect(html).toContain('Play later');
-    expect(html).toContain('Add to ranking');
+    expect(html).toContain('Add to my ranking');
     expect(onAction).not.toHaveBeenCalled();
     expect(onPin).not.toHaveBeenCalled();
   });

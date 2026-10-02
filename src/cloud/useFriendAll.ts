@@ -327,7 +327,7 @@ export function useFriendAll(
                   ? {
                       ...old,
                       status: 'error',
-                      error: `The retry cooldown could not be saved. ${onlineError(storageError)}`,
+                      error: `The next sharing retry time could not be saved. ${onlineError(storageError)}`,
                     }
                   : old,
               );

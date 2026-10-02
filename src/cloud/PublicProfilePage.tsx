@@ -9,6 +9,8 @@ import { Avatar } from '../components/avatar/Avatar';
 import { Icon } from '../components/Icon';
 import { Dialog } from '../components/Dialog';
 import { onlineError } from './errors';
+import { actionMessage } from '../lib/action-message';
+import type { ActionFeedback } from '../lib/action-message';
 import type { SocialStore } from './social-store';
 // The store's publication methods it calls (social-publication.ts) load with this page.
 import './social-publication';
@@ -93,9 +95,11 @@ export function PublicProfilePage({
   const save = async (values: PublicEntry[]) => {
     try {
       const records = values.map((entry) => recordFromPublic(entry, games));
-      if (await library.perform({ type: 'set-progress', records, key: 'later', value: true })) {
+      const action = { type: 'set-progress', records, key: 'later', value: true } as const;
+      const feedback: ActionFeedback = {};
+      if (await library.perform(action, feedback)) {
         setMessage(
-          `${records.length} ${records.length === 1 ? 'game added' : 'games added'} to Play later. The publisher's scores were not copied.`,
+          `${feedback.message ?? actionMessage(action, library.state)} The publisher's scores were not copied.`,
         );
         setSelected(new Set());
       } else setError('These games could not be saved. Your previous library is unchanged; check the storage warning.');

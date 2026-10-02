@@ -221,7 +221,7 @@ test('catalog played state follows the saved game into its library, detail and p
   const played = card.getByRole('checkbox', { name: `Played: ${record.title}`, exact: true });
   await played.click();
   await expect(played).toBeChecked();
-  await card.getByRole('button', { name: 'Add to ranking', exact: true }).click();
+  await card.getByRole('button', { name: 'Add to my ranking', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.length).toBe(1);
   await page.goto('/my-rankings');
   await expect(page.getByRole('checkbox', { name: `Played: ${record.title}`, exact: true })).toBeChecked();

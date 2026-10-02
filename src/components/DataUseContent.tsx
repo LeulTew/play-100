@@ -15,8 +15,8 @@ export default function DataUseContent() {
       <p>
         Install through your browser. Offline preparation downloads public app files, collection details and recently
         viewed app artwork within storage limits. It excludes private data, account data, online-only pages, sign-in
-        details and live catalog results, and never replaces your device library. Films and workbooks are not downloaded
-        automatically.
+        details and online game search results, and never replaces your device library. Films and workbooks are not
+        downloaded automatically.
       </p>
       <p>
         Online features need a connection; account and guest libraries stay separate. Updates wait until you choose to
@@ -31,8 +31,8 @@ export default function DataUseContent() {
       </p>
       <p>
         Browsers keep you signed in until you sign out or access is revoked, unless private browsing, blocked or cleared
-        storage, or provider restrictions require re-entry. App releases never intentionally clear accounts or
-        libraries.
+        storage, or sign-in service restrictions require you to sign in again. App releases never intentionally clear
+        accounts or libraries.
       </p>
       <h2>Online saving</h2>
       <p>
@@ -123,7 +123,7 @@ export default function DataUseContent() {
       <p>
         Vercel hosts the site. Firebase provides sign-in and online storage. Google handles Google sign-in. These
         services use essential storage or cookies as needed. The app uses no advertising analytics, contact scraping or
-        bulk invitation emails. Catalog records retain listed providers' source links.
+        bulk invitation emails. Catalog records keep their source links.
       </p>
       <p>
         Browser security reports count known blocked sites, security rules and page types, never full URLs, queries, IP

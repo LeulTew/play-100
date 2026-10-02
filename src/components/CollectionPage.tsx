@@ -324,10 +324,10 @@ function CollectionPage({
                 </div>
                 <h3>
                   {filters.list === 'later' && savedCount === 0
-                    ? 'Your next great game goes here.'
+                    ? 'Play later is empty'
                     : filters.list === 'completed' && completedCount === 0
                       ? 'No completed games yet'
-                      : 'No worlds found. Yet.'}
+                      : 'No matching games'}
                 </h3>
                 <p>
                   {filters.list === 'later' && savedCount === 0

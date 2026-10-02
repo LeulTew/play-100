@@ -66,7 +66,7 @@ function cooledDown(source: EnrichmentSource): EnrichmentSourceState | null {
     ? sourceState(
         source,
         'error',
-        'This source is rate-limiting requests. Try again after the indicated delay.',
+        'This source is receiving too many requests. Try again after the indicated delay.',
         'rate-limited',
         remaining,
       )

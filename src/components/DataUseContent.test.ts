@@ -31,7 +31,7 @@ describe('data use explanation', () => {
     for (const phrase of [
       'Offline preparation downloads public app files, collection details',
       'recently viewed app artwork within storage limits.',
-      'It excludes private data, account data, online-only pages, sign-in details and live catalog results, and never replaces your device library.',
+      'It excludes private data, account data, online-only pages, sign-in details and online game search results, and never replaces your device library.',
       'Films and workbooks are not downloaded automatically.',
       'Online features need a connection',
       'Updates wait until you choose to apply them and your edits have saved.',

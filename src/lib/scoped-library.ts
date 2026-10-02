@@ -184,7 +184,7 @@ function parseScopedEnvelope(value: unknown, scope: LibraryScope): ScopedEnvelop
     typeof row.sync !== 'object' ||
     Array.isArray(row.sync)
   )
-    throw new Error('This cache belongs to a different account or storage version. Nothing was changed.');
+    throw new Error('This device copy belongs to a different account or app version. Nothing was changed.');
   const writerGeneration = row.writerGeneration === undefined ? 0 : row.writerGeneration;
   if (typeof writerGeneration !== 'number' || !Number.isSafeInteger(writerGeneration) || writerGeneration < 0)
     throw conflict('The account writer generation is invalid. Its saved data has not been changed.');
@@ -200,7 +200,7 @@ function parseScopedEnvelope(value: unknown, scope: LibraryScope): ScopedEnvelop
       row.profile.displayName.length > 60 ||
       !('avatar' in row.profile)
     )
-      throw new Error('The cached account profile is invalid.');
+      throw new Error('This account profile could not be read from the device.');
     profile = { displayName: row.profile.displayName, avatar: parseAvatarDescriptor(row.profile.avatar) };
   }
   if (row.recovery !== null) {

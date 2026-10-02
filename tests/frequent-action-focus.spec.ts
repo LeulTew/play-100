@@ -349,7 +349,7 @@ async function openControl(page: Page, surface: Surface): Promise<Locator> {
       return card.getByRole('button', { name: `Add to My games: ${provider.title}`, exact: true });
     await card.getByText('More actions', { exact: true }).click();
     return card.getByRole('button', {
-      name: surface === 'discover later' ? `Play later: ${provider.title}` : 'Add to ranking',
+      name: surface === 'discover later' ? `Play later: ${provider.title}` : 'Add to my ranking',
       exact: true,
     });
   }
@@ -457,7 +457,7 @@ for (const name of [
   'Mark completed',
   'Add to my ranking',
   'Remove from Play later',
-  'Unmark completed',
+  'Mark not completed',
 ]) {
   test(`bulk ${name} Enter returns focus to Select all after completion`, async ({ page }) => {
     await installGuestLibrary(page);

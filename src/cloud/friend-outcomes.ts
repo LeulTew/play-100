@@ -23,7 +23,7 @@ export function committedFriendMessage(cause: FriendCommittedError): string {
     case 'accept-invite':
       return 'Invitation accepted. Reconnect to open Friends.';
     case 'publish-ranking':
-      return 'Friends ranking saved. Refresh or cleanup is still pending.';
+      return 'Shared ranking saved. Refresh or cleanup is still pending.';
     case 'save-group':
       return 'Group saved. Refresh groups before editing it again.';
   }

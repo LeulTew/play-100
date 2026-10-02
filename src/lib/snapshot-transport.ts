@@ -32,14 +32,14 @@ function encode(value: Uint8Array): string {
 
 function decode(value: string): Uint8Array {
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(value) || value.length % 4 !== 0)
-    throw new Error('An online snapshot chunk has invalid encoding.');
+    throw new Error('Part of the online copy could not be read.');
   const binary = atob(value);
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 }
 
 export function parseManifest(value: unknown): SnapshotManifest {
   if (!value || typeof value !== 'object' || Array.isArray(value))
-    throw new Error('The online snapshot manifest is unreadable.');
+    throw new Error('The file list for this online copy could not be read.');
   const row = value as Record<string, unknown>;
   if (
     Object.keys(row).sort().join(',') !== 'bytes,chunks,digest,format,generation' ||
@@ -57,14 +57,14 @@ export function parseManifest(value: unknown): SnapshotManifest {
     row.chunks.length > MAX_CHUNKS ||
     !row.chunks.every((part): part is string => typeof part === 'string' && /^[a-f0-9]{64}$/.test(part))
   ) {
-    throw new Error('This online snapshot has an unsupported version, size or digest. Local data is unchanged.');
+    throw new Error('This online copy has an unsupported format, size or checksum. Your device data is unchanged.');
   }
   return { format: 1, generation: row.generation, digest: row.digest, bytes: row.bytes, chunks: row.chunks };
 }
 
 export function parseChunk(value: unknown): SnapshotChunk {
   if (!value || typeof value !== 'object' || Array.isArray(value))
-    throw new Error('An online snapshot chunk is missing.');
+    throw new Error('Part of the online copy is missing.');
   const row = value as Record<string, unknown>;
   if (
     Object.keys(row).some((key) => !['digest', 'data', 'bytes', 'createdAt', 'holders', 'holder'].includes(key)) ||
@@ -77,7 +77,7 @@ export function parseChunk(value: unknown): SnapshotChunk {
     row.bytes < 1 ||
     row.bytes > CHUNK_BYTES
   ) {
-    throw new Error('An online snapshot chunk has invalid fields or size.');
+    throw new Error('Part of the online copy has an unsupported format or size.');
   }
   return { digest: row.digest, data: row.data, bytes: row.bytes };
 }
@@ -115,7 +115,7 @@ export async function unpackSnapshot(
   let offset = 0;
   for (const digest of manifest.chunks) {
     const chunk = parseChunk(await getChunk(digest));
-    if (chunk.digest !== digest) throw new Error('An online chunk does not match its manifest.');
+    if (chunk.digest !== digest) throw new Error('Part of the online copy does not match its file list.');
     const bytes = decode(chunk.data);
     if (
       bytes.length !== chunk.bytes ||

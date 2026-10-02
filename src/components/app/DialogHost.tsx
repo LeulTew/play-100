@@ -98,7 +98,7 @@ function DetailLoadFailure({ onClose, getOpener }: { onClose: () => void; getOpe
 
 function ReadyAbout(props: ComponentProps<typeof AboutDialog>) {
   const About = aboutDialogModule.peek()?.AboutDialog;
-  if (!About) throw new Error('The credits must finish loading before they open.');
+  if (!About) throw new Error('About & credits must finish loading before it opens.');
   return <About {...props} />;
 }
 

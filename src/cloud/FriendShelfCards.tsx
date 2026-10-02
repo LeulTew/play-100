@@ -53,7 +53,7 @@ export function FriendShelfCards({
     try {
       await onSave(entry);
       if (current.current === request)
-        setNotice({ entries: request, text: `${stripControlOrFormat(entry.title)} saved to your library.` });
+        setNotice({ entries: request, text: `${stripControlOrFormat(entry.title)} added to My games.` });
     } catch (cause) {
       if (current.current === request) setError(shelfError(cause));
     } finally {

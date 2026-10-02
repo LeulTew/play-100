@@ -380,7 +380,7 @@ export default function DiscoverPage({
             </h2>
             <p>
               {failed
-                ? 'Retry a provider below or change your search.'
+                ? 'Retry a source below or change your search.'
                 : 'Try a shorter title, clear a filter, or add a game manually.'}
             </p>
             <button

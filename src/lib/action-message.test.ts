@@ -64,6 +64,15 @@ describe('committed action wording', () => {
     }
   });
 
+  it('names the committed game in either list order message', () => {
+    const state = applyPersonalAction(empty, { type: 'add-records', records: [record] });
+    for (const list of ['queue', 'ranking'] as const) {
+      expect(actionMessage({ type: 'move-item', list, id: record.id, overId: 'b' }, state, state)).toBe(
+        `${record.title}: ${list === 'queue' ? 'Play later' : 'Ranking'} order updated.`,
+      );
+    }
+  });
+
   it('names one game added to or already in My games', () => {
     const action: PersonalAction = { type: 'add-records', records: [record, record] };
     const after = applyPersonalAction(empty, action);
