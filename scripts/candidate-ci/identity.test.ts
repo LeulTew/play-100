@@ -25,6 +25,7 @@ describe('buildIdentity', () => {
   it('records the inputs, the runner and the run URL from the environment', () => {
     const identity = buildIdentity(facts, {
       REQUESTED_SHA: 'a'.repeat(40),
+      REQUEST_ID: 'r24-e2e-prod-0001',
       SUITE: 'e2e-prod',
       SPECS: 'tests/a.spec.ts',
       PROJECT: 'both',
@@ -47,6 +48,7 @@ describe('buildIdentity', () => {
     expect(identity).toMatchObject({
       commit: facts.commit,
       requestedSha: 'a'.repeat(40),
+      requestId: 'r24-e2e-prod-0001',
       build: 'configured',
       suite: 'e2e-prod',
       repeat: '3',
@@ -69,6 +71,7 @@ describe('buildIdentity', () => {
     expect(identity.build).toBe('none');
     expect(identity.suite).toBeNull();
     expect(identity.specs).toBe('');
+    expect(identity.requestId).toBeNull();
     expect(identity.workflow.run).toBeNull();
   });
 });

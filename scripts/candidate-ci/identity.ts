@@ -63,6 +63,7 @@ export function buildIdentity(facts: IdentityFacts, env: NodeJS.ProcessEnv) {
     commit: facts.commit,
     tree: facts.tree,
     requestedSha: env.REQUESTED_SHA ?? null,
+    requestId: orNull(env.REQUEST_ID),
     packageLockSha256: facts.packageLockSha256,
     builtIndexHtmlSha256: facts.builtIndexHtmlSha256,
     build: env.BUILD_PROFILE ?? 'none',

@@ -15,6 +15,8 @@
     "budgets:record": "tsx scripts/budget-policy.ts",
     "release:manifest": "tsx scripts/release-manifest.ts",
     "release:gate": "tsx scripts/release-gate.ts",
+    "ci:dispatch": "tsx scripts/candidate-ci/dispatch.ts",
+    "ci:collect": "tsx scripts/candidate-ci/collect.ts",
     "release:verify": "tsx scripts/release-verify.ts",
     "release:sw-probe": "tsx scripts/release-sw-probe.ts",
     "release:pwa-os": "tsx scripts/release-pwa-os.ts",

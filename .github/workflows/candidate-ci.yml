@@ -65,6 +65,15 @@ on:
           - default
           - unthrottled
           - xvfb-headed
+      request:
+        description: >-
+          Optional request id (letters, digits, dot, underscore, hyphen; at most 64) that npm run ci:dispatch puts in
+          the run name and identity.json to find this run among concurrent dispatches
+        type: string
+        required: false
+        default: ''
+
+run-name: Candidate CI ${{ inputs.suite }} ${{ inputs.project }} ${{ inputs.sha }} ${{ inputs.request }}
 
 permissions:
   contents: read
@@ -83,6 +92,7 @@ jobs:
       GREP: ${{ inputs.grep }}
       BROWSER_ENV: ${{ inputs.browser_env }}
       REQUESTED_SHA: ${{ inputs.sha }}
+      REQUEST_ID: ${{ inputs.request }}
       WORKFLOW_SHA: ${{ github.workflow_sha }}
       OUT: ${{ github.workspace }}/evidence
       CI_TOOLS: ${{ github.workspace }}/_ci/.github/candidate-ci
@@ -99,6 +109,7 @@ jobs:
             [[ "$spec" =~ ^[A-Za-z0-9._/-]+(:[0-9]+)?$ && "$spec" != *..* ]] || { echo "Unsafe spec path: $spec"; exit 1; }
           done
           [[ "$GREP" != *$'\n'* ]] || { echo "grep must be one line"; exit 1; }
+          [[ "$REQUEST_ID" =~ ^[A-Za-z0-9._-]{0,64}$ ]] || { echo "request must be at most 64 of [A-Za-z0-9._-]"; exit 1; }
 
       - name: Check out the candidate
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

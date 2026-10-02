@@ -1072,8 +1072,9 @@ failures. It also holds the emulator debug logs and `identity.json`, which recor
 **What it does not prove.** A run is not a gate receipt. It does not replace
 `npm run release:gate`, §3, the manifest or any manual gate. It runs one suite
 on Linux Chromium only, with no Chrome channel, Windows or macOS fonts, WebKit,
-real devices or deployment checks. Its builds are not the release `dist`, so
-never add its reports to a release manifest. Cite the run URL and
+real devices or deployment checks. Its builds are not the release `dist`: a CI
+report counts in a lean manifest only for the Linux checks listed below, through
+`npm run ci:collect`, and never in place of a local row the gate must record. Cite the run URL and
 `identity.json`, check that `commit` equals the candidate, and record failures
 as evidence (the `docs/intermittents.md` rows included); never re-dispatch until
 green.
@@ -1095,6 +1096,71 @@ gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=cloud-ui -f
 gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=lighthouse
 gh run download RUN_ID
 ```
+
+#### Final-tip plan, dispatch and collect
+
+[`scripts/candidate-ci/plan.json`](../scripts/candidate-ci/plan.json) lists the
+full final-tip set, one entry per dispatch: `checks`, `csp-refresh`, `floor` and
+`lighthouse`; full `e2e-prod`, `e2e-dev` and `e2e-offline` on both projects;
+FLAKE-01 alone; every open `docs/intermittents.md` row at its loop count; the
+R24 focus specs ×20; `cloud-rules` full ×3; `cloud-ui` full on each project; and
+the cloud-ui loops. Long loops are split per project so no job nears its
+180-minute timeout. Each entry has an `id`, a `purpose`, the workflow inputs
+(`suite`, `specs`, `project`, `repeat`, `workers`, `grep`, `browserEnv`) and
+optionally `lean` (the lean check it supplies) and `expectedPassed`. Edit the
+plan when `docs/intermittents.md` changes.
+
+```bash
+npm run ci:dispatch -- --sha "$sha" --dry-run            # print each gh command
+npm run ci:dispatch -- --sha "$sha" --out ../ci/runs.json # dispatch and record the runs
+npm run ci:dispatch -- --sha "$sha" --only floor,lighthouse --out ../ci/runs-small.json
+npm run ci:collect -- --runs ../ci/runs.json --out ../ci/evidence --wait
+```
+
+`ci:dispatch` dispatches from `--ref` (default `leultew-r24-candidate-ci`; it
+must carry the workflow) and passes each entry a unique `request` id,
+`<entry>.<sha8>.<nonce>`. The workflow puts it in the run name and in
+`identity.json` as `requestId`. Dispatch replies are unordered and carry no run
+id, so the script matches each run by its exact name and refuses ambiguity;
+`ci:collect` then confirms the match from the artifact itself. `runs.json`
+records each entry, request id, run id and URL.
+
+`ci:collect` refuses an output inside the checkout and, with `--wait`, polls
+until every run completes. For each run it downloads the artifact into
+`<out>/<entry>/` and verifies `identity.json`: `commit` and `requestedSha` equal
+the SHA, `tree` equals that commit's tree (when the commit is in the local
+clone) and is the same for every run, `requestId` and `workflow.run` name this
+run, the recorded inputs equal the entry, and `files[]` matches the downloaded
+files exactly, by path, bytes and SHA-256, in both directions. Any mismatch
+stops collection. It then writes:
+
+- `summary.md` and `summary.json`: entry, suite, project, spec, repeat, passed,
+  failed, skipped, result and run URL. An entry passes only if its run
+  succeeded, it passed at least one test, nothing failed or was skipped, and the
+  count equals `expectedPassed` when set. Playwright's `flaky` counts as failed;
+  `lighthouse` has no counts and passes on the run's conclusion.
+- `index.json`: a partial lean evidence index (`partial: true`) for
+  `scripts/release-lean-manifest.ts`. Its rows are `e2e-production`,
+  `e2e-development`, `e2e-offline`, `films-download` (attempt 1),
+  `floor-smoke`, `cloud-rules`, `cloud-ui-desktop` and `cloud-ui-mobile`. Each
+  points at the run's report and its `identity.json`, which the manifest's CI
+  provenance check verifies. A failed run's row is omitted and listed under
+  `omitted`, except FLAKE-01's, which is kept as `failed` so a local second
+  attempt can follow it. `runs` repeats the summary.
+
+The command exits 1 when any entry failed, after writing the files.
+
+Caveats:
+
+- The index is partial: the manifest still needs every local row, so merge the
+  CI rows into the gate's index, keeping the `file` and `identity` paths
+  relative to the merged index's directory.
+- The CI `e2e-prod` full run includes the FLAKE-01 case, which the gate runs
+  separately; a FLAKE-01 failure there drops the `e2e-production` row.
+- `checks`, `csp-refresh`, `lighthouse` and the loops appear only in the summary.
+  They are Linux evidence for the reviewers, not lean rows.
+
+These runs do not replace `npm run release:gate`, §3 or any manual gate.
 
 ## 4. Manifest and complete evidence packet
 
