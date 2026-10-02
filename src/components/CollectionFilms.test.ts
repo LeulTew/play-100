@@ -26,6 +26,9 @@ describe('film listing thumbnail contract', () => {
     expect(html.match(/class="film-poster"/g)).toHaveLength(2);
     expect(html).not.toContain('<img');
     expect(html).not.toContain('<video');
+    // The same numbered title cards as the loading section's (FilmsFallback), so nothing changes as the module loads.
+    expect(html.match(/<span class="film-poster-card" aria-hidden="true">/g)).toHaveLength(2);
+    expect(html).toContain('<span class="jacket-series">FILM / 02</span>');
     for (const film of collectionFilms) {
       expect(html).not.toContain(film.poster.src);
       expect(html).not.toContain(film.video.src);
@@ -42,6 +45,7 @@ describe('film listing thumbnail contract', () => {
       );
       expect(html).toContain('sizes="(max-width: 380px)');
       expect(html).toContain(`width="${film.poster.width}" height="${film.poster.height}"`);
+      expect(html).not.toContain('film-poster-card');
       expect(html).not.toContain(film.poster.src);
       expect(html).not.toContain(film.video.src);
     }
