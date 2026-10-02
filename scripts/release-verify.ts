@@ -162,13 +162,13 @@ export function compareDocumentHeaders(actual: Headers, expected: Record<string,
     pass: Boolean(csp) && !/firebaseinstallations/i.test(csp),
     measured: { present: /firebaseinstallations/i.test(csp) },
   });
-  // R24: Google stays only in script-src, for gapi. Like the check above, this fails even if vercel.json lists them.
-  const connectsToGapi = (directiveSources(csp, 'connect-src') ?? []).includes('https://apis.google.com');
+  // R24: the main document frames only its own /__/auth/iframe. Like the check above, this fails even if vercel.json
+  // lists the host again.
   const framesGoogleAccounts = (directiveSources(csp, 'frame-src') ?? []).includes('https://accounts.google.com');
   checks.push({
-    name: 'CSP excludes the unused Google connect and frame hosts',
-    pass: Boolean(csp) && !connectsToGapi && !framesGoogleAccounts,
-    measured: { connectsToGapi, framesGoogleAccounts },
+    name: 'CSP excludes the Google accounts frame host',
+    pass: Boolean(csp) && !framesGoogleAccounts,
+    measured: { framesGoogleAccounts },
   });
   return checks;
 }

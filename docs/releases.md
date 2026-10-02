@@ -1004,7 +1004,4 @@ Do these in runbook order and record each readback.
    [Release 7](#release-7-2026-09-30)). Mobile sign-in, linking and
    reauthentication remain. Run a real Google sign-in, link and
    reauthentication on production, on desktop and mobile. Readback: each flow
-   returns to the app signed in, and the Console shows no CSP violation other
-   than gapi's blocked `gen_204` telemetry ping (see the
-   [runbook smoke](security-release-runbook.md#auth-helper-fresh-nonce-smoke-sec-01),
-   step 3).
+   returns to the app signed in, and the Console shows no CSP violation.

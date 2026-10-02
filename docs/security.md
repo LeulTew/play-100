@@ -957,35 +957,40 @@ authDomain is the application origin. The now-redundant firebaseapp.com origin
 is removed from main connect-src/frame-src; upstream proxy destinations and the
 separate auth-helper policy are not changed by that removal.
 
-**Google hosts (R24).** The main policy names Google only in script-src.
-`https://apis.google.com` serves gapi's loader (`/js/api.js`) and its
-`gapi.iframes` module, which Firebase Auth loads when it reads a pending
-redirect result (`src/cloud/redirect-resolver.ts`). R24 removed the other two
-Google allowances, `connect-src https://apis.google.com` and
-`frame-src https://accounts.google.com`. The evidence is the parent's real
-Google sign-in and reauthentication on production (Release 7, 2026-10-02
-about 00:50–00:55Z, receipt `google-signin-reauth-production-20261002.json`).
-After each return, the main document had loaded only those two scripts from
-`apis.google.com`, made no fetch or XHR there, and framed only its own
-`/__/auth/iframe`. The trip to `accounts.google.com` is a top-level navigation,
-which frame-src does not govern. The helper documents keep their own policy,
-which still allows framing and form posts to `accounts.google.com`.
-`release:verify` fails a deployment whose CSP lists either host in those
-directives again, even if `vercel.json` does.
+Main connect-src also lists `https://apis.google.com` (CSP-GAPI-01, R5; kept
+in R24), the origin script-src already trusts for gapi's loader (`/js/api.js`)
+and its `gapi.iframes` module. Firebase Auth loads them when it reads a pending
+redirect result (`src/cloud/redirect-resolver.ts`). That module's gen204
+logger sends a telemetry ping each time gapi's random helper mints a value,
+such as the auth iframe's rpctoken, with about 1% sampling. R5's e2e logged
+it blocked on `/invite`. R24 confirmed it in Google's code, read on 2026-10-02:
+- the loader `https://apis.google.com/js/api.js` (captured 00:53:04Z, SHA-256
+  `570bc4816f5599d7f35f2149c2d06886cba61add8fb9fe3d99250cdec27a8e62`) sets
+  `gen204logger: { interval: 30000, rate: 0.01, batch: false }`;
+- its `gapi.iframes` module (captured 00:53:20Z, SHA-256
+  `f66c612bb75fca57bd236fc4805ac6f4068de431935941a526ea80dc78bb8dd9`) sends
+  `fetch(origin + "/js/gen_204?…", {method: "GET", mode: "no-cors"})` when
+  `Math.random()` falls below that rate.
 
-This reverses CSP-GAPI-01 (R5), which allowed `connect-src
-https://apis.google.com` for one telemetry ping. `gapi.iframes` has a gen204
-logger: each time its random helper mints a value, such as the auth iframe's
-rpctoken, it may send `fetch(<api.js origin>/js/gen_204?c=50:<n>, {mode:
-'no-cors'})`, with the probability set by the loader (`rate: 0.01` in the
-`api.js` read on 2026-10-02; the module's default is 0.001), and it catches the
-failure. Blocking it drops only that telemetry. An occasional redirect return
-therefore logs one `connect-src` violation for `https://apis.google.com`,
-in the console and as a `csp-count`, and nothing else changes. That violation
-is expected; any other is a regression. The helper documents never send the
-ping: their handler.js and iframe.js bundle their own iframes code without the
-logger. Both Google origins stay on the CSP report endpoint's diagnostic list,
-so a blocked use of either is counted by name.
+Blocking the ping would drop only Google's telemetry, but each blocked ping
+would log a connect-src violation in the console and as a `csp-count`, so the
+host stays as a documented need. The 2026-10-02 production smoke below saw no
+such fetch in two returns, as that rate predicts. The auth-helper policy is
+unchanged: the helper's handler.js and iframe.js bundle their own iframes code
+with no gen204 logger, and the ping only runs where the apis.google.com module
+opens a child iframe, which is the main document.
+
+**Frame host (R24).** Main frame-src is `'self'` only: R24 removed
+`https://accounts.google.com`, because the only auth frame the main document
+opens is the same-origin `/__/auth/iframe`. The evidence is the parent's real
+Google sign-in and reauthentication on production (Release 7, 2026-10-02 about
+00:50–00:55Z, receipt `google-signin-reauth-production-20261002.json`). After
+each return the main document framed only that document. The trip to
+`accounts.google.com` is a top-level navigation, which frame-src does not
+govern. The helper documents keep their own policy, which still allows framing
+and form posts to `accounts.google.com`. `release:verify` fails a deployment
+whose main CSP lists that host in frame-src again, even if `vercel.json` does,
+and the CSP report endpoint counts a blocked frame of that origin by name.
 
 **CSP least privilege (R9).** Main connect-src no longer lists
 `https://firebaseinstallations.googleapis.com`: `src` imports only
@@ -994,10 +999,10 @@ none of which calls Firebase Installations, and the optional App Check path
 needs only the sources in `APP_CHECK_CSP_SOURCES` (added when it is enabled).
 `frame-src https://accounts.google.com` stayed until a real production Google
 sign-in could show that no frame of that origin is used; R24 removed it
-(above). One source stays on purpose: the offline-variant style hash. One
-vercel.json policy serves both the online and the offline build, and
-`check:csp` requires the other variant's inline style hash, so dropping it
-would break an offline deployment.
+(above). Besides CSP-GAPI-01's connect-src host, one source stays on purpose:
+the offline-variant style hash. One vercel.json policy serves both the online
+and the offline build, and `check:csp` requires the other variant's inline
+style hash, so dropping it would break an offline deployment.
 
 Trusted Types (`require-trusted-types-for 'script'`) was considered and
 rejected: the Firebase Auth helper path loads gapi by assigning a script `src`

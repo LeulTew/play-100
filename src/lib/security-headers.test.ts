@@ -41,10 +41,10 @@ describe('S3 header and supply-chain boundaries', () => {
     expect(headers['Content-Security-Policy']).not.toContain('play100-online-48823b32.firebaseapp.com');
     expect(configuration.installCommand).toBe('npm ci');
   });
-  it('names Google in the main policy only as the gapi script host', () => {
-    // R24 (docs/security.md, "Google hosts"): after a real production Google sign-in and reauthentication, the main
-    // document had loaded only scripts from apis.google.com, fetched nothing there and framed only its own
-    // /__/auth/iframe. The trip to accounts.google.com is a top-level navigation, which frame-src does not govern.
+  it("allows gapi's script and telemetry host but frames only the app's own origin", () => {
+    // docs/security.md, CSP-GAPI-01: gapi.iframes sends a sampled no-cors gen_204 ping to apis.google.com, so connect-src
+    // keeps it. R24: the main document's only auth frame is its own /__/auth/iframe, and the trip to
+    // accounts.google.com is a top-level navigation, which frame-src does not govern.
     const policy = headers['Content-Security-Policy']!;
     expect(directiveSources(policy, 'script-src')).toContain('https://apis.google.com');
     expect(directiveSources(policy, 'connect-src')).toEqual([
@@ -52,6 +52,7 @@ describe('S3 header and supply-chain boundaries', () => {
       'https://identitytoolkit.googleapis.com',
       'https://securetoken.googleapis.com',
       'https://firestore.googleapis.com',
+      'https://apis.google.com',
     ]);
     expect(directiveSources(policy, 'frame-src')).toEqual(["'self'"]);
     expect(policy).not.toContain('accounts.google.com');

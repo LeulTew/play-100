@@ -595,15 +595,13 @@ Production only, after promotion; preview origins are referrer-blocked.
 
    The Console must show no CSP violation, and the helper's inline script must
    run (sign-in completes).
-3. In the main document after each return, with the R24 policy (Google only in
-   script-src; see [security](security.md#headers-auth-proxy-and-supply-chain)):
-   - from `apis.google.com`, Network shows only the scripts `/js/api.js` and
-     the `gapi.iframes` module, with no fetch or XHR;
+3. In the main document after each return, with the R24 policy (frame-src
+   `'self'` only; see [security](security.md#headers-auth-proxy-and-supply-chain)):
    - the only frame is the app's own `/__/auth/iframe`;
-   - the Console shows no CSP violation, except possibly one blocked
-     `connect-src` request to `https://apis.google.com/js/gen_204`. That is
-     gapi's sampled telemetry ping, blocked by design; any other violation
-     fails the smoke.
+   - requests to `apis.google.com` are its scripts (`/js/api.js` and the
+     `gapi.iframes` module) and, rarely, gapi's `/js/gen_204` telemetry ping,
+     which connect-src allows;
+   - the Console shows no CSP violation.
 4. `curl -i -X POST https://play-100-collection.vercel.app/__/auth/handler`
    returns 405 with `Allow: GET, HEAD`. `curl -I` on both documents returns 200
    with the headers above and a fresh nonce. HEAD does not fetch the upstream

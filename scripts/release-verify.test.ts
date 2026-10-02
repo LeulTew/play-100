@@ -60,28 +60,19 @@ describe('deployed release verification, without network', () => {
     ).toBe(false);
   });
 
-  it('keeps Google to the gapi script host, failing either unused host even if declared locally', () => {
-    const name = 'CSP excludes the unused Google connect and frame hosts';
+  it('fails a main CSP that frames accounts.google.com, even if declared locally', () => {
     const check = (headers: Record<string, string>) =>
-      compareDocumentHeaders(new Headers(headers), headers).find((entry) => entry.name === name);
-    expect(check(policy)).toMatchObject({
-      pass: true,
-      measured: { connectsToGapi: false, framesGoogleAccounts: false },
-    });
+      compareDocumentHeaders(new Headers(headers), headers).find(
+        (entry) => entry.name === 'CSP excludes the Google accounts frame host',
+      );
+    expect(check(policy)).toMatchObject({ pass: true, measured: { framesGoogleAccounts: false } });
     const csp = policy['content-security-policy']!;
-    expect(csp).toContain("script-src 'self' https://apis.google.com");
-    for (const [from, to, measured] of [
-      [
-        'https://firestore.googleapis.com;',
-        'https://firestore.googleapis.com https://apis.google.com;',
-        'connectsToGapi',
-      ],
-      ["frame-src 'self';", "frame-src 'self' https://accounts.google.com;", 'framesGoogleAccounts'],
-    ] as const) {
-      expect(csp).toContain(from);
-      const wrong = { ...policy, 'content-security-policy': csp.replace(from, to) };
-      expect(check(wrong)).toMatchObject({ pass: false, measured: { [measured]: true } });
-    }
+    expect(csp).toContain("frame-src 'self';");
+    const wrong = {
+      ...policy,
+      'content-security-policy': csp.replace("frame-src 'self';", "frame-src 'self' https://accounts.google.com;"),
+    };
+    expect(check(wrong)).toMatchObject({ pass: false, measured: { framesGoogleAccounts: true } });
   });
 
   it.each([null, {}, { headers: [] }])('rejects incomplete header policy %#', (value) => {
