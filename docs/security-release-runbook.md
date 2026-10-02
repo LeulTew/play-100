@@ -516,6 +516,11 @@ matches the table, and read the saved conditions back.
 
 ### App Check, monitor first
 
+**Reviewed 2026-10-02: not adopted.** App Check stays off; the decision, its
+rationale and its revisit triggers are in
+[security](security.md#dated-h14-black-box-evidence-and-accepted-risks). The
+steps below apply if a revisit adopts it.
+
 Spark-compatible with the reCAPTCHA v3 provider (no Firebase billing).
 
 1. reCAPTCHA admin console: create a **v3** key for

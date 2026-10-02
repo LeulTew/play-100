@@ -254,6 +254,45 @@ that prerequisite and enabling protection remain owner decisions. Existing
 enumeration protection, password policy and rules controls do not remove the
 accepted abuse risk.
 
+**Review decision, 2026-10-02 (the review due above).** App Check stays off
+and reCAPTCHA Auth protection stays not set up: the accepted risk above is
+renewed, still owned by the project owner. The WAF switch is tracked
+separately, in the runbook. Readback, about 00:43Z (operator-held receipt
+`firebase-config-readback-20261002.txt`, secrets redacted, SHA-256
+`0d5b16534dee4620b7f3279181f28de97383834e3d13ed56a40380b991c8b576`):
+- App Check is not enabled: the Firebase App Check API has no enabled
+  service in the project. No production client can send a token either: the
+  build refuses `VITE_APP_CHECK_ENABLED` while the main CSP lacks App Check's
+  sources, which it does.
+- The project is on Spark, so abuse can exhaust the free quotas, a denial of
+  service, but cannot run up a bill.
+- The browser key allows only Cloud Firestore, Identity Toolkit and Token
+  Service, and only from the production and `firebaseapp.com` referrers. It is
+  unchanged since the 2026-10-01 owner decision. Email enumeration protection
+  is on.
+
+Rationale: the rules admit writes only from signed-in accounts, almost all only
+from verified ones, to their own documents or through per-account quotas. So
+automated abuse needs many accounts and gains only what each account may do
+anyway; what it can still cause is the quota denial of service above.
+Enforcing App Check would refuse every request without a token, which today is
+every client, including installed and cached older versions, until each
+updates. The runbook's monitor-first path, a token-sending client observed for
+at least seven days before enforcement, therefore comes first. reCAPTCHA v3
+would also add Google scripts and cookies, widen the CSP that R24 just
+narrowed, and need a Data Use change. Email/password Auth protection needs the
+Identity Platform upgrade as well.
+
+Revisit when any of these happens:
+- an abuse signal: unexplained growth in sign-ups, sign-ins, reads or writes, a
+  Spark quota warning or exhaustion, or rule denials at unusual volume;
+- the project moves to Blaze, where quota abuse becomes cost;
+- a new Firebase product or API is added to the browser key, or a new write
+  path opens to accounts;
+- the owner adopts the Identity Platform upgrade.
+
+Otherwise review again by 2027-01-02.
+
 **Sign-up enumeration (accepted risk, R9).** Creating an account with an email
 that is already registered fails with `auth/email-already-in-use`, which
 `src/cloud/errors.ts` maps to its own message and the online session's email
