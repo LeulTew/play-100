@@ -18,25 +18,27 @@
    pointer between press and release, and the click was lost
    (unified-search.spec.ts, after a reload).
    A reserve holds the place of a card the landing has yet to render (its second
-   pass on a constrained device, CollectionPage) at the card's estimated size. */
+   pass on a constrained device, CollectionPage) at the card's estimated size.
+   Estimates are rendered content-box medians rounded to 10px. The containment
+   guard measures both pointer modes; narrow labelled Pin controls can add a row. */
 @media screen {
   .games-grid > .game-card:nth-child(n + 5),
   .games-grid > .game-card-reserve {
     content-visibility: auto;
-    contain-intrinsic-block-size: 430px;
+    contain-intrinsic-block-size: 390px;
   }
   .games-list > .game-card:nth-child(n + 5),
   .games-list > .game-card-reserve {
     content-visibility: auto;
-    contain-intrinsic-block-size: 170px;
+    contain-intrinsic-block-size: 180px;
   }
   .discovery-cards-grid > .discovery-card:nth-child(n + 6) {
     content-visibility: auto;
-    contain-intrinsic-block-size: 400px;
+    contain-intrinsic-block-size: 440px;
   }
   .discovery-cards-list > .discovery-card:nth-child(n + 5) {
     content-visibility: auto;
-    contain-intrinsic-block-size: 220px;
+    contain-intrinsic-block-size: 170px;
   }
   .games > .game-card[data-compare-dragging],
   .discovery-cards > .discovery-card[data-compare-dragging] {
@@ -46,25 +48,62 @@
     contain: size;
   }
 }
+@media screen and (min-width: 1600px) {
+  .games-grid > .game-card:nth-child(n + 5),
+  .games-grid > .game-card-reserve {
+    contain-intrinsic-block-size: 440px;
+  }
+}
+@media screen and (min-width: 1350px) {
+  .discovery-cards-grid > .discovery-card:nth-child(n + 6) {
+    contain-intrinsic-block-size: 420px;
+  }
+}
 @media screen and (min-width: 761px) and (max-width: 1150px) {
   .games-grid > .game-card:nth-child(n + 5),
   .games-grid > .game-card-reserve {
+    contain-intrinsic-block-size: 400px;
+  }
+  .discovery-cards-grid > .discovery-card:nth-child(n + 6) {
     contain-intrinsic-block-size: 400px;
   }
 }
 @media screen and (max-width: 760px) {
   .games-grid > .game-card:nth-child(n + 5),
   .games-grid > .game-card-reserve {
-    contain-intrinsic-block-size: 370px;
+    contain-intrinsic-block-size: 380px;
+  }
+  .games-list > .game-card:nth-child(n + 5),
+  .games-list > .game-card-reserve {
+    contain-intrinsic-block-size: 170px;
+  }
+  .discovery-cards-grid > .discovery-card:nth-child(n + 6) {
+    contain-intrinsic-block-size: 380px;
+  }
+}
+@media screen and (min-width: 381px) and (max-width: 760px) and (pointer: coarse) {
+  .games-grid > .game-card:nth-child(n + 5),
+  .games-grid > .game-card-reserve {
+    contain-intrinsic-block-size: 430px;
+  }
+  .games-list > .game-card:nth-child(n + 5),
+  .games-list > .game-card-reserve {
+    contain-intrinsic-block-size: 220px;
+  }
+}
+@media screen and (max-width: 380px) {
+  .games-grid > .game-card:nth-child(n + 5),
+  .games-grid > .game-card-reserve {
+    contain-intrinsic-block-size: 400px;
   }
   .games-list > .game-card:nth-child(n + 5),
   .games-list > .game-card-reserve {
     contain-intrinsic-block-size: 240px;
   }
   .discovery-cards-grid > .discovery-card:nth-child(n + 6) {
-    contain-intrinsic-block-size: 420px;
+    contain-intrinsic-block-size: 360px;
   }
   .discovery-cards-list > .discovery-card:nth-child(n + 5) {
-    contain-intrinsic-block-size: 280px;
+    contain-intrinsic-block-size: 220px;
   }
 }
