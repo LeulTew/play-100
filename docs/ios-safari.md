@@ -204,6 +204,28 @@ The 100 failure. That production HTML identity is
 not the fixed candidate. A production/candidate mismatch must not be
 misreported as a TypeScript conversion regression.
 
+## Touch UX evidence status
+
+[Run 36966798400](https://github.com/LeulTew/play-100/actions/runs/36966798400)
+tested the same fixed candidate HTML identity with harness `b195d516`.
+All four devices passed the original eight steps and hold-to-drag reordering,
+including the exact swapped IDs/titles after reload. The observed stationary
+holds were 631 ms on SE/iOS 18.5, 597 ms on Pro Max/iOS 18.5, 624 ms on
+SE/iOS 26.2 and 629 ms on Pro Max/iOS 26.2. Trusted event traces and
+`09-queue-observed.json` distinguish a delivered hold from an interpolated
+gesture that starts moving immediately.
+
+The SE on both runtimes and Pro Max on iOS 26.2 passed native sharing,
+dismissal and no-fallback assertions. Pro Max/iOS 18.5 reached
+`ActivityListView` before its presentation finished; its screenshot showed
+the dimmed app, while the sheet's dismissal controls had not arrived.
+The harness now waits for those native controls before capturing and dismissing.
+That synchronization change passed the typed inventory gate in
+[run 36970334659](https://github.com/LeulTew/play-100/actions/runs/36970334659),
+but the candidate's DNS failed before simulator jobs could run.
+This is partial evidence, not a green four-device expanded suite.
+Google outbound was neutrally skipped on the temporary origin, as described above.
+
 ## Devices and runtimes
 
 The inventory job selects the newest stable Xcode installed on the image,
