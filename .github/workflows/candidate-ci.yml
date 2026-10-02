@@ -4,6 +4,9 @@ name: Candidate CI
 # rules and cloud-UI suites against the Firebase emulators, and Lighthouse on the production build. It complements the
 # local release gate and does not replace it (docs/release-operations.md, "Candidate CI runs").
 on:
+  # Temporary, to register the new inputs from this branch; every job is skipped on push.
+  push:
+    branches: [leultew-r24-candidate-ci]
   workflow_dispatch:
     inputs:
       sha:
@@ -57,6 +60,7 @@ permissions:
 jobs:
   run:
     name: ${{ inputs.suite }} ${{ inputs.project }} @ ${{ inputs.sha }}
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
