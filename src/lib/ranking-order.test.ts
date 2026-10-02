@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { applyPersonalAction, createLibraryBackup, emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
+import {
+  applyPersonalAction,
+  createLibraryBackup,
+  emptyPersonalLibrary,
+  parsePersonalLibrary,
+} from './personal-library';
 import { parseLibraryBackup } from './backup-restore';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from './personal-types';
 
