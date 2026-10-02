@@ -423,7 +423,8 @@ describe('first-paint boot gate', () => {
 
   it.each([
     ['display width', { ...ACCEPTED_PROBES, 'p100-probe-display': { width: 700, height: 120 } }],
-    ['display width above the range', { ...ACCEPTED_PROBES, 'p100-probe-display': { width: 616, height: 120 } }],
+    ['display width above the range', { ...ACCEPTED_PROBES, 'p100-probe-display': { width: 617.5, height: 120 } }],
+    ['display width below the range', { ...ACCEPTED_PROBES, 'p100-probe-display': { width: 601.5, height: 120 } }],
     ['sans width above the range', { ...ACCEPTED_PROBES, 'p100-probe-sans': { width: 942, height: 130 } }],
     ['sans width', { ...ACCEPTED_PROBES, 'p100-probe-sans': { width: 900, height: 130 } }],
     ['bold height', { ...ACCEPTED_PROBES, 'p100-probe-sans-bold': { width: 1303, height: 133 } }],
@@ -463,6 +464,26 @@ describe('first-paint boot gate', () => {
       },
     ],
   ])('shows the shell with the Roboto fallback faces (%s)', (_, probes) => {
+    expect(boot({ probes })).toEqual({ 'data-boot-art': 'pending', 'data-boot': 'landing' });
+  });
+
+  // Chromium on Linux (ubuntu-latest, no Impact) lays glyphs out on whole CSS pixels at any device pixel ratio,
+  // so Liberation Sans Bold measures the display string at 616.00, above the ±1% the other faces keep.
+  it.each([
+    [
+      'Liberation, as measured on Linux CI',
+      {
+        'p100-probe-display': { width: 616, height: 120 },
+        'p100-probe-sans': { width: 931, height: 130 },
+        'p100-probe-sans-bold': { width: 1306, height: 130 },
+      },
+    ],
+    [
+      'the lower whole-pixel bound',
+      { ...ACCEPTED_PROBES, 'p100-probe-display': { width: 602.6, height: 120 } },
+    ],
+    ['the upper whole-pixel bound', { ...ACCEPTED_PROBES, 'p100-probe-display': { width: 616.6, height: 120 } }],
+  ])('shows the shell with the Arial faces laid out on whole pixels (%s)', (_, probes) => {
     expect(boot({ probes })).toEqual({ 'data-boot-art': 'pending', 'data-boot': 'landing' });
   });
 
