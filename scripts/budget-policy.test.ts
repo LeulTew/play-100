@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { PWA_BUDGET } from '../src/pwa/worker.ts';
@@ -6,12 +7,15 @@ import type { BudgetLimits } from './check-budgets.ts';
 import {
   WORKER_LIMITS,
   budgetPolicyProblems,
+  latestReleaseCommit,
   parseBudgetRaises,
   parseBudgetRelease,
   policyCap,
   recordBudgetRelease,
+  releaseRecordProblems,
   reportMeasurements,
 } from './budget-policy.ts';
+import type { ReleaseHistory } from './budget-policy.ts';
 
 const committed = JSON.parse(readFileSync(new URL('../budgets.json', import.meta.url), 'utf8')) as Record<
   string,
@@ -115,6 +119,69 @@ describe('budget cap policy', () => {
     delete partial.eagerCombinedGzipBytes;
     expect(budgetPolicyProblems({ ...budgets(), release: { ...budgets().release, measured: partial } })).toEqual([
       'budgets.json release.measured must give every budget metric as a whole number of bytes or files.',
+    ]);
+  });
+});
+
+describe('the release record against the last production release', () => {
+  const root = new URL('..', import.meta.url);
+  const git = (...args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: 'pipe' });
+  const succeeds = (...args: string[]) => {
+    try {
+      git(...args);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const repository: ReleaseHistory = {
+    exists: (sha) => succeeds('cat-file', '-e', `${sha}^{commit}`),
+    isAncestor: (ancestor, sha) => succeeds('merge-base', '--is-ancestor', ancestor, sha),
+  };
+
+  it('keeps the record the release in docs/releases.md shipped, or a newer measurement', () => {
+    const shippedCommit = latestReleaseCommit(readFileSync(new URL('docs/releases.md', root), 'utf8'));
+    expect(
+      repository.exists(shippedCommit),
+      `${shippedCommit} (docs/releases.md) is missing: fetch the full history`,
+    ).toBe(true);
+    const shipped: unknown = JSON.parse(git('show', `${shippedCommit}:budgets.json`));
+    expect(releaseRecordProblems(committed, shipped, repository)).toEqual([]);
+  });
+
+  it('reads the commit of the first release section of the ledger', () => {
+    const sha = (digit: string) => digit.repeat(40);
+    const ledger = `# Release ledger\n\n| Commit | \`${sha('0')}\` |\n\n## Release 2: x\n\n| Field | Value |\n| Commit | \`${sha('2')}\` (tree x) |\n\n## Release 1: x\n\n| Commit | \`${sha('1')}\` |\n`;
+    expect(latestReleaseCommit(ledger)).toBe(sha('2'));
+    expect(() => latestReleaseCommit('# Release ledger\n\n## Release 1\n\n| Commit | `abc` |\n')).toThrow(
+      'no release section',
+    );
+  });
+
+  const shipped = budgets();
+  const newer = { ...budgets(), release: { ...shipped.release, name: 'R2', commit: 'b'.repeat(40) } };
+  const history = (known: boolean, older: boolean): ReleaseHistory => ({
+    exists: () => known,
+    isAncestor: () => older,
+  });
+
+  it('refuses an edited copy of the shipped record', () => {
+    expect(releaseRecordProblems(shipped, shipped, history(true, false))).toEqual([]);
+    const edited = { ...shipped, release: { ...shipped.release, measured: limits({ cssRawBytes: 1100 }) } };
+    expect(releaseRecordProblems(edited, shipped, history(true, false))).toEqual([
+      `budgets.json release R1 differs from the record the latest release shipped (R1, ${commit}). Record a new measurement with npm run budgets:record instead of editing it.`,
+    ]);
+    const renamed = { ...shipped, release: { ...shipped.release, name: 'R2' } };
+    expect(releaseRecordProblems(renamed, shipped, history(true, false))).toHaveLength(1);
+  });
+
+  it('accepts a newer measurement of a real commit, and refuses an unknown or older one', () => {
+    expect(releaseRecordProblems(newer, shipped, history(true, false))).toEqual([]);
+    expect(releaseRecordProblems(newer, shipped, history(false, false))).toEqual([
+      `budgets.json release R2 names ${'b'.repeat(40)}, which is not in this repository.`,
+    ]);
+    expect(releaseRecordProblems(newer, shipped, history(true, true))).toEqual([
+      `budgets.json release R2 measures ${'b'.repeat(40)}, older than the shipped measurement R1 (${commit}).`,
     ]);
   });
 });

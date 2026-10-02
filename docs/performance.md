@@ -26,7 +26,10 @@ Caps only move down.
 ([`scripts/budget-policy.ts`](../scripts/budget-policy.ts)). It fails when a cap is above the cap set from the
 release, or above the release's measurement plus the margin, unless a raise allows it; when a raise lacks its
 measurement or reason, or lets a cap exceed that measurement plus the margin; and when the offline worker limits
-differ from `PWA_BUDGET`.
+differ from `PWA_BUDGET`. It also reads the commit of the latest release in [`docs/releases.md`](releases.md) and,
+with `git show`, the `budgets.json` that release shipped: the committed `release` record must equal the shipped one, or
+name a newer measurement of a commit in the repository, so the record the caps are judged against can't be quietly
+edited. The test needs the full history, not a shallow clone.
 
 ## Keeping bytes down
 

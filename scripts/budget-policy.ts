@@ -138,6 +138,50 @@ export function budgetPolicyProblems(input: unknown): string[] {
   return problems;
 }
 
+/** The commit of the latest production release in docs/releases.md: the Commit row of its first release section. */
+export function latestReleaseCommit(ledger: string): string {
+  const section = ledger.split(/^## /m).find((part) => /^Release \d+/.test(part));
+  const commit = section?.match(/^\| Commit \| `([0-9a-f]{40})`/m)?.[1];
+  if (!commit) throw new Error('docs/releases.md has no release section with a full Commit row.');
+  return commit;
+}
+
+export interface ReleaseHistory {
+  /** Whether `commit` is in the repository. */
+  readonly exists: (commit: string) => boolean;
+  /** Whether `ancestor` is `commit` or one of its ancestors. */
+  readonly isAncestor: (ancestor: string, commit: string) => boolean;
+}
+
+/**
+ * Holds the committed release record to the one the latest production release shipped (its budgets.json), so the
+ * ratchet can't be loosened by editing the record. The same release must keep the shipped record byte for byte; a
+ * newer one needs a new name and a measured commit that exists and is not older than the shipped measurement.
+ */
+export function releaseRecordProblems(committed: unknown, shipped: unknown, history: ReleaseHistory): string[] {
+  let current: BudgetRelease;
+  let before: BudgetRelease;
+  try {
+    current = parseBudgetRelease(committed);
+    before = parseBudgetRelease(shipped);
+  } catch (cause) {
+    return [cause instanceof Error ? cause.message : String(cause)];
+  }
+  if (current.name === before.name || current.commit === before.commit)
+    return JSON.stringify(current) === JSON.stringify(before)
+      ? []
+      : [
+          `budgets.json release ${current.name} differs from the record the latest release shipped (${before.name}, ${before.commit}). Record a new measurement with npm run budgets:record instead of editing it.`,
+        ];
+  if (!history.exists(current.commit))
+    return [`budgets.json release ${current.name} names ${current.commit}, which is not in this repository.`];
+  if (history.isAncestor(current.commit, before.commit))
+    return [
+      `budgets.json release ${current.name} measures ${current.commit}, older than the shipped measurement ${before.name} (${before.commit}).`,
+    ];
+  return [];
+}
+
 /** The measurements of a `check:budgets --json` report of a clean, configured, passing build. */
 export function reportMeasurements(report: unknown): { commit: string; measured: BudgetLimits } {
   if (!object(report) || report.schemaVersion !== 1 || !Array.isArray(report.budgets))
