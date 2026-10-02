@@ -4,7 +4,8 @@
 
 The complete collection is independent of the sculpture. The static original
 SVG is visible before WebGL is loaded and remains the fallback. The Three.js
-module is a separate chunk, loaded after visibility/idle checks. Auto considers
+module is a separate chunk, loaded after visibility/idle checks and once scrolling
+has paused for 300 ms, so its start-up never lands mid-scroll. Auto considers
 available device/connection hints; Full requests the enhancement; Lite removes
 effects. The operating system's reduced-motion preference takes priority and
 is observed while the page is open.
