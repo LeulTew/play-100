@@ -27,8 +27,11 @@ function context(voiceOver: VoiceOverPlaywright, page: Page, journal: SpeechJour
       journal.step(`${label}: activate Chrome`, [], await voiceOver.spokenPhraseLog());
     },
     reportFocus: async () => {
-      await voiceOver.perform(voiceOver.keyboardCommands.describeItemWithKeyboardFocus, FULL);
-      return { keys: ['VO+F4'], label: 'describe the focused item (VO+F4)' };
+      // VO+F4 describes focus but left VoiceOver swallowing the next Escape in Chrome, so leave and re-enter the control.
+      await voiceOver.press('Shift+Tab', FULL);
+      await delay(400);
+      await voiceOver.press('Tab', FULL);
+      return { keys: ['Shift+Tab', 'Tab'], label: 'leave and return to the focused item (Shift+Tab, Tab)' };
     },
   };
 }
