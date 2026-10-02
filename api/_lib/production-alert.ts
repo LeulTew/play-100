@@ -4,11 +4,15 @@ import { isUnknownArray, nullableObject } from '../../src/lib/guards.js';
 /*
  * Client report spike alerts (docs/release-operations.md, "Client report alerts"). Each function instance counts the
  * reports it accepted over a rolling hour. Without a fine-grained PRODUCTION_ALERT_GITHUB_TOKEN none of this runs.
- * With one, a report that leaves a count at or over its threshold posts to the one open issue labelled ALERT_LABEL,
- * at most once per instance per hour, and that report's response waits for the post, within ALERT_BUDGET_MS. A post
- * carries fixed report categories, counts, the window and the deployment ID, nothing else.
+ * With one, a report that leaves a count at or over its threshold posts to the one open issue labelled ALERT_LABEL
+ * that the token's owner opened, and that report's response waits for the post, within ALERT_BUDGET_MS. An instance
+ * tries at most once an hour, and a post is skipped while the owner's newest spike post is under an hour old, so
+ * instances together post about once an hour. A new issue is locked. A post carries fixed report categories, counts,
+ * the window and the deployment ID, nothing else.
  */
-export const ALERT_REPOSITORY = 'LeulTew/play-100';
+/** The token's owner, who owns the repository. The repository is public: posts by anyone else never count. */
+export const ALERT_OWNER = 'LeulTew';
+export const ALERT_REPOSITORY = `${ALERT_OWNER}/play-100`;
 export const ALERT_LABEL = 'client-report-spike';
 export const ALERT_TITLE = 'Production alert: client error or CSP report spike';
 /** Opens every post, so the hourly production-alert workflow can tell spike posts from its own comments. */
@@ -38,7 +42,13 @@ const ROWS = 10;
 const TOKEN = /^github_pat_[A-Za-z0-9_]{20,255}$/;
 const DEPLOYMENT = /^dpl_[A-Za-z0-9]{1,64}$/;
 
-export type AlertOutcome = { alert: 'created' | 'commented' | 'duplicate' } | { alert: 'failed'; alertStatus: number };
+/**
+ * `cooldown`: the owner's newest spike post is under an hour old. `unlocked`: the issue was opened, but GitHub refused
+ * to lock it (alertStatus); the hourly workflow locks it.
+ */
+export type AlertOutcome =
+  | { alert: 'created' | 'commented' | 'duplicate' | 'cooldown' }
+  | { alert: 'failed' | 'unlocked'; alertStatus: number };
 /** Records one accepted report and returns the post it started, or null. The promise never rejects. */
 export type ReportAlert<T> = (report: T) => Promise<AlertOutcome> | null;
 
@@ -133,9 +143,16 @@ class GitHubFailure extends Error {
   }
 }
 
-async function github(request: typeof fetch, token: string, signal: AbortSignal, path: string, body?: object) {
+async function github(
+  request: typeof fetch,
+  token: string,
+  signal: AbortSignal,
+  method: 'GET' | 'POST' | 'PUT',
+  path: string,
+  body?: object,
+) {
   const response = await request(`https://api.github.com/repos/${ALERT_REPOSITORY}${path}`, {
-    method: body ? 'POST' : 'GET',
+    method,
     headers: {
       Accept: 'application/vnd.github+json',
       Authorization: `Bearer ${token}`,
@@ -147,7 +164,7 @@ async function github(request: typeof fetch, token: string, signal: AbortSignal,
     redirect: 'error',
     signal,
   });
-  if (!response.ok || body) {
+  if (!response.ok || method === 'PUT') {
     await response.body?.cancel().catch(() => undefined);
     if (!response.ok) throw new GitHubFailure(response.status);
     return null;
@@ -155,7 +172,20 @@ async function github(request: typeof fetch, token: string, signal: AbortSignal,
   return (await response.json()) as unknown;
 }
 
-/** Comments on the open labelled issue, or opens it, unless the issue already has this exact text. Never rejects. */
+const failureStatus = (cause: unknown) => (cause instanceof GitHubFailure ? cause.status : 0);
+const byOwner = (item: Record<string, unknown>) => {
+  const login = nullableObject(item.user)?.login;
+  return typeof login === 'string' && login.toLowerCase() === ALERT_OWNER.toLowerCase();
+};
+const isSpikePost = (post: Record<string, unknown>) =>
+  typeof post.body === 'string' && post.body.split(/\r?\n/, 1)[0] === ALERT_MARKER;
+const postedAt = (post: Record<string, unknown>) =>
+  typeof post.created_at === 'string' ? Date.parse(post.created_at) : Number.NaN;
+
+/**
+ * Comments on the owner's open labelled issue, or opens and locks one. It skips a post the issue already has, and any
+ * post while the owner's newest spike post is under an hour old. Never rejects.
+ */
 export async function postAlert(
   request: typeof fetch,
   token: string,
@@ -164,27 +194,39 @@ export async function postAlert(
 ): Promise<AlertOutcome> {
   const budget = new AbortController();
   const timer = setTimeout(() => budget.abort(), ALERT_BUDGET_MS);
-  const signal = budget.signal;
+  const call = (method: 'GET' | 'POST' | 'PUT', path: string, payload?: object) =>
+    github(request, token, budget.signal, method, path, payload);
   try {
-    const open = await github(request, token, signal, `/issues?state=open&labels=${ALERT_LABEL}&per_page=1`);
-    const issue = isUnknownArray(open) ? nullableObject(open[0]) : null;
-    const number = issue?.number;
-    if (!issue || typeof number !== 'number') {
-      await github(request, token, signal, '/issues', { title: ALERT_TITLE, body, labels: [ALERT_LABEL] });
+    const open = await call('GET', `/issues?state=open&labels=${ALERT_LABEL}&creator=${ALERT_OWNER}&per_page=10`);
+    // Newest first; the workflow closes any older one. Issues anyone else opened never count.
+    const issue = (isUnknownArray(open) ? open : [])
+      .map((item) => nullableObject(item))
+      .find((item) => item !== null && item.pull_request === undefined && byOwner(item));
+    if (!issue || typeof issue.number !== 'number') {
+      const created = nullableObject(await call('POST', '/issues', { title: ALERT_TITLE, body, labels: [ALERT_LABEL] }));
+      try {
+        // Locked, only collaborators can comment on it.
+        if (typeof created?.number !== 'number') throw new GitHubFailure(0);
+        await call('PUT', `/issues/${created.number}/lock`);
+      } catch (cause) {
+        return { alert: 'unlocked', alertStatus: failureStatus(cause) };
+      }
       return { alert: 'created' };
     }
-    // Posts come at most hourly per instance, and the workflow closes the issue after a quiet day.
+    // Instances try at most hourly, and the workflow closes the issue after a quiet day.
     const since = encodeURIComponent(new Date(time - 25 * ALERT_WINDOW_MS).toISOString());
-    const comments = await github(request, token, signal, `/issues/${number}/comments?since=${since}&per_page=100`);
-    const texts = [
-      issue.body,
-      ...(isUnknownArray(comments) ? comments.map((comment) => nullableObject(comment)?.body) : []),
-    ];
-    if (texts.includes(body)) return { alert: 'duplicate' };
-    await github(request, token, signal, `/issues/${number}/comments`, { body });
+    const comments = await call('GET', `/issues/${issue.number}/comments?since=${since}&per_page=100`);
+    const posts = [issue, ...(isUnknownArray(comments) ? comments.map((comment) => nullableObject(comment)) : [])]
+      .filter((post) => post !== null)
+      .filter(byOwner);
+    if (posts.some((post) => post.body === body)) return { alert: 'duplicate' };
+    // One post an hour across instances, so forged reports reaching each new instance can't post more often.
+    const latest = Math.max(...posts.filter(isSpikePost).map(postedAt).filter(Number.isFinite));
+    if (time - latest < ALERT_COOLDOWN_MS) return { alert: 'cooldown' };
+    await call('POST', `/issues/${issue.number}/comments`, { body });
     return { alert: 'commented' };
   } catch (cause) {
-    return { alert: 'failed', alertStatus: cause instanceof GitHubFailure ? cause.status : 0 };
+    return { alert: 'failed', alertStatus: failureStatus(cause) };
   } finally {
     clearTimeout(timer);
   }
@@ -198,7 +240,8 @@ function spikeSender(endpoint: string, options: AlertOptions) {
   let posted = Number.NEGATIVE_INFINITY;
   return (breach: Breach): Promise<AlertOutcome> | null => {
     const time = now();
-    // One post per instance per hour, failed or not; a clock that moved backwards ends the wait rather than extending it.
+    // One attempt per instance per hour, failed or not; postAlert also waits out the owner's newest post. A clock that
+    // moved backwards ends the wait rather than extending it.
     if (time >= posted && time - posted < ALERT_COOLDOWN_MS) return null;
     posted = time;
     return postAlert(request, token, alertBody(endpoint, breach, time, options.deploymentId), time);

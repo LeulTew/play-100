@@ -51,11 +51,41 @@ interface Recorded {
   body: unknown;
 }
 
-/** GitHub's issue endpoints as the alert uses them, recording every request. */
+interface FakePost {
+  /** Defaults to the token's owner. */
+  login?: string;
+  /** Defaults to a day before T0. */
+  createdAt?: string;
+  body: string;
+}
+const iso = (time: number) => new Date(time).toISOString();
+const spikePost = (createdAt: string, login?: string): FakePost => ({
+  login,
+  createdAt,
+  body: `${ALERT_MARKER}\nAn earlier spike.`,
+});
+
+/**
+ * GitHub's issue endpoints as the alert uses them, recording every request. New issues and comments are the owner's,
+ * created at `now`, and later requests see them, so several instances can share one fake repository.
+ */
 function fakeGitHub(
-  options: { openIssue?: { number: number; body: string }; comments?: string[]; fail?: number | 'network' } = {},
+  options: {
+    issues?: Array<FakePost & { number: number; pullRequest?: boolean }>;
+    comments?: FakePost[];
+    fail?: number | 'network';
+    lockStatus?: number;
+    now?: () => number;
+  } = {},
 ) {
   const requests: Recorded[] = [];
+  const issues = [...(options.issues ?? [])];
+  const comments = [...(options.comments ?? [])];
+  const json = ({ login = 'LeulTew', createdAt = iso(T0 - 24 * 60 * MINUTE), body }: FakePost) => ({
+    user: { login, type: login.endsWith('[bot]') ? 'Bot' : 'User' },
+    created_at: createdAt,
+    body,
+  });
   const request = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     const method = init?.method ?? 'GET';
@@ -68,14 +98,33 @@ function fakeGitHub(
     });
     if (options.fail === 'network') throw new TypeError('fetch failed');
     if (options.fail) return new Response('{}', { status: options.fail });
+    const now = iso(options.now?.() ?? T0);
+    const text = (body as { body: string } | undefined)?.body ?? '';
     if (method === 'GET' && url.pathname === `${repo}/issues`)
-      return Response.json(options.openIssue ? [options.openIssue] : []);
-    if (method === 'GET' && url.pathname.endsWith('/comments'))
-      return Response.json((options.comments ?? []).map((text) => ({ body: text })));
-    if (method === 'POST') return Response.json({ number: 7 }, { status: 201 });
+      return Response.json(
+        // Newest first, as GitHub lists them.
+        [...issues]
+          .sort((a, b) => b.number - a.number)
+          .map((issue) => ({ number: issue.number, ...json(issue), ...(issue.pullRequest ? { pull_request: {} } : {}) })),
+      );
+    if (method === 'GET' && url.pathname.endsWith('/comments')) return Response.json(comments.map(json));
+    if (method === 'POST' && url.pathname === `${repo}/issues`) {
+      issues.push({ number: 7, createdAt: now, body: text });
+      return Response.json({ number: 7 }, { status: 201 });
+    }
+    if (method === 'POST' && url.pathname.endsWith('/comments')) {
+      comments.push({ createdAt: now, body: text });
+      return Response.json({ id: comments.length }, { status: 201 });
+    }
+    if (method === 'PUT' && url.pathname.endsWith('/lock')) return new Response(null, { status: options.lockStatus ?? 204 });
     return new Response('{}', { status: 404 });
   });
-  return { fetch: request as typeof fetch, requests, posts: () => requests.filter(({ method }) => method === 'POST') };
+  return {
+    fetch: request as typeof fetch,
+    requests,
+    posts: () => requests.filter(({ method }) => method === 'POST'),
+    locks: () => requests.filter(({ method }) => method === 'PUT').map(({ path }) => path),
+  };
 }
 
 const clientReport = (errorClass: ClientErrorCount['errorClass'], area: ClientErrorCount['area'], count = 1) => ({
@@ -153,13 +202,15 @@ describe('client report alert counts', () => {
 });
 
 describe('client report alert posts', () => {
-  it('comments on the one open labelled issue and never repeats a comment the issue has', async () => {
-    const existing = fakeGitHub({ openIssue: { number: 12, body: 'An earlier spike.' } });
+  const lookup = `GET ${repo}/issues?state=open&labels=${ALERT_LABEL}&creator=LeulTew&per_page=10`;
+
+  it('comments on the owner’s open labelled issue and never repeats a post the owner made', async () => {
+    const existing = fakeGitHub({ issues: [{ number: 12, body: 'An earlier spike.' }] });
     const alert = createCspAlert({ token, now: () => T0, fetch: existing.fetch, deploymentId: 'dpl_abc123' })!;
     await expect(alert(violation('/', 3))).resolves.toEqual({ alert: 'commented' });
     const since = encodeURIComponent(new Date(T0 - 25 * 60 * MINUTE).toISOString());
     expect(existing.requests.map(({ method, path }) => `${method} ${path}`)).toEqual([
-      `GET ${repo}/issues?state=open&labels=${ALERT_LABEL}&per_page=1`,
+      lookup,
       `GET ${repo}/issues/12/comments?since=${since}&per_page=100`,
       `POST ${repo}/issues/12/comments`,
     ]);
@@ -167,8 +218,8 @@ describe('client report alert posts', () => {
     expect(Object.keys(posted)).toEqual(['body']);
 
     for (const repeat of [
-      fakeGitHub({ openIssue: { number: 12, body: 'An earlier spike.' }, comments: [posted.body] }),
-      fakeGitHub({ openIssue: { number: 12, body: posted.body } }),
+      fakeGitHub({ issues: [{ number: 12, body: 'An earlier spike.' }], comments: [{ body: posted.body }] }),
+      fakeGitHub({ issues: [{ number: 12, body: posted.body }] }),
     ]) {
       const again = createCspAlert({ token, now: () => T0, fetch: repeat.fetch, deploymentId: 'dpl_abc123' })!;
       await expect(again(violation('/', 3))).resolves.toEqual({ alert: 'duplicate' });
@@ -176,15 +227,77 @@ describe('client report alert posts', () => {
     }
   });
 
-  it('opens the labelled issue when none is open', async () => {
+  it('ignores issues and posts by anyone but the token’s owner', async () => {
+    const strangers = fakeGitHub({
+      issues: [
+        { number: 31, login: 'someone-else', body: 'Labelled by a collaborator.' },
+        { number: 30, pullRequest: true, body: 'A pull request with the label.' },
+      ],
+    });
+    const alert = createCspAlert({ token, now: () => T0, fetch: strangers.fetch, deploymentId: 'dpl_abc123' })!;
+    await expect(alert(violation('/', 3))).resolves.toEqual({ alert: 'created' });
+    const text = (strangers.posts()[0]!.body as { body: string }).body;
+
+    // On the owner's issue, another author's copy of the post, or of a recent spike marker, changes nothing.
+    const forged = fakeGitHub({
+      issues: [{ number: 12, body: 'An earlier spike.' }],
+      comments: [
+        { login: 'someone-else', createdAt: iso(T0 - MINUTE), body: text },
+        spikePost(iso(T0 - MINUTE), 'someone-else'),
+        spikePost(iso(T0 - MINUTE), 'github-actions[bot]'),
+      ],
+    });
+    const again = createCspAlert({ token, now: () => T0, fetch: forged.fetch, deploymentId: 'dpl_abc123' })!;
+    await expect(again(violation('/', 3))).resolves.toEqual({ alert: 'commented' });
+  });
+
+  it('waits an hour after the owner’s newest spike post, across instances', async () => {
+    let time = T0;
+    const github = fakeGitHub({ now: () => time });
+    const instance = () => createCspAlert({ token, now: () => time, fetch: github.fetch })!;
+    await expect(instance()(violation('/', 3))).resolves.toEqual({ alert: 'created' });
+    // New instances, as after a cold start or a scale-out, each reaching the threshold.
+    time += 10 * MINUTE;
+    await expect(instance()(violation('/', 3))).resolves.toEqual({ alert: 'cooldown' });
+    time = T0 + 60 * MINUTE - 1;
+    await expect(instance()(violation('/', 3))).resolves.toEqual({ alert: 'cooldown' });
+    time = T0 + 60 * MINUTE;
+    await expect(instance()(violation('/', 3))).resolves.toEqual({ alert: 'commented' });
+    time += 30 * MINUTE;
+    await expect(instance()(violation('/', 3))).resolves.toEqual({ alert: 'cooldown' });
+    expect(github.posts().map(({ path }) => path)).toEqual([`${repo}/issues`, `${repo}/issues/7/comments`]);
+
+    // Only the owner's spike posts start the wait: not a note, a quoted post or the workflow's acknowledgement.
+    const notes = fakeGitHub({
+      issues: [{ number: 12, body: `${ALERT_MARKER}\nAn earlier spike.` }],
+      comments: [
+        { createdAt: iso(T0 - MINUTE), body: 'Looking into it.' },
+        { createdAt: iso(T0 - MINUTE), body: `> ${ALERT_MARKER}\n> An earlier spike.` },
+        { login: 'github-actions[bot]', createdAt: iso(T0 - MINUTE), body: '<!-- client-report-spike-seen: x -->' },
+        spikePost(iso(T0 - 60 * MINUTE)),
+      ],
+    });
+    const later = createCspAlert({ token, now: () => T0, fetch: notes.fetch })!;
+    await expect(later(violation('/', 3))).resolves.toEqual({ alert: 'commented' });
+  });
+
+  it('opens and locks the labelled issue when the owner has none open', async () => {
     const github = fakeGitHub();
     const alert = createCspAlert({ token, now: () => T0, fetch: github.fetch })!;
     await expect(alert(violation('/', 3))).resolves.toEqual({ alert: 'created' });
-    expect(github.posts()).toHaveLength(1);
+    expect(github.requests.map(({ method, path }) => `${method} ${path}`)).toEqual([
+      lookup,
+      `POST ${repo}/issues`,
+      `PUT ${repo}/issues/7/lock`,
+    ]);
     const created = github.posts()[0]!;
-    expect(created.path).toBe(`${repo}/issues`);
     expect(created.body).toMatchObject({ title: ALERT_TITLE, labels: [ALERT_LABEL] });
     expect(Object.keys(created.body as object).sort()).toEqual(['body', 'labels', 'title']);
+
+    const refused = fakeGitHub({ lockStatus: 403 });
+    const unlocked = createCspAlert({ token, now: () => T0, fetch: refused.fetch })!;
+    await expect(unlocked(violation('/', 3))).resolves.toEqual({ alert: 'unlocked', alertStatus: 403 });
+    expect(refused.posts()).toHaveLength(1);
   });
 
   it('posts only fixed categories, counts, the window and the deployment', async () => {
