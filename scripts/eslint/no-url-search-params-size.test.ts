@@ -78,10 +78,13 @@ describe('play100/no-url-search-params-size', () => {
     ).toEqual([]);
   });
 
-  it('is enabled as an error for TypeScript sources by the repository config', async () => {
-    const config = (await new ESLint({ cwd: root }).calculateConfigForFile(path.join(root, 'src/App.tsx'))) as {
-      rules: Record<string, unknown>;
-    };
-    expect(config.rules['play100/no-url-search-params-size']).toEqual([2]);
+  it('is enabled as an error for the browser sources by the repository config, and not for Node code', async () => {
+    const eslint = new ESLint({ cwd: root });
+    const rule = async (file: string) =>
+      ((await eslint.calculateConfigForFile(path.join(root, file))) as { rules: Record<string, unknown> }).rules[
+        'play100/no-url-search-params-size'
+      ];
+    expect(await rule('src/App.tsx')).toEqual([2]);
+    expect(await rule('api/catalog-detail.ts')).toBeUndefined();
   });
 });

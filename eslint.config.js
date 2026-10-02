@@ -34,7 +34,8 @@ export default tseslint.config(
   },
   {
     // Type-aware: older supported engines read URLSearchParams#size as undefined (scripts/eslint/no-url-search-params-size.ts).
-    files: ['**/*.{ts,tsx}'],
+    // Only the browser code in src; api/, functions/ and scripts/ run on Node 24, where it is defined.
+    files: ['src/**/*.{ts,tsx}'],
     plugins: { play100: play100Plugin },
     rules: { 'play100/no-url-search-params-size': 'error' },
   },
