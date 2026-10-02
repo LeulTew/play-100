@@ -231,6 +231,15 @@ Depth belongs to the overlapping numbered jackets and the optional sculptural ar
 
 The real Three.js canvas is a lazy enhancement with the original SVG still as its useful fallback. Explicit **Auto / Full / Lite** choices remain available. Do not keep animation loops running offscreen, in hidden documents or against system reduced-motion preferences. A quality choice never gates search, filtering, details or private tracking.
 
+If the post-paint illustration module fails, the same stage holds a small,
+embedded chalk-and-lime sleeve motif, not an empty illustrated view. Its name
+and caption become **Static sleeve motif / Art unavailable**. The graphic uses
+the existing absolute still frame and palette, with no additional asset requests
+or motion; the footer retains its height until the viewport width changes. A
+later successful illustration or 3D frame replaces it and restores the
+corresponding caption. Failure is never cached as a successfully loaded empty
+component.
+
 Settings shows a motion choice immediately while saving it, without disabling
 the focused radio during that save. The latest choice made while saving is saved next.
 A failed save restores the saved choice and announces the failure in Settings.

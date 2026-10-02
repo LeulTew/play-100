@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { AfterFirstPaint } from './AfterFirstPaint';
 import type { CollectionSceneHandle } from './scene/CollectionScene';
@@ -6,11 +6,52 @@ import { createMemoizedModule } from '../lib/memoized-module';
 import './scene/artifact.css';
 
 const sceneModule = createMemoizedModule(() => import('./scene/CollectionScene'));
-// The decorative still is a chunk of its own, loaded once the first paint is out (AfterFirstPaint). Without it the
-// stage shows only its own background, so a failed load leaves it at that.
-const ArtifactStill = lazy<ComponentType<{ fanned: boolean }>>(() =>
-  import('./scene/ArtifactStill').catch(() => ({ default: () => null })),
-);
+
+interface IllustrationState {
+  component: ComponentType<{ fanned: boolean }> | null;
+  failed: boolean;
+}
+
+export function DeferredArtifactStill({ onLoad }: { onLoad: (state: IllustrationState) => void }) {
+  useEffect(() => {
+    let current = true;
+    void import('./scene/ArtifactStill').then(
+      ({ default: component }) => {
+        if (current) onLoad({ component, failed: false });
+      },
+      (error: unknown) => {
+        if (!current) return;
+        console.error('The collection illustration could not load. A static sleeve motif is shown instead.', error);
+        onLoad({ component: null, failed: true });
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [onLoad]);
+  return null;
+}
+
+function SleeveMotif() {
+  return (
+    <svg
+      className="artifact-still"
+      data-artifact-fallback=""
+      viewBox="0 0 600 360"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <g stroke="var(--ink)" strokeWidth="2" strokeLinejoin="round">
+        <path d="m112 236 220-62 154 84-220 62Z" fill="var(--wash)" />
+        <path d="m112 216 220-62 154 84-220 62Z" fill="var(--paper)" />
+        <path d="m112 196 220-62 154 84-220 62Z" fill="var(--lime)" />
+        <path d="m246 206 61-18-22 43Z" fill="var(--ink)" stroke="none" />
+      </g>
+    </svg>
+  );
+}
+
 const REQUESTED_SCENE_IDLE_TIMEOUT_MS = 150;
 
 export interface CollectionArtifactProps {
@@ -59,7 +100,9 @@ export default function CollectionArtifact({
   const hostRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const footerRef = useRef<HTMLElement>(null);
+  const releaseFooterRef = useRef<(() => void) | null>(null);
   const sceneRef = useRef<CollectionSceneHandle | null>(null);
+  const [illustration, setIllustration] = useState<IllustrationState>({ component: null, failed: false });
   const [fanned, setFanned] = useState(false);
   const fannedRef = useRef(false);
   // The pose the illustration shows and a new scene first renders. A request made before a scene is on screen is left
@@ -80,6 +123,36 @@ export default function CollectionArtifact({
   const canInteract = motionAllowed && state.status !== 'fallback';
   const showing = canRender && state.ready;
   const sceneQuality = quality === 'full' ? 'full' : 'auto';
+
+  // A shorter fallback caption or removed Fan out control must not shift the collection below it.
+  const holdFooterHeight = useCallback(() => {
+    const footer = footerRef.current;
+    if (!footer) return;
+    const height = footer.getBoundingClientRect().height;
+    releaseFooterRef.current?.();
+    footer.style.minHeight = `${height}px`;
+    const heldWidth = window.innerWidth;
+    const release = () => {
+      window.removeEventListener('resize', resize);
+      footer.style.minHeight = '';
+      releaseFooterRef.current = null;
+    };
+    const resize = () => {
+      if (heldWidth !== window.innerWidth) release();
+    };
+    window.addEventListener('resize', resize);
+    releaseFooterRef.current = release;
+  }, []);
+
+  const onIllustrationLoad = useCallback(
+    (next: IllustrationState) => {
+      if (next.failed) holdFooterHeight();
+      setIllustration(next);
+    },
+    [holdFooterHeight],
+  );
+
+  useEffect(() => () => releaseFooterRef.current?.(), []);
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
@@ -108,7 +181,6 @@ export default function CollectionArtifact({
     const root = rootRef.current;
     const host = hostRef.current;
     const stage = stageRef.current;
-    const footer = footerRef.current;
     if (!root || !host || !stage) return;
     root.dataset.frameCount = '0';
     setState({ ready: false, status: canRender ? 'waiting' : 'static', reason: null });
@@ -124,7 +196,6 @@ export default function CollectionArtifact({
     let idleId: number | null = null;
     let timerId: number | null = null;
     let observer: IntersectionObserver | null = null;
-    let heldWidth: number | null = null;
 
     const isActive = () => visible && document.visibilityState !== 'hidden';
 
@@ -133,22 +204,6 @@ export default function CollectionArtifact({
       if (timerId !== null) window.clearTimeout(timerId);
       idleId = null;
       timerId = null;
-    }
-
-    // Removing Fan out and changing the caption must not move the page, so the footer keeps its
-    // pre-fallback height until the viewport width changes.
-    function holdFooterHeight() {
-      if (!footer) return;
-      footer.style.minHeight = `${footer.getBoundingClientRect().height}px`;
-      heldWidth = window.innerWidth;
-      window.addEventListener('resize', releaseFooterHeight);
-    }
-
-    function releaseFooterHeight() {
-      if (!cancelled && heldWidth === window.innerWidth) return;
-      heldWidth = null;
-      window.removeEventListener('resize', releaseFooterHeight);
-      if (footer) footer.style.minHeight = '';
     }
 
     function fallback(reason: string) {
@@ -264,7 +319,7 @@ export default function CollectionArtifact({
 
     return () => {
       cancelled = true;
-      releaseFooterHeight();
+      releaseFooterRef.current?.();
       requestSceneRef.current = null;
       cancelScheduledLoad();
       observer?.disconnect();
@@ -278,10 +333,12 @@ export default function CollectionArtifact({
         setStillFanned(fannedRef.current);
       }
     };
-  }, [canRender, sceneQuality]);
+  }, [canRender, sceneQuality, holdFooterHeight]);
 
   const renderMode = showing ? 'webgl' : 'static';
   const status = !canRender ? 'static' : state.status;
+  const Still = illustration.component;
+  const motifShown = illustration.failed && !showing;
   // One caption until the view settles: waiting for and loading the 3D scene both read as the illustration they show.
   const explanation = motionReduced
     ? 'Illustrated view · reduced motion'
@@ -303,21 +360,21 @@ export default function CollectionArtifact({
       data-scene-status={status}
       data-fanned={canInteract && fanned}
       data-activation={canInteract ? (needsInteraction ? 'on-demand' : 'automatic') : 'static'}
+      aria-label={motifShown ? 'Static sleeve motif' : undefined}
       aria-describedby={captionId}
     >
       <div ref={stageRef} className="artifact-stage" aria-hidden="true">
         {/* Decorative and absolutely positioned: it paints after the first screen's text, and moves nothing. */}
         <AfterFirstPaint>
-          <Suspense fallback={null}>
-            <ArtifactStill fanned={canInteract && stillFanned} />
-          </Suspense>
+          <DeferredArtifactStill onLoad={onIllustrationLoad} />
+          {Still ? <Still fanned={canInteract && stillFanned} /> : illustration.failed ? <SleeveMotif /> : null}
         </AfterFirstPaint>
         <div ref={hostRef} className="artifact-canvas" />
       </div>
       <figcaption ref={footerRef} className="artifact-footer">
         <div id={captionId} className="artifact-caption">
-          <span className="artifact-caption-title">The 100 game sleeves</span>
-          <span className="artifact-status">{explanation}</span>
+          <span className="artifact-caption-title">{motifShown ? 'Static sleeve motif' : 'The 100 game sleeves'}</span>
+          <span className="artifact-status">{motifShown ? 'Art unavailable' : explanation}</span>
         </div>
         {canInteract && (
           <button
