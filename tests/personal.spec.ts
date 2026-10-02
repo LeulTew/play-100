@@ -84,7 +84,7 @@ test('ratings table shows native scales, missing values and reversible column so
 test('bulk selection updates queue, completion and own ranking without changing author ranks', async ({ page }) => {
   // This journey selects the three collection games, not late-arriving public-catalog matches.
   await page.goto('/?catalogs=off');
-  await expect(page.getByRole('checkbox', { name: 'Search public catalogs', exact: true })).not.toBeChecked();
+  await expect(page.getByLabel('Search public catalogs', { exact: true })).not.toBeChecked();
   await page.getByRole('searchbox').fill('Mass Effect');
   await expect(page.locator('.game-card')).toHaveCount(3);
   await page.getByRole('button', { name: 'Select multiple games', exact: true }).click();
