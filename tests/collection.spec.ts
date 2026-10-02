@@ -95,7 +95,8 @@ test('search and real filters survive reload and browser history', async ({ page
   await expect(page.locator('.game-card h3')).toHaveText('Mass Effect 2');
   await page.getByRole('button', { name: 'Reset filters', exact: true }).click();
   await openBrowsingFilters(page);
-  await page.getByLabel('Genre', { exact: true }).selectOption('Open-world / Action-Adventure');
+  await page.getByText('Exact source genre', { exact: true }).click();
+  await page.getByLabel('Exact genre label', { exact: true }).selectOption('Open-world / Action-Adventure');
   await page.getByLabel('Year', { exact: true }).selectOption('2018');
   await expect(page.locator('.game-card')).toHaveCount(1);
   await expect(page.locator('.game-card h3')).toHaveText(firstTitle);
@@ -477,6 +478,22 @@ test('collection request failure is recoverable, not a success-shaped empty list
   await page.unroute('**/data/collection.json');
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(page.locator('.game-card')).toHaveCount(24);
+});
+
+// A constrained device renders the films and workbook in the landing's second pass, which follows a failed load's
+// notice as it follows the first cards (landing-passes.ts).
+test('a failed collection load on a constrained device still shows the films and workbook', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 2 });
+  });
+  await page.route('**/data/collection.json', (route) => route.fulfill({ status: 503, body: 'Unavailable' }));
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: "The collection couldn't load." })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-constrained', '');
+  await expect(page.locator('.workbook-section')).toBeAttached();
+  await expect(page.locator('#collection-films')).toBeAttached();
+  await expect(page.locator('.first-paint-reserve')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Download the workbook, XLSX', exact: true })).toBeAttached();
 });
 
 test('Lite and live system reduced-motion settings always retain functional browsing', async ({ page }) => {

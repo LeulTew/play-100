@@ -75,6 +75,7 @@ export interface Filters {
   genre: string;
   year: string;
   tier: 'all' | 'core' | 'essential';
+  genreFamily?: import('./discovery-genres.js').DiscoveryGenreFamily | '';
   list: ListFilter;
   sort: SortOrder;
   direction: SortDirection;

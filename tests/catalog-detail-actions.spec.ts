@@ -195,13 +195,16 @@ test('enabling public details receives the rating-blur click and waits for its s
     expect(await activation.evaluate((probe) => probe.read())).toEqual({ clicks: 1, stillUnderPointer: true });
     await expect(dialog.locator('.detail-share-notice')).toHaveText('Saving changes…');
     await expect(dialog.locator('.detail-share-notice')).toHaveAttribute('role', 'status');
-    await expect(rating).toBeDisabled();
+    await expect(rating).toHaveAttribute('readonly');
+    await expect(rating).toHaveAttribute('aria-disabled', 'true');
+    await expect(rating).not.toHaveAttribute('disabled');
     await expect(enable).toBeEnabled();
     await expect(page).toHaveURL(original);
     expect(requests).toEqual([]);
     await held.evaluate((probe) => probe.release());
     await expect(enable).toHaveCount(0);
     await expect(rating).toBeEnabled();
+    await expect(rating).not.toHaveAttribute('readonly');
     await expect.poll(() => requests.length).toBeGreaterThan(0);
     const expectedUrl = new URL(original);
     expectedUrl.searchParams.delete('catalogs');

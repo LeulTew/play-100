@@ -26,21 +26,91 @@ Caps only move down.
 ([`scripts/budget-policy.ts`](../scripts/budget-policy.ts)). It fails when a cap is above the cap set from the
 release, or above the release's measurement plus the margin, unless a raise allows it; when a raise lacks its
 measurement or reason, or lets a cap exceed that measurement plus the margin; and when the offline worker limits
-differ from `PWA_BUDGET`.
+differ from `PWA_BUDGET`. It also reads the commit of the latest release in [`docs/releases.md`](releases.md) and,
+with `git show`, the `budgets.json` that release shipped: the committed `release` record must equal the shipped one, or
+name a newer measurement of a commit in the repository, so the record the caps are judged against can't be quietly
+edited. The same release may name another commit only as a provenance alias of the same tree: every other field must
+match byte for byte, `release.tree` must be the alias's tree and the shipped commit's (or, when the shipped commit
+isn't in the clone, a tree the latest release section of the ledger records), and the alias must be reachable from
+HEAD. The test needs the full history, not a shallow clone.
 
 ## Keeping bytes down
 
 - **CSS.** Before adding a rule, check whether one already sets the value: a base rule, a shorter media query that
   already covers the width, or a later rule in `shared-responsive.css`. Delete styles with the markup they style.
   `npx tsx scripts/css-unused.ts` lists classes that no source file produces.
+- **Generated data.** Every page loads the cards' cover sizes
+  ([`cover-sizes.json`](../src/generated/cover-sizes.json), written by `npm run prepare:assets`). They are a list
+  indexed by rank, not an object keyed by slug, whose slugs took four fifths of its bytes.
 - **Chunks.** Rolldown chooses the chunks. The `app-shared` group in [`vite.config.ts`](../vite.config.ts) keeps the
   entry's whole static closure in one chunk, so already-eager modules are not split into small chunks of their own,
-  without adding steering imports to that eager closure. The deferred
-  [`OnlineController`](../src/cloud/OnlineController.tsx) does retain three bare
-  imports to preserve named offline-core entry chunks for idle-preloaded tools;
-  `online-bridge-closure.test.ts` guards that requirement.
-  [`scripts/app-shared-chunk.ts`](../scripts/app-shared-chunk.ts) lists
-  the modules that anchor it; dynamic imports stay separate, and the eager-module guard checks that boundary.
+  without adding steering imports to that eager closure.
+  [`scripts/app-shared-chunk.ts`](../scripts/app-shared-chunk.ts) lists the modules that anchor it; dynamic imports
+  stay separate, and the eager-module guard checks that boundary. A second group gives the idle-preloaded tools that the
+  deferred online bridge also loads statically named chunks (`google-intent`, and `comparison-tools` for the two
+  comparison modules, which always load together), so the offline core can precache them; without it Rolldown folds
+  them into an unnamed shared chunk. [`scripts/preloaded-tool-chunks.ts`](../scripts/preloaded-tool-chunks.ts) lists
+  them and finds their facade-less manifest entries, and `online-bridge-closure.test.ts` fails when the bridge loads a
+  preloaded tool it leaves out.
+- **Lazy-only code.** A module in the entry's static closure ships in `app-shared` with every export that any chunk
+  imports from it, so code that only lazily loaded pages use costs every page while it shares a module with code every
+  page needs. Restoring a backup ([`backup-restore.ts`](../src/lib/backup-restore.ts)), Discover's result matching
+  ([`catalog-matches.ts`](../src/lib/catalog-matches.ts)), the ranking picker
+  ([`catalog-picker.ts`](../src/lib/catalog-picker.ts)), result paging
+  ([`local-pagination.ts`](../src/lib/local-pagination.ts)) and My games' artwork
+  ([`useDiscoveryArtwork.ts`](../src/hooks/useDiscoveryArtwork.ts)) are modules of their own for that reason. Each
+  one's importers already share a lazy chunk, so it joins that chunk instead of adding a file to the offline core.
+  [`deferred-module-policy.ts`](../src/lib/deferred-module-policy.ts) lists them with the other deferred modules: the
+  build fails when one is eager, and a unit test follows the entry's static imports to find it before a build. Code
+  only the online pages use stays in `app-shared` for now, since moving it adds it to the online routes, the largest of
+  which is at its cap.
+- **Dialogs.** The 100's game detail ([`GameDetail`](../src/components/GameDetail.tsx)) ships in the catalog detail's
+  chunk rather than the eager bundle or a chunk of its own. A page warms that chunk before a detail opens: at idle on
+  every device class (not with Save-Data or on 2G), on a pointer, focus or press on a game link,
+  and beside the collection for a linked game ([`DialogHost`](../src/components/app/DialogHost.tsx)). A detail that
+  opens before its module has loaded shows the catalog detail's pending dialog after 300 ms; one that opens after renders
+  in its first commit, as before. The rating input both details share with Discover and the ranking stays in
+  `app-shared` ([`app-shared-chunk.ts`](../scripts/app-shared-chunk.ts)).
+
+## Eager JavaScript plan
+
+Every page loads React 19 and React DOM, about 69 KB gzip9, and the app's eager closure from
+[`src/main.tsx`](../src/main.tsx) before its first paint. In R24, before the cuts above, that came to 157,799 bytes of
+JavaScript and 175,359 with CSS, over the 174,803 cap; R22 shipped 155,764 and 173,072. Splitting out lazy-only code and
+indexing the cover sizes took about 1.9 KB back, and The 100's game detail about 1.7 KB more: 154,208 and 171,768 in a
+configured build, 1,556 and 1,304 under R22. The steps below continue in order. Estimates are each module's own
+minified gzip9 size; the bundle saves somewhat less, and a configured build's `npm run check:budgets` confirms each step.
+
+| Order | Step | Out of the eager bundle | Estimate |
+| ---: | --- | --- | ---: |
+| 1 | The Menu loads with the credits | `MenuDialog` | 2.0 KB |
+| 2 | Compare's drag controller loads before a drag can start | `compare-drag-controller.ts` | 4.1 KB |
+| 3 | Online-only code moves to the online chunks | parts of `cloud-types.ts` and `personal-db.ts`, invite continuation, `authPanelPurposes` | 1.2 KB |
+| 4 | The 100's catalog identities travel with the collection data | `collection-identities.ts` | 1.5 KB |
+| 5 | One-time library migrations load only when old data exists | `migrateLegacyLibrary` | 0.3 KB |
+
+1. **The Menu.** It opens only from the Menu buttons, which already warm the credits and Settings
+   ([`secondary-dialogs.ts`](../src/lib/secondary-dialogs.ts)). Loaded in the credits' chunk, it adds no file to the
+   offline core, but the panel's loading and failure notices then need wording of their own for the Menu, and a Menu
+   that opens before its chunk has loaded waits one request.
+2. **Compare's drag controller.** Every page builds it with the tray binding, but it runs only once a drag or a Pin
+   starts. A mouse drag must be prepared on its pointer down (`draggable`), so the module has to load before that: on a
+   pointer over or focus on a drag source, at idle, and when the tray first holds a game, with Pin falling back to the
+   store until then. It needs a chunk, so a file of the offline core, and the drag tests in
+   [`compare-drag.spec.ts`](../tests/compare-drag.spec.ts) to verify it.
+3. **Online-only code.** Account and friend storage, sync labels, snapshot limits, invite continuation and the sign-in
+   panel's purposes are used only by the online pages. Moving them adds about 1 KB to every online route, the largest of
+   which is within 200 bytes of `largestRouteGzipBytes`, so it pairs with a trim there or a recorded raise.
+4. **Catalog identities.** The map from public catalog IDs to The 100's games could travel with the collection data,
+   but the compare tray and extended search read it before the collection loads and would then wait for it.
+5. **Migrations.** `migrateLegacyLibrary` converts a pre-IndexedDB library once per device. Reading the legacy key
+   before the write transaction would let the migration load only when one exists.
+
+React 19 and React DOM stay: the startup work relies on transitions and external stores, and React ships no smaller
+build. The five steps estimate 9.1 KB on their own, about 7.5 KB in the bundle, which would take the eager JavaScript to
+about 147 KB. Two small files stay eager whatever the order: Rolldown's runtime helpers, a 428-byte chunk that the
+`app-shared` group cannot capture, and the entry's facade, its import and Vite's module preload polyfill in about 415
+bytes, which Rolldown has no option to fold into `app-shared`.
 
 ## Low-end phones
 
@@ -86,7 +156,8 @@ What changed for those phones (R24):
   `resize-observer-loop.spec.ts` replays the visit without `URLSearchParams.size`.
 
 Measured on 2 October 2026 under that profile. Before is live production (Release 7); after is the integrated R24
-build after the typed Windows PWA check repair, served locally with production headers. Playwright's Chromium gives medians of five first visits
+build after the typed Windows PWA check repair (tree `7d23b21610e81728ae72a2764fb7d964a0756101`),
+served locally with production headers. Playwright's Chromium gives medians of five first visits
 per build; Chromium 106.0.5249, the phone's engine, driven over the DevTools protocol, one visit per build:
 
 | Metric | Before | After | Change | Chromium 106, before → after |
@@ -111,7 +182,8 @@ runs as two tasks of 250–300 ms, about a second after it.
 
 ## R22 figures
 
-Configured build of the R22 candidate (tree `63c5500d`, after the Played-toggle test scoping repair), the release figures, which `budgets.json`
+Configured build of the R22 candidate (main commit `352117813fde9bf9233e3347abaed1eb2d7ee8c1`,
+tree `63c5500d4de6a602954a10b686a3519c06095861`), the release figures, which `budgets.json`
 records as `release`. Every figure was within its cap, 14 of 14. R23 applied the policy to them, lowering four caps:
 
 | Metric | Measured | Cap at R22 | Cap from R23 |
@@ -134,7 +206,8 @@ records as `release`. Every figure was within its cap, 14 of 14. R23 applied the
 Eager is 155,764 bytes of JavaScript and 17,308 of CSS, gzip9; the offline build measures 172,978. The offline core is
 44 public files plus 2 metadata entries.
 
-R22 itself lowered the caps on an intermediate tree (with the first `app-shared` group and the CSS
+R22 itself lowered the caps on the tree of main commit `64460f7aaab842e5fae295d19bc07fd79799d595`
+(with the first `app-shared` group and the CSS
 removals), where they stayed until R23. App CSS lost 1,731 bytes (180 gzip9) by removing rules and declarations that
 never applied and merging rules written twice, and each cap with room dropped to its measurement there plus the
 margin:
@@ -155,7 +228,8 @@ margin:
 | `largestRouteGzipBytes` | 279,529 | 282,325 |
 
 That tree's eager total was over its cap: R22 had added about 2.9 KB of eager JavaScript gzip9 (156,053 to 158,913).
-The candidate brought it back under the unchanged cap with two changes: deferred saved artwork and consolidated eager dependencies. Beyond The 100's saved additions
+The candidate brought it back under the unchanged cap with two changes in main
+commit `69da09cc65b6e2027a362b0d6e311dfab78d5218`: deferred saved artwork and consolidated eager dependencies. Beyond The 100's saved additions
 load their artwork through the existing dynamic catalog module instead of a static hook import. The `app-shared`
 group takes the entry's whole static closure (`includeDependenciesRecursively`), so the eager code ships as the
 entry, `app-shared` and the Rolldown runtime rather than as separate shared chunks. `budgets.json` `notes.r22` and

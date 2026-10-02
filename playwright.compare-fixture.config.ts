@@ -1,10 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
-import { localGateOptions } from './scripts/playwright-env';
+import { localGateOptions, sourceMetadata } from './scripts/playwright-env';
 
 // Allocates the six-person comparison fixture for tests-cloud-ui/compare-orientation.spec.ts in the running cloud-UI
 // emulators through the cloud-test app on 4187 (docs/release-operations.md §3). It writes only the manifest that
 // PLAY100_COMPARE_FIXTURE names; the same global setup verifies the server and seeds the emulator metadata first.
 export default defineConfig({
+  metadata: sourceMetadata(process.env),
   testDir: './tests-cloud-ui',
   testMatch: /compare-fixture\.setup\.ts$/,
   globalSetup: './tests-cloud-ui/global-setup.ts',

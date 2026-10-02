@@ -1,4 +1,5 @@
-import { formatResultRange, getLocalPage } from '../lib/local-pagination';
+import { getLocalPage } from '../lib/local-pagination';
+import { formatResultRange } from '../lib/result-range';
 import './local-pager.css';
 
 export interface LocalPagerProps {

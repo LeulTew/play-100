@@ -33,7 +33,7 @@ $roots = @(
   [Environment]::GetFolderPath('DesktopDirectory'),
   [Environment]::GetFolderPath('CommonDesktopDirectory')
 ) | Select-Object -Unique
-$matches = @(
+$appShortcuts = @(
   foreach ($root in $roots) {
     if (-not (Test-Path -LiteralPath $root)) { continue }
     foreach ($file in Get-ChildItem -LiteralPath $root -Filter '*.lnk' -Recurse -File) {
@@ -49,4 +49,4 @@ $matches = @(
     }
   }
 )
-ConvertTo-Json -InputObject $matches -Compress
+ConvertTo-Json -InputObject $appShortcuts -Compress

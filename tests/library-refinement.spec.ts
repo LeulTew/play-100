@@ -113,8 +113,9 @@ test('Escape from an unranked preview commits a pending rating and metadata with
   await expect(saved).toBeDisabled();
 });
 
-test('leaving after a failed autosave does not retry the rejected edit or overwrite the committed score', async ({
+test('leaving after a failed rating save does not retry the rejected edit or overwrite the committed score', async ({
   page,
+  isMobile,
 }) => {
   await page.clock.install();
   await prepareRanking(page);
@@ -131,6 +132,8 @@ test('leaving after a failed autosave does not retry the rejected edit or overwr
     document.documentElement.dataset.rejectExitSave = 'yes';
   });
   await page.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).fill('9');
+  if (isMobile)
+    await page.getByRole('spinbutton', { name: `Your rating / 10 for ${a.title}`, exact: true }).press('Enter');
   await expect(page.locator('.ranking-row-content .inline-error')).toContainText('could not be saved');
   const attempts = await page.evaluate(() => document.documentElement.dataset.exitWriteAttempts);
   await page.goBack();
@@ -155,7 +158,7 @@ test('library removal requires confirmation, deletes all selected private state 
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('button', { name: 'Keep game', exact: true })).toBeFocused();
   await expect(dialog).toContainText(
-    'its saved entry, Play later position, played/completed marks, personal rating and note',
+    'its saved entry, Play later position, Played and Completed marks, personal rating and note',
   );
   await dialog.getByRole('button', { name: 'Keep game', exact: true }).click();
   expect(await readLibrary(page)).toEqual(before);
@@ -200,7 +203,7 @@ test('bulk removal handles mixed imported and original games without deleting an
   await expect(dialog.locator('.removal-games li')).toHaveCount(2);
   await expect(dialog.getByRole('button', { name: 'Keep games', exact: true })).toBeFocused();
   await expect(dialog).toContainText(
-    'their saved entries, Play later positions, played/completed marks, personal ratings and notes',
+    'their saved entries, Play later positions, Played and Completed marks, personal ratings and notes',
   );
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(
     true,

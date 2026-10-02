@@ -833,3 +833,9 @@ html[data-motion='off']
     opacity: 1;
   }
 }
+@media (max-height: 500px) {
+  .site-header {
+    min-height: 56px;
+    padding-block: 6px;
+  }
+}

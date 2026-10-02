@@ -11,12 +11,14 @@ export function RemoveRankingDialog({
   busy,
   onAction,
   onClose,
+  getFallbackFocus,
 }: {
   record: LibraryRecord;
   state: PersonalLibraryState;
   busy: boolean;
   onAction: (action: PersonalAction) => Promise<boolean>;
   onClose: () => void;
+  getFallbackFocus?: () => HTMLElement | null;
 }) {
   const { scope } = useLibraryMode();
   const reviewedScope = useRef(scope);
@@ -101,6 +103,7 @@ export function RemoveRankingDialog({
       descriptionId={descriptionId}
       className="info-dialog ranking-removal-dialog"
       onClose={close}
+      getFallbackFocus={getFallbackFocus}
     >
       <h2 id={titleId}>Remove {record.title} from ranking?</h2>
       <p id={descriptionId}>

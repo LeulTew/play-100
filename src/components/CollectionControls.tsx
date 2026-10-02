@@ -9,6 +9,7 @@ import { SelectField } from './SelectField';
 import { ProgressFilter } from './ProgressFilter';
 import { effectiveProgressFilter, progressFilterPatch } from '../lib/game-progress';
 import { BrowseFilters } from './BrowseFilters';
+import { DISCOVERY_GENRE_FAMILIES, parseDiscoveryGenreFamily } from '../lib/discovery-genres';
 
 interface CollectionControlsProps {
   games: Game[];
@@ -92,13 +93,14 @@ export function CollectionControls({
   const activeFilters = Boolean(
     filters.q ||
     filters.genre ||
+    filters.genreFamily ||
     filters.year ||
     filters.tier !== 'all' ||
     filters.list !== 'all' ||
     progress !== 'all',
   );
   const secondaryCount = [
-    Boolean(filters.genre),
+    Boolean(filters.genre || filters.genreFamily),
     Boolean(filters.year),
     filters.tier !== 'all',
     filters.list !== 'all',
@@ -192,21 +194,18 @@ export function CollectionControls({
           </div>
         )}
         <div className="search-and-filters">
-          <SelectField id="genre-filter" label="Genre" value={filters.genre} onChange={(genre) => onChange({ genre })}>
+          <SelectField
+            id="genre-filter"
+            label="Genre"
+            value={filters.genreFamily ?? ''}
+            onChange={(value) => onChange({ genreFamily: parseDiscoveryGenreFamily(value), genre: '' })}
+          >
             <option value="">All genres</option>
-            {filters.genre && ![...genres.curated, ...genres.saved].includes(filters.genre) && (
-              <option value={filters.genre}>{filters.genre} (not loaded)</option>
-            )}
-            {genres.curated.map((genre) => (
-              <option key={genre}>{genre}</option>
+            {DISCOVERY_GENRE_FAMILIES.map(({ id, label }) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
             ))}
-            {genres.saved.length > 0 && (
-              <optgroup label="Saved additions">
-                {genres.saved.map((genre) => (
-                  <option key={genre}>{genre}</option>
-                ))}
-              </optgroup>
-            )}
           </SelectField>
           <SelectField
             id="year-filter"
@@ -260,6 +259,30 @@ export function CollectionControls({
             {filters.sort === 'rank-index' && <option value="rank-index">Legacy rank-derived index</option>}
           </SelectField>
         </div>
+        <details className="discovery-help" open={Boolean(filters.genre)}>
+          <summary>Exact source genre</summary>
+          <SelectField
+            id="exact-genre-filter"
+            label="Exact genre label"
+            value={filters.genre}
+            onChange={(genre) => onChange({ genre, genreFamily: '' })}
+          >
+            <option value="">All source labels</option>
+            {filters.genre && ![...genres.curated, ...genres.saved].includes(filters.genre) && (
+              <option value={filters.genre}>{filters.genre} (not loaded)</option>
+            )}
+            {genres.curated.map((genre) => (
+              <option key={genre}>{genre}</option>
+            ))}
+            {genres.saved.length > 0 && (
+              <optgroup label="Saved additions">
+                {genres.saved.map((genre) => (
+                  <option key={genre}>{genre}</option>
+                ))}
+              </optgroup>
+            )}
+          </SelectField>
+        </details>
         <div className="search-scope">
           <label className="check-control">
             <input
@@ -342,7 +365,7 @@ export function CollectionControls({
       <div className="collection-extra-actions">
         <button className="text-button" onClick={onSelectMode}>
           <Icon name="select" width="18" height="18" />
-          {selecting ? 'Exit selection mode' : 'Select multiple games'}
+          {selecting ? 'Done selecting' : 'Select multiple games'}
         </button>
         <a className="text-button" href="/downloads/Play-100-Collection.xlsx" download>
           <Icon name="download" width="18" height="18" />

@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createPwaController, preparePwaUpdate, pwaInstallAvailability, trustedPwaWorker } from './client';
+import {
+  createPwaController,
+  preparePwaUpdate,
+  pwaInstallAvailability,
+  sendPwaRequest,
+  trustedPwaWorker,
+} from './client';
 
 const updateLoad = vi.hoisted(() => {
   let release: () => void = () => {};
@@ -77,11 +83,11 @@ class FakeRegistration extends EventTarget {
   update = vi.fn(async () => {});
 }
 
-function fixture(pathname = '/') {
+function fixture(pathname = '/', controlled = true) {
   const registration = new FakeRegistration();
   registration.active!.version = oldVersion;
   const serviceWorker = Object.assign(new EventTarget(), {
-    controller: registration.active,
+    controller: controlled ? registration.active : null,
     getRegistration: vi.fn(async () => registration),
     register: vi.fn(async (_url: string, options?: RegistrationOptions) => {
       expect(options?.type).toBe('module');
@@ -123,6 +129,15 @@ afterEach(() => {
 });
 
 describe('truthful installation and page startup', () => {
+  it('does not call the first offline copy an update on an uncontrolled page', async () => {
+    const current = fixture('/', false);
+    await vi.waitFor(() => expect(current.serviceWorker.getRegistration).toHaveBeenCalled());
+    await vi.waitFor(() => expect(current.controller.getSnapshot().offlineState).toBe('ready'));
+    expect(current.controller.getSnapshot().updateState).not.toBe('waiting');
+    expect(current.controller.getSnapshot().message).not.toMatch(/update is ready/i);
+    current.stop();
+  });
+
   it.each(['ignored', 'unsupported'] as const)(
     'explains %s module-worker support without blaming storage',
     async (mode) => {
@@ -512,6 +527,52 @@ describe('explicit update preserves edits and other tabs', () => {
       expect(current.controller.getSnapshot().error).toMatch(/edit|save/i);
     } finally {
       current.stop();
+    }
+  });
+
+  it('explains an invalid offline reply without exposing worker terminology', async () => {
+    const current = fixture();
+    const worker = {
+      scriptURL: `${origin}/sw.js`,
+      postMessage: (_: unknown, ports: MessagePort[]) => {
+        ports[0]!.postMessage({ channel: 'play100-pwa-v1', version: 'invalid' });
+      },
+    };
+    try {
+      await expect(sendPwaRequest(worker as ServiceWorker, 'STATUS')).rejects.toThrow(
+        'This page could not verify its offline files. Try again when connected.',
+      );
+      expect(current.location.reload).not.toHaveBeenCalled();
+    } finally {
+      current.stop();
+    }
+  });
+
+  it('describes an unverified app update and preserves the current page', async () => {
+    const current = fixture();
+    const report = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await vi.waitFor(() => expect(current.controller.getSnapshot().updateState).toBe('waiting'));
+      current.waiting.activated = () => {
+        const other = new FakeWorker();
+        other.scriptURL = 'https://untrusted.invalid/sw.js';
+        current.serviceWorker.controller = other;
+        current.serviceWorker.dispatchEvent(new Event('controllerchange'));
+      };
+      expect(
+        await current.controller.applyUpdate({
+          prepare: async () => true,
+          isCurrent: () => true,
+          canReload: () => true,
+        }),
+      ).toBe(false);
+      expect(current.controller.getSnapshot().error).toBe(
+        'This page could not verify the app update. Your page was not reloaded. Try again.',
+      );
+      expect(current.location.reload).not.toHaveBeenCalled();
+    } finally {
+      current.stop();
+      report.mockRestore();
     }
   });
 

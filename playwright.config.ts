@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import { localGateOptions } from './scripts/playwright-env';
+import { localGateOptions, sourceMetadata } from './scripts/playwright-env';
 
 const deployedUrl = process.env.PLAY100_BASE_URL;
 const developmentFixtures = process.env.PLAY100_TEST_BUILD === 'development';
@@ -22,6 +22,7 @@ const sourceFixtureSpecs = [
 // old Chromium.
 export const floorSmokeSpec = '**/floor-smoke.spec.ts';
 export default defineConfig({
+  metadata: sourceMetadata(process.env),
   testDir: './tests',
   testMatch: developmentFixtures ? sourceFixtureSpecs : '**/*.spec.ts',
   testIgnore: developmentFixtures ? [] : [...sourceFixtureSpecs, floorSmokeSpec],

@@ -303,6 +303,11 @@ test('native Back invalidates a Compare return ticket even when that action exis
   await expectComparePurpose(page);
   await page.goBack();
   await expect(page).toHaveURL((url) => url.pathname === '/discover');
+  // Back closes the sheet (UX-027); reopening it on the new page must not revive the Compare purpose or its return.
+  await expect(signIn(page)).toHaveCount(0);
+  await expect(chip(page)).not.toBeFocused();
+  await account(page).focus();
+  await page.keyboard.press('Enter');
   await expectOrdinarySignIn(page);
   await nativeDeviceExit(page);
   await expect(account(page)).toBeFocused();

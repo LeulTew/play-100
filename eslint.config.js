@@ -3,14 +3,19 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
+import { play100Plugin } from './scripts/eslint/no-url-search-params-size.ts';
 
 // Files that no tsconfig project covers are linted without type information (README, Quality checks).
 const untypedFiles = ['**/*.{js,mjs,cjs}'];
 
+// The screen-reader harness resolves Guidepup and Playwright from its own lockfile, which the root npm ci does not
+// install. The Screen reader smoke workflow installs both and lints these files with SR_SMOKE_LINT=1 after type-checking.
+const screenReaderHarness = process.env.SR_SMOKE_LINT ? [] : ['scripts/screen-reader-smoke/tests', 'scripts/screen-reader-smoke/playwright.config.ts'];
+
 const testFiles = ['**/*.{test,spec}.{ts,tsx}', '**/*fixture*.{ts,tsx}', 'tests/**/*.ts', 'tests-cloud/**/*.ts', 'tests-cloud-ui/**/*.ts'];
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'third-party', 'test-results', 'playwright-report', '.vercel', 'data', 'scripts/screen-reader-smoke/artifacts'] },
+  { ignores: ['dist', 'node_modules', 'third-party', 'test-results', 'playwright-report', '.vercel', 'data', 'scripts/screen-reader-smoke/artifacts', 'scripts/screen-reader-smoke/node_modules', ...screenReaderHarness] },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {
@@ -30,6 +35,13 @@ export default tseslint.config(
       'react-hooks/exhaustive-deps': 'error',
       'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
     },
+  },
+  {
+    // Type-aware: older supported engines read URLSearchParams#size as undefined (scripts/eslint/no-url-search-params-size.ts).
+    // Only the browser code in src; api/, functions/ and scripts/ run on Node 24, where it is defined.
+    files: ['src/**/*.{ts,tsx}'],
+    plugins: { play100: play100Plugin },
+    rules: { 'play100/no-url-search-params-size': 'error' },
   },
   {
     rules: {

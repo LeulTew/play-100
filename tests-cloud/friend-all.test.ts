@@ -1264,6 +1264,104 @@ describe('All-sharing bounded SDK transport', () => {
       expect((await getDocFromServer(doc(a.db, 'friendAllJobs', a.uid, 'views', kind))).exists()).toBe(false);
     }
   });
+  // REL-12 (docs/intermittents.md): a cleanup whose final deletion the server refuses reads the view again.
+  describe('a refused final All cleanup', () => {
+    async function readyToFinish() {
+      const a = await client();
+      const policy = await enable(a);
+      await a.all.publish(a.uid, 'games', games(1), policy, source, () => true);
+      await a.all.setPolicy(a.uid, false, 'explicit', await a.all.controls(a.uid), () => true);
+      expect(await a.all.cleanupPage(a.uid, 'games')).toEqual({ deleted: 1, done: false });
+      const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+      return { a, actual, jobRef: doc(a.db, 'friendAllJobs', a.uid, 'views', 'games') };
+    }
+    // Holds the next transaction after its reads, with its writes staged, until release; records how its commit ended.
+    function holdNextCommit(actual: typeof import('firebase/firestore')) {
+      let staged!: () => void;
+      const held = new Promise<void>((resolve) => {
+        staged = resolve;
+      });
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const outcome: { refusal?: unknown } = {};
+      vi.mocked<RunTransaction>(runTransaction).mockImplementationOnce(
+        async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) => {
+          try {
+            return await actual.runTransaction(
+              db,
+              async (tx) => {
+                const result = await operation(tx);
+                staged();
+                await released;
+                return result;
+              },
+              options,
+            );
+          } catch (cause) {
+            outcome.refusal = cause;
+            throw cause;
+          }
+        },
+      );
+      return { held, release: () => release(), outcome };
+    }
+    it('finishes when another tab removes the view between this tab reading it and committing', async () => {
+      const { a, actual, jobRef } = await readyToFinish();
+      const hold = holdNextCommit(actual);
+      const finishing = new FriendAllStore(a.db).cleanupPage(a.uid, 'games');
+      await hold.held;
+      expect(await new FriendAllStore(a.db).cleanupPage(a.uid, 'games')).toEqual({ deleted: 0, done: true });
+      hold.release();
+      await expect(finishing).resolves.toEqual({ deleted: 0, done: true });
+      // The emulator judged the stale commit against the removed job and refused it, as in Candidate CI run 36955254560.
+      expect(hold.outcome.refusal).toMatchObject({ code: 'permission-denied' });
+      expect(await a.all.head(a.uid, 'games')).toBeNull();
+      expect((await getDocFromServer(jobRef)).exists()).toBe(false);
+    });
+    it('retries a refusal of an unchanged view once and reports a refusal that persists', async () => {
+      const { a, actual, jobRef } = await readyToFinish();
+      // The server refuses the deletion although the job and head it read are unchanged.
+      const refuse = <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) =>
+        actual.runTransaction(
+          db,
+          async (tx) => {
+            await operation(tx);
+            throw Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' });
+          },
+          options,
+        );
+      vi.mocked<RunTransaction>(runTransaction)
+        .mockClear()
+        .mockImplementationOnce(refuse)
+        .mockImplementationOnce(actual.runTransaction)
+        .mockImplementationOnce(refuse);
+      await expect(a.all.cleanupPage(a.uid, 'games')).rejects.toMatchObject({ code: 'permission-denied' });
+      // The refused deletion, the reread, the one retry, refused again, and a last reread of the unchanged view.
+      expect(runTransaction).toHaveBeenCalledTimes(4);
+      expect(await a.all.head(a.uid, 'games')).not.toBeNull();
+      expect((await getDocFromServer(jobRef)).exists()).toBe(true);
+      vi.mocked<RunTransaction>(runTransaction).mockClear().mockImplementationOnce(refuse);
+      expect(await a.all.cleanupPage(a.uid, 'games')).toEqual({ deleted: 0, done: true });
+      // The refused deletion, the reread, and the retry that deletes the view.
+      expect(runTransaction).toHaveBeenCalledTimes(3);
+      expect(await a.all.head(a.uid, 'games')).toBeNull();
+      expect((await getDocFromServer(jobRef)).exists()).toBe(false);
+    });
+    it('reports a view that changed while the deletion was held as a conflict and leaves it published', async () => {
+      const { a, actual } = await readyToFinish();
+      const hold = holdNextCommit(actual);
+      const finishing = new FriendAllStore(a.db).cleanupPage(a.uid, 'games');
+      await hold.held;
+      const resumed = await a.all.setPolicy(a.uid, true, 'explicit', await a.all.controls(a.uid), () => true);
+      if (!resumed) throw new Error('Expected a confirmed All-sharing policy.');
+      await a.all.publish(a.uid, 'games', games(2), resumed, source, () => true);
+      hold.release();
+      await expect(finishing).rejects.toMatchObject({ code: 'conflict' });
+      expect(await a.all.head(a.uid, 'games')).toMatchObject({ status: 'ready', count: 2 });
+    });
+  });
   it.each(['collection', 'wikidata', 'steam', 'freetogame', 'manual'] as const)(
     'validates both worst-size %s records within the bounded write budget',
     async (type) => {

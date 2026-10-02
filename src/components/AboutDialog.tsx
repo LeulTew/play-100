@@ -1,6 +1,7 @@
 import { Dialog } from './Dialog';
 import { Icon } from './Icon';
 import { author } from '../lib/author';
+import { AuthorLinks } from './AuthorLinks';
 
 export function AboutDialog({
   onClose,
@@ -25,6 +26,9 @@ export function AboutDialog({
         About &amp; credits
       </h2>
       <p className="dialog-lead">This is a personal collection of 100 games, not an official ranking.</p>
+      <section className="author-block" aria-label="Collection author">
+        <AuthorLinks />
+      </section>
       <section>
         <h3>Original order</h3>
         <p>

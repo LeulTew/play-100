@@ -1,3 +1,6 @@
 import { createMemoizedModule } from './memoized-module';
 
-export const loadCatalogDetail = createMemoizedModule(() => import('../components/personal/CatalogDetail')).load;
+/** The catalog's game detail, and The 100's (GameDetail), which ships in the same chunk. */
+export const { load: loadCatalogDetail, peek: peekCatalogDetail } = createMemoizedModule(
+  () => import('../components/personal/CatalogDetail'),
+);

@@ -621,6 +621,79 @@ A fresh production deployment must return 404 for `/.vite/manifest.json`, any
 `/.well-known/security.txt`. Renew that file's `Expires` before it lapses; its
 unit test fails once it has.
 
+### Production alert token
+
+Optional. With `PRODUCTION_ALERT_GITHUB_TOKEN` set, `/api/client-error-report`
+and `/api/csp-report` post report spikes to one GitHub issue (thresholds in
+[operations](release-operations.md#11-daily-and-post-deploy-operational-checks),
+"Client report alerts"). Without it they log exactly as before and post nothing.
+It is the functions' only credential; its scope and blast radius are in
+[security](security.md#anonymous-operational-signals). The repository's owner
+(`LeulTew`) creates and holds it: the functions and the hourly `Production
+alert` workflow trust only the owner's spike issue and posts, so a token of any
+other account posts nothing that counts. Never paste it into receipts, logs or
+the repository.
+
+**Create.**
+
+1. Create the label once:
+   `gh label create client-report-spike --repo LeulTew/play-100 --color B60205 --description "Client error or CSP report spike in production"`.
+   The functions find their issue by this label and by its author, and so does
+   the hourly `Production alert` workflow. (That workflow creates its own
+   `production-check-failed` label when it first needs it.)
+2. GitHub → Settings → Developer settings → Personal access tokens →
+   **Fine-grained tokens** → Generate new token:
+   - name `play-100 production alert`, resource owner `LeulTew`;
+   - expiration: a custom date one year ahead;
+   - repository access: **Only select repositories**, `LeulTew/play-100`;
+   - repository permissions: **Issues: Read and write**, nothing else (GitHub
+     adds the mandatory Metadata: Read-only). No account permissions.
+
+   The functions accept only a fine-grained token (`github_pat_…`); a classic
+   token turns the alert off.
+3. Vercel → the project → Settings → Environment Variables: add
+   `PRODUCTION_ALERT_GITHUB_TOKEN`, environment **Production** only, with
+   **Sensitive** on, so it can't be read back.
+4. Redeploy: a variable reaches only deployments built after it was set. Record
+   the creation and expiry dates, not the token, in [releases](releases.md).
+
+**Drill**, after that deployment. Send five synthetic reports; each must print
+204:
+
+```bash
+for i in 1 2 3 4 5; do
+  curl -sS -o /dev/null -w '%{http_code}\n' -X POST -H 'content-type: application/json' \
+    --data '{"buildVersion":"entry:alert-drill","counts":[{"errorClass":"other","area":"app","route":"other","count":1}]}' \
+    https://play-100-collection.vercel.app/api/client-error-report
+done
+```
+
+The report that crosses the threshold, normally the fifth, answers only once
+its post is done, up to 5 s later. By then a locked issue titled "Production
+alert: client error or CSP report spike", labelled `client-report-spike`, has
+appeared under the owner's name, and that report's `client-error-count` log
+line carries `"alert":"created"`. If the owner's newest spike post on an open
+alert issue is under an hour old, the line carries `"alert":"cooldown"` and
+nothing posts: wait until the hour has passed.
+Counts are per instance: if the reports reached different instances, nothing
+posts, so send five more. At the next half hour the workflow acknowledges the
+post and fails that run, which emails the owner; GitHub sends no email for the
+post itself, because it is the owner's own activity. Then close the issue. The
+drill uses that instance's one attempt for the hour, starts the hour every
+instance waits after a spike post, and its counts stay in the logs under
+`entry:alert-drill`.
+
+**Rotate** before the expiry; GitHub emails a reminder before a token expires.
+Create a new token as above, replace the variable's value, redeploy, run the
+drill, then delete the old token and record the new dates. An expired or
+revoked token makes every post fail with `"alert":"failed","alertStatus":401`
+in the report log lines; reports and the site are unaffected.
+
+**Revoke** at once if the token may have leaked: delete it under Fine-grained
+tokens, delete the Vercel variable and redeploy. Then review the repository's
+issues, comments and labels for changes made with it; they appear under the
+owner's name.
+
 ## Receipt and mismatch discipline
 
 Record source/client SHA, exact read-back rules SHA, indexes/READY evidence,

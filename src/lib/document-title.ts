@@ -41,6 +41,7 @@ export function appDocumentTitle(
   record?: Pick<LibraryRecord, 'title'>,
   panel?: AppPanel | 'compare-tray' | 'share',
   gamesView?: MyGamesTab,
+  missingGame = false,
 ): string {
   const workspaceTitle =
     page === 'games' || page === 'library' || page === 'rankings'
@@ -48,6 +49,6 @@ export function appDocumentTitle(
       : pageTitles[page];
   const title =
     (panel ? panelTitles[panel] : undefined) ??
-    (game ? `${game.title} · #${game.rank}` : (record?.title ?? workspaceTitle));
+    (game ? `${game.title} · #${game.rank}` : (record?.title ?? (missingGame ? 'Game not found' : workspaceTitle)));
   return `${title} | Play 100`;
 }

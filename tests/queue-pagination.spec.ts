@@ -95,7 +95,7 @@ for (const view of ['Library', 'Play later'] as const) {
     await expect(heading).toBeInViewport();
     await expect(page.locator('.personal-row')).toHaveCount(10);
     await expect(bottom.getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
-    expect(new URL(page.url()).searchParams.get('page')).toBe(isQueue ? null : '3');
+    expect(new URL(page.url()).searchParams.get('page')).toBe('3');
     expect(await readLibrary(page)).toEqual(before);
     await page
       .getByRole('searchbox', { name: isQueue ? 'Search Play later' : 'Search your library', exact: true })
@@ -106,6 +106,38 @@ for (const view of ['Library', 'Play later'] as const) {
   });
 }
 
+test('Play later pages 2 and 3 survive Back, Forward and reload, and leave the Library on page 1 (UX-033)', async ({
+  page,
+}) => {
+  await openQueue(page);
+  const before = await readLibrary(page);
+  const heading = page.getByRole('heading', { name: 'Play later results', exact: true });
+  await pager(page).getByRole('combobox').selectOption('2');
+  await expect(heading).toBeFocused();
+  await pager(page).getByRole('combobox').selectOption('3');
+  await expect(pager(page)).toContainText('51–60 of 60 Play later games');
+  expect(new URL(page.url()).searchParams.get('tab')).toBe('queue');
+  expect(new URL(page.url()).searchParams.get('page')).toBe('3');
+  await page.goBack();
+  await expect(pager(page).getByRole('combobox')).toHaveValue('2');
+  await expect(pager(page)).toContainText('26–50 of 60 Play later games');
+  await expect(heading).toBeFocused();
+  await page.goForward();
+  await expect(pager(page).getByRole('combobox')).toHaveValue('3');
+  await page.reload();
+  await expect(pager(page).getByRole('combobox')).toHaveValue('3');
+  await expect(row(page, 51)).toBeVisible();
+  await views(page)
+    .getByRole('button', { name: /^Library,/ })
+    .click();
+  await expect(page).not.toHaveURL(/[?&]page=/);
+  await expect(page.getByRole('navigation', { name: 'Library pages', exact: true }).getByRole('combobox')).toHaveValue(
+    '1',
+  );
+  await page.goBack();
+  await expect(pager(page).getByRole('combobox')).toHaveValue('3');
+  expect(await readLibrary(page)).toEqual(before);
+});
 test('10,000 Play later games stay bounded through last-page navigation, boundary moves and search', async ({
   page,
 }, info) => {

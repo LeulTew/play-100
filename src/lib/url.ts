@@ -1,6 +1,7 @@
 import type { AppPage, Filters, SortOrder } from './types.js';
 import { parseProgressFilter } from './game-progress.js';
 import { appRoute } from './routes.js';
+import { parseDiscoveryGenreFamily } from './discovery-genres.js';
 
 // Error reports read the route list from here so it stays in this eager chunk rather than a chunk of its own.
 export { APP_ROUTES, appRoute } from './routes.js';
@@ -48,6 +49,7 @@ export function pageFromPath(path: string): AppPage {
 export const defaultFilters: Filters = {
   q: '',
   genre: '',
+  genreFamily: '',
   year: '',
   tier: 'all',
   list: 'all',
@@ -70,6 +72,7 @@ export function parseUrl(search: string): { filters: Filters; game: string | nul
     filters: {
       q: (params.get('q') ?? '').slice(0, 160),
       genre: (params.get('genre') ?? '').slice(0, 120),
+      genreFamily: parseDiscoveryGenreFamily(params.get('genreFamily')),
       year: /^\d{4}$/.test(year) ? year : '',
       tier: tier === 'core' || tier === 'essential' ? tier : 'all',
       list: list === 'later' || list === 'completed' || list === 'unplayed' ? list : 'all',

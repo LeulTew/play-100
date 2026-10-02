@@ -7,11 +7,14 @@ import type { CatalogOwnership } from '../../lib/catalog-identity';
 import { filterGames } from '../../lib/collection';
 import { useExtendedSearchResults } from '../../hooks/useExtendedSearch';
 import { focusPendingEditor, visibleMenuTrigger } from '../../lib/dialog-focus';
-import { loadCatalogDetail } from '../../lib/catalog-detail-preload';
+import { loadCatalogDetail, peekCatalogDetail } from '../../lib/catalog-detail-preload';
+import type { DeviceHints } from '../../lib/device-capabilities';
+import { scheduleIdlePrefetch } from '../../lib/idle-prefetch';
+import { createMemoizedModule } from '../../lib/memoized-module';
 import type { AboutDialog } from '../AboutDialog';
 import { Dialog } from '../Dialog';
 import { DialogLayerContext } from '../dialog-layer';
-import { GameDetail } from '../GameDetail';
+import type { GameDetail } from '../GameDetail';
 import { Icon } from '../Icon';
 import { MenuDialog } from '../MenuDialog';
 import type { SettingsDialog } from '../SettingsDialog';
@@ -22,6 +25,25 @@ import { ChunkRecovery } from '../ChunkRecovery';
 import { DialogBoundary } from './DialogBoundary';
 
 const CatalogDetail = lazy(loadCatalogDetail);
+// The 100's game detail ships in the catalog detail's chunk (CatalogDetail.tsx). A page warms it when it is idle, when
+// a game link is pointed at, focused or pressed, and when a linked game opens (DialogHost).
+const LazyGameDetail = lazy(
+  createMemoizedModule(() => import('../personal/CatalogDetail').then((module) => ({ default: module.GameDetail })))
+    .load,
+);
+const DETAIL_INTENT_EVENTS = ['pointerover', 'focusin', 'pointerdown'] as const;
+function warmGameDetail(event?: Event) {
+  if (event && !(event.target instanceof Element && event.target.closest('a[href*="game="]'))) return;
+  // A failed load is reported where the detail renders (DetailLoadFailure).
+  void loadCatalogDetail().catch(() => undefined);
+}
+// Opening a game is the likeliest next step on any page, so constrained devices load the details at idle too, unless the
+// reader saves data or is on 2G (the connection hints isConstrainedDevice reads).
+function loadDetailAtIdle(): Promise<unknown> {
+  const connection = (navigator as DeviceHints).connection;
+  if (connection?.saveData || ['slow-2g', '2g'].includes(connection?.effectiveType ?? '')) return Promise.resolve();
+  return loadCatalogDetail();
+}
 type KeyedProps<T> = { key: string; props: T };
 type GameDialogInput = KeyedProps<Omit<ComponentProps<typeof GameDetail>, 'previous' | 'next' | 'position'>> & {
   navigation: {
@@ -34,6 +56,8 @@ type GameDialogInput = KeyedProps<Omit<ComponentProps<typeof GameDetail>, 'previ
 };
 
 function GameDialog({ input }: { input: GameDialogInput }) {
+  // Settled once per dialog: one that opened before its module loaded stays on the lazy path, so it never remounts.
+  const [Ready] = useState(() => peekCatalogDetail()?.GameDetail);
   const { navigation, props } = input;
   const { scoped, filters, games, state, ownership } = navigation;
   const records = useExtendedSearchResults(filters.q, scoped);
@@ -45,13 +69,30 @@ function GameDialog({ input }: { input: GameDialogInput }) {
     [scoped, games, filters, state, ownership, records],
   );
   const index = results.findIndex((game) => game.slug === props.game.slug);
+  const detail = {
+    ...props,
+    previous: index > 0 ? results[index - 1] : undefined,
+    next: index >= 0 ? results[index + 1] : undefined,
+    position: index >= 0 ? { current: index + 1, total: results.length } : null,
+  };
+  if (Ready) return <Ready {...detail} />;
   return (
-    <GameDetail
-      {...props}
-      previous={index > 0 ? results[index - 1] : undefined}
-      next={index >= 0 ? results[index + 1] : undefined}
-      position={index >= 0 ? { current: index + 1, total: results.length } : null}
-    />
+    <ChunkBoundary fallback={<DetailLoadFailure onClose={props.onClose} getOpener={props.getOpener} />}>
+      <Suspense fallback={<PendingCatalogDialog onClose={props.onClose} getOpener={props.getOpener} />}>
+        <LazyGameDetail {...detail} />
+      </Suspense>
+    </ChunkBoundary>
+  );
+}
+
+function DetailLoadFailure({ onClose, getOpener }: { onClose: () => void; getOpener?: () => HTMLElement | null }) {
+  return (
+    <Dialog open titleId="catalog-load-error-title" onClose={onClose} getOpener={getOpener} className="info-dialog">
+      <h2 id="catalog-load-error-title" data-autofocus tabIndex={-1}>
+        Game details
+      </h2>
+      <ChunkRecovery message="These game details didn't load." onKeepEditing={onClose} />
+    </Dialog>
   );
 }
 
@@ -130,6 +171,18 @@ export function DialogHost({
     setFailure(null);
     focusPendingEditor(visibleMenuTrigger());
   };
+  useEffect(() => {
+    for (const name of DETAIL_INTENT_EVENTS) document.addEventListener(name, warmGameDetail, true);
+    const stop = scheduleIdlePrefetch(loadDetailAtIdle, 1200, 'intent');
+    return () => {
+      stop();
+      for (const name of DETAIL_INTENT_EVENTS) document.removeEventListener(name, warmGameDetail, true);
+    };
+  }, []);
+  // A linked game's details load beside the collection it waits for.
+  useEffect(() => {
+    if (game || loadingGame) warmGameDetail();
+  }, [game, loadingGame]);
   const detailOpen = game || catalog || metadataFailure || loadingGame || canonicalError || missingGame;
   return (
     <>
@@ -143,20 +196,7 @@ export function DialogHost({
           {catalog && (
             <ChunkBoundary
               key={catalog.key}
-              fallback={
-                <Dialog
-                  open
-                  titleId="catalog-load-error-title"
-                  onClose={onCloseGame}
-                  getOpener={getGameOpener}
-                  className="info-dialog"
-                >
-                  <h2 id="catalog-load-error-title" data-autofocus tabIndex={-1}>
-                    Game details
-                  </h2>
-                  <ChunkRecovery message="These game details didn't load." onKeepEditing={onCloseGame} />
-                </Dialog>
-              }
+              fallback={<DetailLoadFailure onClose={onCloseGame} getOpener={getGameOpener} />}
             >
               <Suspense fallback={<PendingCatalogDialog onClose={onCloseGame} getOpener={getGameOpener} />}>
                 <CatalogDetail key={catalog.key} {...catalog.props} />
@@ -244,7 +284,7 @@ export function DialogHost({
           <DialogBoundary
             key={`about:${scope}`}
             onClose={about.onClose}
-            onFailure={failed('Credits')}
+            onFailure={failed('About & credits')}
             getReturnFocus={about.getReturnFocus}
           >
             <ReadyAbout {...about} />

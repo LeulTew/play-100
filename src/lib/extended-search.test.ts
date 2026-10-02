@@ -55,6 +55,12 @@ describe('additional game counts', () => {
 });
 
 describe('saved and live unranked search', () => {
+  it('applies the same genre family to saved and live additions while retaining exact source filtering', () => {
+    const other = { ...c, genre: null };
+    expect(filterUnranked([a, other], { ...defaultFilters, genreFamily: 'role-playing' }, {})).toEqual([a]);
+    expect(filterUnranked([a, other], { ...defaultFilters, genre: 'RPG' }, {})).toEqual([]);
+    expect(filterUnranked([a, other], { ...defaultFilters, genre: 'Action RPG' }, {})).toEqual([a]);
+  });
   it('deduplicates exact IDs, gives saved metadata priority and excludes canonical IDs', () => {
     const saved = { [a.id]: a, [canonical.id]: canonical };
     const online = [{ ...a, title: 'An updated source title' }, b, b];

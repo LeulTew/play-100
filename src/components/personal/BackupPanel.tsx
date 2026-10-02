@@ -1,10 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import {
-  backupFileSizeError,
-  describeLibraryBackup,
-  exportLibraryBackup,
-  readLibraryBackup,
-} from '../../lib/personal-library';
+import { exportLibraryBackup } from '../../lib/personal-library';
+import { backupFileSizeError, describeLibraryBackup, readLibraryBackup } from '../../lib/backup-restore';
 import type { PersonalLibraryState } from '../../lib/personal-types';
 import { Icon } from '../Icon';
 import { useLibraryMode } from '../../lib/library-mode';
@@ -15,12 +11,14 @@ export default function BackupPanel({
   state,
   busy,
   persistent,
+  loading = false,
   onRestore,
   onActionStart,
 }: {
   state: PersonalLibraryState;
   busy: boolean;
   persistent: boolean;
+  loading?: boolean;
   onRestore: (state: PersonalLibraryState) => Promise<boolean>;
   onActionStart?: () => void;
 }) {
@@ -167,8 +165,10 @@ export default function BackupPanel({
   return (
     <section className="backup-panel">
       <h3>Backups</h3>
-      <p>
-        {persistent ? (
+      <p role={loading ? 'status' : undefined}>
+        {loading ? (
+          'Opening your library…'
+        ) : persistent ? (
           'Download a backup to move or recover your library.'
         ) : (
           <>

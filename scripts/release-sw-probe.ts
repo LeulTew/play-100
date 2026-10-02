@@ -41,6 +41,7 @@ export async function releaseSwProbe(inputFile: string) {
     'release-sw-server.ts',
     'release-sw-browser.ts',
     'release-sw-mixed.ts',
+    'vercel-static-server.ts',
   ];
   git('ls-files', '--error-unmatch', '--', ...sourceFiles.map((file) => `scripts/${file}`));
   const sourceIdentity = async () =>

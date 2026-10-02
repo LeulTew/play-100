@@ -8,7 +8,7 @@ import { progressFilterPatch } from '../../lib/game-progress';
 import type { ProgressFilter } from '../../lib/game-progress';
 import { RemoveGamesDialog } from './RemoveGamesDialog';
 import { LocalPager } from '../LocalPager';
-import { formatResultRange } from '../../lib/local-pagination';
+import { formatResultRange } from '../../lib/result-range';
 import { LIBRARY_PAGE_SIZE, useLibraryPage } from './useLibraryPage';
 import { LibraryRecordRow } from './LibraryRecordRow';
 import './library-pagination.css';
@@ -68,7 +68,7 @@ export default function LibraryPage(props: LibraryPageProps) {
     moving,
     moveError,
     queuePositions,
-    rankedIds,
+    rankingPositions,
     pageBoundary,
     resultsHeading,
     queueResults,
@@ -76,6 +76,8 @@ export default function LibraryPage(props: LibraryPageProps) {
     move,
     changePage,
     requestRemoval,
+    getRemovalFallback,
+    removeFromQueue,
     removeRecords,
     filtered,
     firstRunEmpty,
@@ -92,10 +94,11 @@ export default function LibraryPage(props: LibraryPageProps) {
       active={active}
       selecting={selecting}
       selected={selected.has(record.id)}
-      ranked={rankedIds.has(record.id)}
+      rankingPosition={rankingPositions.get(record.id)}
       tab={tab}
       onSelect={toggleSelected}
       requestRemoval={requestRemoval}
+      removeFromQueue={removeFromQueue}
     />
   );
   return (
@@ -166,7 +169,7 @@ export default function LibraryPage(props: LibraryPageProps) {
             }}
           >
             <Icon name="select" width="18" height="18" />
-            {selecting ? 'Exit selection' : 'Select games'}
+            {selecting ? 'Done selecting' : 'Select games'}
           </button>
         </div>
       )}
@@ -200,10 +203,6 @@ export default function LibraryPage(props: LibraryPageProps) {
           selectionHelp="Selection includes matching games on other pages. Changing filters or tabs clears it."
           onSelectAll={() => setSelected(new Set(records.map((record) => record.id)))}
           onClear={() => setSelected(new Set())}
-          onDone={() => {
-            setSelecting(false);
-            setSelected(new Set());
-          }}
           onAction={(action) => {
             void bulkAction(action);
           }}
@@ -317,6 +316,7 @@ export default function LibraryPage(props: LibraryPageProps) {
           busy={busy}
           onClose={() => setRemoving([])}
           onRemove={removeRecords}
+          getFallbackFocus={getRemovalFallback}
         />
       )}
     </section>

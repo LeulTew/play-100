@@ -5,7 +5,26 @@ import {
   emulatorRulesGate,
   googleLiveCheck,
   localGateOptions,
+  sourceMetadata,
 } from './playwright-env.ts';
+
+describe('Playwright report source metadata', () => {
+  it('embeds both full creation identities and leaves ordinary local runs unidentified', () => {
+    expect(sourceMetadata({})).toEqual({});
+    expect(sourceMetadata({ PLAY100_SOURCE_COMMIT: 'a'.repeat(40), PLAY100_SOURCE_TREE: 'b'.repeat(40) })).toEqual({
+      commit: 'a'.repeat(40),
+      tree: 'b'.repeat(40),
+    });
+  });
+  it.each([
+    { PLAY100_SOURCE_COMMIT: 'a'.repeat(40) },
+    { PLAY100_SOURCE_TREE: 'b'.repeat(40) },
+    { PLAY100_SOURCE_COMMIT: 'short', PLAY100_SOURCE_TREE: 'b'.repeat(40) },
+    { PLAY100_SOURCE_COMMIT: 'a'.repeat(40), PLAY100_SOURCE_TREE: '' },
+  ])('rejects partial or malformed metadata: %j', (env) => {
+    expect(() => sourceMetadata(env)).toThrow('both full');
+  });
+});
 
 describe('local Playwright gate', () => {
   it('refuses .only and never reuses a server on the fixed port by default', () => {

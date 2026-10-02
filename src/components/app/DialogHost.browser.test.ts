@@ -190,7 +190,10 @@ for (const mobile of [false, true]) {
     it('typing and local search publication do not render the header, footer or navigation again', async () => {
       await withPage(async (page) => {
         await browserExpect(page.locator('.game-card')).toHaveCount(24);
+        await browserExpect(page.getByRole('button', { name: /^Pin for comparison:/ }).first()).toBeEnabled();
         await page.evaluate(() => document.fonts.ready);
+        const account = page.locator('.account-nav');
+        if (await account.count()) await browserExpect(account).toHaveAccessibleName('Account Device only');
         const input = page.getByRole('searchbox', { name: 'Search games, studios or genres', exact: true });
         await input.focus();
         const before = await page.evaluate(() => ({ ...window.dialogHostFixture.renders }));
@@ -207,7 +210,7 @@ for (const mobile of [false, true]) {
         await browserExpect(page.locator('dialog[open]')).toHaveCount(0);
         await browserExpect(trigger).toBeFocused();
         const filters = page.locator('details.browse-filters');
-        if ((await filters.getAttribute('open')) === null) await filters.locator('summary').click();
+        if ((await filters.getAttribute('open')) === null) await filters.locator(':scope > summary').click();
         await page.getByRole('checkbox', { name: 'Search public catalogs', exact: true }).check();
         await browserExpect(
           page.getByRole('navigation', { name: 'Main navigation', includeHidden: true }).getByRole('link', {

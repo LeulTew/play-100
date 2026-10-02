@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "description": "Final-tip Candidate CI set: whole suites, every open docs/intermittents.md row at its loop count, the R24 focus specs x20 and the cloud loops. Entries that ran past an hour per project in R24 are split per project.",
+  "entries": [
+    { "id": "checks", "suite": "checks", "purpose": "Static checks and unit/browser units" },
+    { "id": "csp-refresh", "suite": "csp-refresh", "purpose": "Configured build CSP and budgets refresh" },
+    { "id": "floor", "suite": "floor", "lean": "floor-smoke", "purpose": "Floor engines smoke (15 per pass)" },
+    { "id": "lighthouse", "suite": "lighthouse", "purpose": "Lighthouse mobile and desktop, 3 runs each, DejaVu and tall-fallback cells" },
+    { "id": "e2e-prod-full", "suite": "e2e-prod", "project": "both", "lean": "e2e-production", "purpose": "Whole production suite (includes the films case the gate partitions out)" },
+    {
+      "id": "films-download",
+      "suite": "e2e-prod",
+      "specs": ["tests/films.spec.ts"],
+      "grep": "optional films stay unloaded until Watch, play and seek natively, switch without overlap and restore focus",
+      "project": "both",
+      "lean": "films-download",
+      "expectedPassed": 2,
+      "purpose": "Gate FLAKE-01 partition, attempt 1"
+    },
+    { "id": "e2e-dev-full", "suite": "e2e-dev", "project": "both", "lean": "e2e-development", "purpose": "Whole development suite (xvfb-headed on Linux)" },
+    { "id": "e2e-offline-full", "suite": "e2e-offline", "project": "both", "lean": "e2e-offline", "purpose": "Whole offline suite" },
+    { "id": "cloud-rules-full", "suite": "cloud-rules", "repeat": 3, "lean": "cloud-rules", "purpose": "Full tests-cloud, three fresh-emulator iterations" },
+    { "id": "cloud-ui-full-desktop", "suite": "cloud-ui", "project": "desktop", "lean": "cloud-ui-desktop", "purpose": "Whole cloud-ui suite, desktop, one server (REL-11)" },
+    { "id": "cloud-ui-full-mobile", "suite": "cloud-ui", "project": "mobile", "lean": "cloud-ui-mobile", "purpose": "Whole cloud-ui suite, mobile, one server (REL-11)" },
+
+    { "id": "frequent-action-focus-desktop", "suite": "e2e-prod", "specs": ["tests/frequent-action-focus.spec.ts"], "project": "desktop", "repeat": 20, "purpose": "R24 focus spec" },
+    { "id": "frequent-action-focus-mobile", "suite": "e2e-prod", "specs": ["tests/frequent-action-focus.spec.ts"], "project": "mobile", "repeat": 20, "purpose": "R24 focus spec" },
+    { "id": "catalog-retry-focus", "suite": "e2e-prod", "specs": ["tests/catalog-retry-focus.spec.ts"], "repeat": 20, "purpose": "R24 focus spec" },
+    { "id": "rating-entry-focus", "suite": "e2e-prod", "specs": ["tests/rating-entry-focus.spec.ts"], "repeat": 20, "purpose": "R24 focus spec" },
+    { "id": "removal-neighbor-focus", "suite": "e2e-prod", "specs": ["tests/removal-neighbor-focus.spec.ts"], "repeat": 20, "purpose": "R24 focus spec" },
+    { "id": "back-closes-sheet", "suite": "e2e-prod", "specs": ["tests/back-closes-sheet.spec.ts"], "repeat": 20, "purpose": "R24 focus spec" },
+    { "id": "compare-tray-context-desktop", "suite": "e2e-prod", "specs": ["tests/compare-tray-context.spec.ts"], "project": "desktop", "repeat": 20, "purpose": "Intermittent row loop" },
+    { "id": "compare-tray-context-mobile", "suite": "e2e-prod", "specs": ["tests/compare-tray-context.spec.ts"], "project": "mobile", "repeat": 20, "purpose": "Intermittent row loop" },
+    { "id": "queue-pagination", "suite": "e2e-prod", "specs": ["tests/queue-pagination.spec.ts"], "repeat": 20, "purpose": "Intermittent row loop" },
+    { "id": "release-review-cross-tab", "suite": "e2e-prod", "specs": ["tests/release-review.spec.ts"], "grep": "another tab", "repeat": 20, "purpose": "Intermittent row loop: cross-tab autosave" },
+    { "id": "unified-search-restart", "suite": "e2e-prod", "specs": ["tests/unified-search.spec.ts"], "grep": "full browser restart", "repeat": 10, "purpose": "Intermittent row loop: persistent browser restart" },
+    { "id": "native-zoom-navigation", "suite": "e2e-prod", "specs": ["tests/mobile-nav-readability.spec.ts"], "grep": "native 200 percent browser zoom", "repeat": 10, "purpose": "Intermittent row loop" },
+    { "id": "first-paint-shell", "suite": "e2e-prod", "specs": ["tests/first-paint-shell.spec.ts"], "repeat": 10, "purpose": "Intermittent row loop (includes :214 and :659)" },
+    {
+      "id": "dialogs",
+      "suite": "e2e-prod",
+      "specs": [
+        "tests/dialog-screen-reader.spec.ts",
+        "tests/dialog-close.spec.ts",
+        "tests/dialog-lifecycle.spec.ts",
+        "tests/restored-dialog-stack.spec.ts",
+        "tests/secondary-dialog-loading.spec.ts",
+        "tests/detail-navigation.spec.ts"
+      ],
+      "repeat": 5,
+      "purpose": "Intermittent row loop: dialog specs"
+    },
+    {
+      "id": "films-download-loop",
+      "suite": "e2e-prod",
+      "specs": ["tests/films.spec.ts"],
+      "grep": "optional films stay unloaded until Watch",
+      "workers": 1,
+      "repeat": 40,
+      "purpose": "FLAKE-01 loop"
+    },
+    { "id": "menu-dev", "suite": "e2e-dev", "specs": ["tests/menu.spec.ts"], "repeat": 10, "purpose": "Intermittent row loop (xvfb-headed on Linux)" },
+
+    { "id": "rules-convergence", "suite": "cloud-rules", "specs": ["tests-cloud/friend-all.test.ts"], "grep": "converges a first friend action", "repeat": 20, "purpose": "Intermittent row loop" },
+    { "id": "rules-friendships-shelf", "suite": "cloud-rules", "specs": ["tests-cloud/friendships.test.ts", "tests-cloud/friend-shelf.test.ts"], "repeat": 10, "purpose": "Intermittent row loop" },
+
+    { "id": "review-repairs-desktop", "suite": "cloud-ui", "specs": ["tests-cloud-ui/review-repairs.spec.ts"], "project": "desktop", "repeat": 20, "purpose": "Cloud-ui loop: reauthentication and REL-09" },
+    { "id": "review-repairs-mobile", "suite": "cloud-ui", "specs": ["tests-cloud-ui/review-repairs.spec.ts"], "project": "mobile", "repeat": 20, "purpose": "Cloud-ui loop: reauthentication and REL-09" },
+    { "id": "identity-desktop", "suite": "cloud-ui", "specs": ["tests-cloud-ui/identity.spec.ts"], "project": "desktop", "repeat": 20, "purpose": "Cloud-ui loop" },
+    { "id": "identity-mobile", "suite": "cloud-ui", "specs": ["tests-cloud-ui/identity.spec.ts"], "project": "mobile", "repeat": 20, "purpose": "Cloud-ui loop" },
+    { "id": "compare-orientation-chooser", "suite": "cloud-ui", "specs": ["tests-cloud-ui/compare-orientation.spec.ts"], "grep": "one-person chooser", "repeat": 20, "purpose": "Cloud-ui loop" },
+    { "id": "friendships-desktop", "suite": "cloud-ui", "specs": ["tests-cloud-ui/friendships.spec.ts"], "project": "desktop", "repeat": 20, "purpose": "Cloud-ui loop" },
+    { "id": "friendships-mobile", "suite": "cloud-ui", "specs": ["tests-cloud-ui/friendships.spec.ts"], "project": "mobile", "repeat": 20, "purpose": "Cloud-ui loop" },
+    { "id": "friend-all-desktop", "suite": "cloud-ui", "specs": ["tests-cloud-ui/friend-all.spec.ts"], "project": "desktop", "repeat": 10, "purpose": "Cloud-ui loop (includes :430)" },
+    { "id": "friend-all-mobile", "suite": "cloud-ui", "specs": ["tests-cloud-ui/friend-all.spec.ts"], "project": "mobile", "repeat": 10, "purpose": "Cloud-ui loop (includes :430)" }
+  ]
+}

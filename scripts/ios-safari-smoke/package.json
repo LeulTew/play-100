@@ -1,0 +1,14 @@
+{
+  "name": "play-100-ios-safari-smoke",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "dependencies": {
+    "appium": "3.8.0",
+    "appium-xcuitest-driver": "12.13.3",
+    "tsx": "4.21.0"
+  }
+}

@@ -11,6 +11,15 @@ vi.mock('react', async (importOriginal) => {
 afterEach(() => vi.mocked(useState).mockReset());
 
 describe('committed and draft rating display', () => {
+  it('keeps a saving field focusable and read-only instead of disabling it', () => {
+    const html = renderToStaticMarkup(
+      createElement(PersonalRatingInput, { title: 'Game', value: 7, busy: true, onCommit: vi.fn() }),
+    );
+    expect(html).toContain('readOnly=""');
+    expect(html).toContain('aria-disabled="true"');
+    expect(html).not.toContain(' disabled=');
+  });
+
   it.each([null, 0, 7.75])('renders the current clean rating %s without an effect-driven draft reset', (value) => {
     const resetDraft = vi.fn();
     vi.mocked(useState).mockReturnValueOnce(['9.9', resetDraft]);

@@ -82,7 +82,9 @@ test('ratings table shows native scales, missing values and reversible column so
 });
 
 test('bulk selection updates queue, completion and own ranking without changing author ranks', async ({ page }) => {
-  await page.goto('/');
+  // This journey selects the three collection games, not late-arriving public-catalog matches.
+  await page.goto('/?catalogs=off');
+  await expect(page.getByLabel('Search public catalogs', { exact: true })).not.toBeChecked();
   await page.getByRole('searchbox').fill('Mass Effect');
   await expect(page.locator('.game-card')).toHaveCount(3);
   await page.getByRole('button', { name: 'Select multiple games', exact: true }).click();
@@ -91,11 +93,13 @@ test('bulk selection updates queue, completion and own ranking without changing 
   await page.getByRole('button', { name: 'Add to Play later', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder.length).toBe(3);
   await page.getByRole('button', { name: 'Select all 3 in this view', exact: true }).click();
+  await expect(page.locator('.card-selection input:checked')).toHaveCount(3);
   await page.getByRole('button', { name: 'Mark completed', exact: true }).click();
   await expect
     .poll(async () => Object.values((await readLibrary(page)).progress).filter((entry) => entry.completed).length)
     .toBe(3);
   await page.getByRole('button', { name: 'Select all 3 in this view', exact: true }).click();
+  await expect(page.locator('.card-selection input:checked')).toHaveCount(3);
   await page.getByRole('button', { name: 'Add to my ranking', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.length).toBe(3);
   const original = await page.request.get('/data/collection.json');
@@ -348,6 +352,7 @@ for (const [outcome, copy] of [
 }
 
 test('catalog results are explicitly imported and upstream errors remain recoverable', async ({ page }) => {
+  let unavailable = false;
   const item = {
     id: 'wikidata:Q100',
     title: 'Catalog game for verification',
@@ -360,6 +365,12 @@ test('catalog results are explicitly imported and upstream errors remain recover
     collectionRank: null,
   };
   await page.route('**/api/catalog?**', (route) => {
+    if (unavailable)
+      return route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'The catalog is busy. Try again later.' }),
+      });
     const url = new URL(route.request().url());
     const source = url.searchParams.get('source');
     const found = source === 'wikidata' ? [item] : [];
@@ -392,19 +403,20 @@ test('catalog results are explicitly imported and upstream errors remain recover
   await expect(page.getByRole('button', { name: item.title, exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('button', { name: item.title, exact: true })).toBeVisible();
+  // Keep request routing installed while the new document loads its deferred parser.
+  unavailable = true;
   await page.goto('/discover');
-  await page.unroute('**/api/catalog?**');
-  await page.route('**/api/catalog?**', (route) =>
-    route.fulfill({
-      status: 503,
-      contentType: 'application/json',
-      body: JSON.stringify({ error: 'The catalog is busy. Try again later.' }),
-    }),
-  );
   await page.getByRole('searchbox', { name: 'Find a game', exact: true }).fill('Catalog outage');
   const errors = page.getByRole('group', { name: 'Online catalog status', exact: true }).getByRole('alert');
   await expect(errors).toHaveCount(2);
-  for (const error of await errors.all()) await expect(error).toContainText('The catalog is busy');
+  for (const error of await errors.all()) {
+    await expect(error).toBeVisible();
+    await expect(error).toContainText('The catalog is busy');
+  }
+  const sourceHelp = page.locator('details.discovery-help').filter({
+    has: page.locator('summary').filter({ hasText: /^Search options & sources$/ }),
+  });
+  await expect(sourceHelp).not.toHaveAttribute('open');
   await expect(page.getByRole('button', { name: 'Retry Wikidata', exact: true })).toBeVisible();
   await expect(page.getByText('Add a game manually', { exact: true })).toBeVisible();
 });

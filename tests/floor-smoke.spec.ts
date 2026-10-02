@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { loadEnv } from 'vite';
 import { GOOGLE_REDIRECT_KEY } from '../src/lib/google-intent-key';
+import { readFirebaseConfiguration } from '../src/lib/online-config';
 import { openBrowsingFilters } from './browsing-helpers';
 import { emptyCatalogs } from './catalog-helpers';
 
@@ -11,6 +13,11 @@ import { emptyCatalogs } from './catalog-helpers';
 // and Safari 17 lack.
 test.use({ serviceWorkers: 'block' });
 
+// Whether the build under test is configured for online play, read as the build reads it rather than from the page, so
+// a header that is still rendering cannot turn the sign-in check into a skip.
+const mode = process.env.PLAY100_TEST_BUILD === 'development' ? 'development' : 'production';
+const onlineAvailable =
+  readFirebaseConfiguration({ ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env }).config !== null;
 function recordPageErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -97,14 +104,12 @@ test('My games tabs follow direct entry, clicks, reload and history', async ({ p
 });
 
 test('a Google sign-in return keeps its return path and clears the request', async ({ page }) => {
+  test.skip(!onlineAvailable, 'The sign-in return path needs a configured build.');
   await emptyCatalogs(page);
   const errors = recordPageErrors(page);
   await page.goto('/?catalogs=off');
   await expect(page.locator('html')).toHaveAttribute('data-app-started', '');
-  test.skip(
-    (await page.getByRole('link', { name: /^Account/ }).count()) === 0,
-    'The sign-in return path needs a configured build.',
-  );
+  await expect(page.getByRole('link', { name: /^Account/ })).toBeVisible();
   const returnPath = '/my-games?tab=queue';
   // A sign-in that left for Google and came back without a result: what an engine at the floor must parse and clear.
   await page.evaluate(({ key, intent }) => sessionStorage.setItem(key, JSON.stringify(intent)), {

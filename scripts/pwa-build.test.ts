@@ -76,6 +76,7 @@ describe('generated public PWA build closure', () => {
     expect(files).toContain('/assets/route4-12345678.js');
     expect(files).toContain('/assets/brand-12345678.woff2');
     expect(files).toContain('/data/collection.json');
+    expect(files).toContain('/icons/author-links.svg');
     expect(files).toContain('/data/discovery/catalog.v1.json');
     expect(files).toContain('/pwa/fallback.css');
     expect(files.some((file) => /OnlineController|CollectionScene|\.woff$|\.mp4$|\.xlsx$/.test(file))).toBe(false);
@@ -194,6 +195,16 @@ describe('generated public PWA build closure', () => {
     expect(() => pwaCorePaths(entries)).toThrow('missing required Vite entry');
   });
 
+  it('finds each preloaded tool in its named group chunk, which the manifest keys without a facade', () => {
+    const entries = manifest();
+    const root = 'src/lib/google-intent.ts';
+    delete entries[root];
+    entries['_google-intent-AbCd1234.js'] = { file: 'assets/google-intent-AbCd1234.js', name: 'google-intent' };
+    expect(pwaCorePaths(entries)).toContain('/assets/google-intent-AbCd1234.js');
+    entries['_google-intent-EfGh5678.js'] = { file: 'assets/google-intent-EfGh5678.js', name: 'google-intent' };
+    expect(() => pwaCorePaths(entries)).toThrow('More than one Vite chunk is named google-intent.');
+  });
+
   it('requires the stable client entry and includes its shared client and update closure', () => {
     const entries = manifest();
     const root = 'src/pwa/client-entry.ts';
@@ -236,7 +247,7 @@ describe('generated public PWA build closure', () => {
       theme_color: '#f3f3e9',
       background_color: '#f3f3e9',
       name: 'Play 100',
-      description: 'A personal collection of games, with your own library, queue and rankings.',
+      description: 'A personal collection of games, with your own library, Play later and rankings.',
       categories: ['games', 'entertainment'],
     });
     expect(data.icons).toEqual(
@@ -257,7 +268,7 @@ describe('generated public PWA build closure', () => {
     ) as WebAppManifest;
     const shortcuts = [
       { name: 'Library', description: 'Open your saved games.', url: '/my-games', tab: 'library' },
-      { name: 'Queue', description: 'Choose what to play next.', url: '/my-games?tab=queue', tab: 'queue' },
+      { name: 'Play later', description: 'Games to play next.', url: '/my-games?tab=queue', tab: 'queue' },
       { name: 'Ranking', description: 'Open your personal ranking.', url: '/my-games?tab=ranking', tab: 'ranking' },
     ];
     const icons = [{ src: '/pwa/icon-192.png', sizes: '192x192', type: 'image/png' }];

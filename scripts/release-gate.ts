@@ -9,8 +9,82 @@ import { createServer } from 'vite';
 import { requireObject } from '../src/lib/guards.js';
 import { summarizeNpmAudit, summarizePlaywright, summarizeVitest } from './release-manifest';
 import { prepareGitleaks, gitleaksSummary } from './release-gitleaks';
+import { verifyProtocol, type ProtocolVerification } from './release-apb2-contract';
+import {
+  evidenceEnvironment,
+  evidenceFileExists,
+  reserveEvidenceNames,
+  writeEvidenceIdentity,
+} from './release-evidence';
 
 export const GATE_NODE = 'v24.21.0';
+export const FILM_DOWNLOAD_TEST =
+  'optional films stay unloaded until Watch, play and seek natively, switch without overlap and restore focus';
+export const APB2_GATE_SCRIPT = 'release:apb2';
+export interface Apb2GateReceipt {
+  schemaVersion: 1;
+  source: { sha: string; tree: string };
+  status: 'passed';
+}
+export function requireApb2Runner(input: unknown) {
+  const scripts = requireObject(requireObject(input).scripts);
+  if (typeof scripts[APB2_GATE_SCRIPT] !== 'string' || !scripts[APB2_GATE_SCRIPT].trim())
+    throw new Error('APB2 gate hook blocked: the committed npm run release:apb2 runner is not available.');
+}
+/**
+ * The operator's APB2 settings, checked before the gate's first step as PLAY100_FLOOR_CHROMIUM is: the absolute folder
+ * of the pinned set, which must match the committed digests, the quiet-host attestation and the bound Chrome version.
+ */
+export async function requireApb2Operator(
+  env: NodeJS.ProcessEnv,
+  verify: (folder: string) => Promise<Pick<ProtocolVerification, 'ok' | 'files' | 'freezeSha256'>> = verifyProtocol,
+) {
+  const protocol = env.PLAY100_APB2_PROTOCOL ?? '';
+  if (!path.isAbsolute(protocol))
+    throw new Error(
+      'Set PLAY100_APB2_PROTOCOL to the absolute folder of the pinned APB2 v3.2 set before the full gate.',
+    );
+  if (env.PLAY100_APB2_QUIET_ATTESTED !== '1')
+    throw new Error('Set PLAY100_APB2_QUIET_ATTESTED=1, the quiet-host attestation, before the full gate.');
+  const browserVersion = env.PLAY100_APB2_BROWSER_VERSION ?? '';
+  if (!/^\d+\.\d+\.\d+\.\d+$/.test(browserVersion))
+    throw new Error('Set PLAY100_APB2_BROWSER_VERSION to the bound four-part Chrome version before the full gate.');
+  const verification = await verify(protocol);
+  if (!verification.ok)
+    throw new Error(
+      'PLAY100_APB2_PROTOCOL does not match the committed APB2 v3.2 digests; fix it before the full gate.',
+    );
+  return { protocol, browserVersion, files: verification.files, freezeSha256: verification.freezeSha256 };
+}
+export function checkApb2GateReceipt(input: unknown, candidate: { sha: string; tree: string }): Apb2GateReceipt {
+  const receipt = requireObject(input);
+  const source = requireObject(receipt.source);
+  if (
+    receipt.schemaVersion !== 1 ||
+    receipt.status !== 'passed' ||
+    source.sha !== candidate.sha ||
+    source.tree !== candidate.tree
+  )
+    throw new Error('APB2 needs a passing receipt bound to the exact candidate commit and tree.');
+  return { schemaVersion: 1, source: candidate, status: 'passed' };
+}
+/**
+ * The APB2 step's own environment: the exact candidate identity, plus the operator's pinned-set folder, quiet-host
+ * attestation and bound Chrome version, which the configured profile would otherwise strip with every PLAY100_ variable.
+ */
+export const APB2_OPERATOR_ENV = [
+  'PLAY100_APB2_PROTOCOL',
+  'PLAY100_APB2_QUIET_ATTESTED',
+  'PLAY100_APB2_BROWSER_VERSION',
+] as const;
+export function apb2StepEnvironment(input: NodeJS.ProcessEnv, candidate: { sha: string; tree: string }) {
+  const env: NodeJS.ProcessEnv = {
+    PLAY100_APB2_SOURCE_COMMIT: candidate.sha,
+    PLAY100_APB2_SOURCE_TREE: candidate.tree,
+  };
+  for (const name of APB2_OPERATOR_ENV) if (input[name]) env[name] = input[name];
+  return env;
+}
 const ports = [4187, 9199, 8188, 4417, 4517, 9150];
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 type Profile = 'configured' | 'offline' | 'emulator';
@@ -84,9 +158,32 @@ export function gatePlan(): GateStep[] {
     }
   }
   for (const name of ['production', 'development'] as const) {
-    steps.push({ name, profile: 'configured', tool: 'playwright', args: ['test'], report: 'playwright' });
+    steps.push({
+      name,
+      profile: 'configured',
+      tool: 'playwright',
+      args: name === 'production' ? ['test', '--grep-invert', FILM_DOWNLOAD_TEST] : ['test'],
+      report: 'playwright',
+    });
   }
   steps.push(
+    {
+      name: 'floor-smoke',
+      profile: 'configured',
+      tool: 'playwright',
+      args: ['test', '--config', 'playwright.floor.config.ts'],
+      report: 'playwright',
+      expectedPassed: 15,
+    },
+    { name: 'apb2', profile: 'configured', tool: 'npm', args: ['run', APB2_GATE_SCRIPT] },
+    {
+      name: 'films-download',
+      profile: 'configured',
+      tool: 'playwright',
+      args: ['test', 'tests/films.spec.ts', '--grep', FILM_DOWNLOAD_TEST],
+      report: 'playwright',
+      expectedPassed: 2,
+    },
     { name: 'cloud-ui', profile: 'emulator', tool: 'emulators', args: [], report: 'playwright' },
     { name: 'sync-20', profile: 'emulator', tool: 'emulators', args: [], report: 'playwright', expectedPassed: 80 },
     {
@@ -140,9 +237,56 @@ export function checkGateReport(step: GateStep, report: unknown) {
   return counts;
 }
 
+export async function runPartitionAttempts(
+  step: GateStep,
+  execute: (attempt: GateStep) => Promise<void>,
+): Promise<{ name: string; passed: boolean }[]> {
+  const attempts: { name: string; passed: boolean }[] = [];
+  const limit = step.name === 'films-download' ? 2 : 1;
+  for (let index = 1; index <= limit; index++) {
+    const attempt = limit === 1 ? step : { ...step, name: `${step.name}-attempt-${index}` };
+    try {
+      await execute(attempt);
+      attempts.push({ name: attempt.name, passed: true });
+      return attempts;
+    } catch (cause) {
+      attempts.push({ name: attempt.name, passed: false });
+      if (index === limit) throw cause;
+      console.warn(`${attempt.name} failed; retaining its evidence and using the single FLAKE-01 rerun.`);
+    }
+  }
+  throw new Error('Partition did not execute.');
+}
+
 const hash = (bytes: string | Buffer) => createHash('sha256').update(bytes).digest('hex');
-async function json(file: string, value: unknown) {
+export async function bindFilmAttempts(evidence: string, attempts: { name: string; passed: boolean }[]) {
+  const available = new Set(await readdir(evidence));
+  const bound = [];
+  for (const attempt of attempts) {
+    const files = [];
+    for (const suffix of ['.log', '-exit.json', '.json']) {
+      const file = `${attempt.name}${suffix}`;
+      // A failed runner may leave no native report. Successful attempts must have one.
+      if (suffix === '.json' && !attempt.passed && !available.has(file)) {
+        files.push({ path: file, missing: true });
+      } else {
+        const content = await readFile(path.join(evidence, file));
+        files.push({ path: file, sha256: hash(content), bytes: content.length });
+      }
+    }
+    bound.push({ ...attempt, files });
+  }
+  return bound;
+}
+
+async function json(file: string, value: unknown, command = ['release:gate', 'write', path.basename(file)]) {
   await writeFile(file, `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx' });
+  const plan = path.join(path.dirname(file), 'plan.json');
+  if (file !== plan && (await evidenceFileExists(plan))) {
+    const { sha, tree } = requireObject(JSON.parse(await readFile(plan, 'utf8')));
+    if (typeof sha !== 'string' || typeof tree !== 'string') throw new Error('Invalid gate source identity.');
+    await writeEvidenceIdentity(file, { commit: sha, tree }, command);
+  }
 }
 export function commandReceipt(name: string, exitCode: number | null, log: Buffer, error?: string) {
   return { name, exitCode, logSha256: hash(log), logBytes: log.length, ...(error ? { error } : {}) };
@@ -203,10 +347,16 @@ export async function runCommand(
   args: string[],
   env: NodeJS.ProcessEnv,
   auditLockfileSha256?: string,
+  reports: string[] = [],
 ) {
   const logPath = path.join(evidence, `${name}.log`);
-  // Reserve before spawning; a failed attempt is never overwritten or retried.
-  await writeFile(logPath, evidenceLogHeader(JSON.parse(await readFile(path.join(evidence, 'plan.json'), 'utf8'))), {
+  const plan = requireObject(JSON.parse(await readFile(path.join(evidence, 'plan.json'), 'utf8')));
+  if (typeof plan.sha !== 'string' || typeof plan.tree !== 'string') throw new Error('Invalid gate source identity.');
+  const source = { commit: plan.sha, tree: plan.tree };
+  env = { ...env, ...evidenceEnvironment(source) };
+  await reserveEvidenceNames(reports);
+  // Reserve before spawning; each attempt has its own immutable evidence paths.
+  await writeFile(logPath, evidenceLogHeader(plan), {
     flag: 'wx',
   });
   const output = createWriteStream(logPath, { flags: 'a' });
@@ -248,24 +398,38 @@ export async function runCommand(
       output.end((error?: Error | null) => (error ? reject(error) : resolve())),
     );
     finishedAt = new Date().toISOString();
-    await json(path.join(evidence, `${name}-exit.json`), {
-      ...commandReceipt(name, exitCode, await readFile(logPath), failure),
-      command: [executable, ...args],
-      startedAt,
-      finishedAt,
-    });
+    const produced = [];
+    for (const report of reports) {
+      if (await evidenceFileExists(report)) produced.push(report);
+      else if (exitCode === 0) failure ??= `Successful command did not create ${report}`;
+    }
+    await json(
+      path.join(evidence, `${name}-exit.json`),
+      {
+        ...commandReceipt(name, exitCode, await readFile(logPath), failure),
+        command: [executable, ...args],
+        startedAt,
+        finishedAt,
+      },
+      [executable, ...args],
+    );
+    for (const report of produced) await writeEvidenceIdentity(report, source, [executable, ...args]);
   }
   if (auditLockfileSha256 && !failure) {
     const report: unknown = JSON.parse(Buffer.concat(auditChunks).toString('utf8'));
     const summary = summarizeNpmAudit(report, exitCode);
-    await json(path.join(evidence, `${name}.json`), {
-      ...summary,
-      startedAt,
-      finishedAt,
-      lockfileSha256: auditLockfileSha256,
-      report,
-      commandReceiptSha256: hash(await readFile(path.join(evidence, `${name}-exit.json`))),
-    });
+    await json(
+      path.join(evidence, `${name}.json`),
+      {
+        ...summary,
+        startedAt,
+        finishedAt,
+        lockfileSha256: auditLockfileSha256,
+        report,
+        commandReceiptSha256: hash(await readFile(path.join(evidence, `${name}-exit.json`))),
+      },
+      [executable, ...args],
+    );
     if (summary.reviewRequired)
       console.warn(`${name}: dependency advisories recorded for owner review; not a clean audit.`);
     return;
@@ -293,8 +457,9 @@ export function reporterArgs(step: GateStep, evidence: string) {
   if (step.report === 'vitest')
     return ['--reporter=default', '--reporter=json', `--outputFile=${path.join(evidence, `${step.name}.json`)}`];
   return [
-    '--project=desktop',
-    '--project=mobile',
+    ...(step.name === 'floor-smoke'
+      ? ['--project=floor-firefox', '--project=floor-webkit', '--project=floor-chromium']
+      : ['--project=desktop', '--project=mobile']),
     `--workers=${step.tool === 'emulators' ? 1 : 2}`,
     '--retries=0',
     '--reporter=list,json',
@@ -349,6 +514,8 @@ async function runInner(step: GateStep, evidence: string) {
       process.execPath,
       [cli(root, 'vitest'), ...args, ...reporterArgs(step, evidence)],
       env,
+      undefined,
+      [path.join(evidence, `${step.name}.json`)],
     );
     return;
   }
@@ -388,6 +555,8 @@ async function runInner(step: GateStep, evidence: string) {
           `--output=${path.join(evidence, 'compare-fixture-results')}`,
         ],
         { ...env, PLAYWRIGHT_JSON_OUTPUT_FILE: path.join(evidence, 'compare-fixture-report.json') },
+        undefined,
+        [path.join(evidence, 'compare-fixture-report.json'), env.PLAY100_COMPARE_FIXTURE],
       );
       const fixture = requireObject(JSON.parse(await readFile(env.PLAY100_COMPARE_FIXTURE, 'utf8')));
       if (fixture.status !== 'READY') throw new Error('Comparison fixture is not READY.');
@@ -403,6 +572,8 @@ async function runInner(step: GateStep, evidence: string) {
       process.execPath,
       [cli(root, 'playwright'), ...args, ...reporterArgs(step, evidence)],
       env,
+      undefined,
+      [path.join(evidence, `${step.name}.json`)],
     );
   } finally {
     await server.close();
@@ -440,6 +611,10 @@ export async function releaseGate(evidence: string, offline: string) {
     if (!process.env[`VITE_FIREBASE_${name}`]?.trim())
       throw new Error('Load reviewed public Production Firebase values first.');
   }
+  if (!process.env.PLAY100_FLOOR_CHROMIUM || !(await stat(process.env.PLAY100_FLOOR_CHROMIUM)).isFile())
+    throw new Error('Set PLAY100_FLOOR_CHROMIUM to the reviewed old Chromium executable before the full gate.');
+  requireApb2Runner(JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')));
+  await requireApb2Operator(process.env);
   const sha = git(root, 'rev-parse', 'HEAD');
   const tree = git(root, 'rev-parse', 'HEAD^{tree}');
   await cleanCheckout(root, sha);
@@ -484,6 +659,9 @@ export async function releaseGate(evidence: string, offline: string) {
       throw new Error('Candidate rules changed.');
     const cwd = step.profile === 'offline' ? offline : root;
     const env = gateEnvironment(process.env, step.profile);
+    Object.assign(env, evidenceEnvironment({ commit: sha, tree }));
+    if (step.name === 'floor-smoke') env.PLAY100_FLOOR_CHROMIUM = process.env.PLAY100_FLOOR_CHROMIUM;
+    if (step.name === 'apb2') Object.assign(env, apb2StepEnvironment(process.env, { sha, tree }));
     env.PLAYWRIGHT_JSON_OUTPUT_FILE = path.join(evidence, `${step.name}.json`);
     if (step.tool === 'playwright') env.PLAY100_TEST_BUILD = step.name === 'development' ? 'development' : 'production';
     const args = [...step.args];
@@ -543,6 +721,8 @@ export async function releaseGate(evidence: string, offline: string) {
           GITLEAKS_CONFIG_TOML: undefined,
           GITLEAKS_ENABLE_COMMENTS: undefined,
         },
+        undefined,
+        [path.join(evidence, `${step.name}.json`)],
       );
       await json(path.join(evidence, `${step.name}-summary.json`), {
         ...prepared.receipt,
@@ -554,8 +734,33 @@ export async function releaseGate(evidence: string, offline: string) {
         ),
         logOpts,
       });
+    } else if (step.name === 'films-download') {
+      const attempts = await runPartitionAttempts(step, async (attempt) => {
+        await runCommand(
+          attempt.name,
+          cwd,
+          evidence,
+          process.execPath,
+          [cli(cwd, 'playwright'), ...attempt.args, ...reporterArgs(attempt, evidence)],
+          { ...env, PLAYWRIGHT_JSON_OUTPUT_FILE: path.join(evidence, `${attempt.name}.json`) },
+          undefined,
+          [path.join(evidence, `${attempt.name}.json`)],
+        );
+        checkGateReport(attempt, JSON.parse(await readFile(path.join(evidence, `${attempt.name}.json`), 'utf8')));
+      });
+      await json(path.join(evidence, `${step.name}-exit.json`), {
+        exitCode: 0,
+        exception: 'FLAKE-01',
+        attempts: await bindFilmAttempts(evidence, attempts),
+      });
+      await copyFile(path.join(evidence, `${attempts.at(-1)!.name}.json`), path.join(evidence, `${step.name}.json`));
+      await copyFile(
+        path.join(evidence, `${attempts.at(-1)!.name}.json.identity.json`),
+        path.join(evidence, `${step.name}.json.identity.json`),
+      );
     } else {
       if (step.report) args.push(...reporterArgs(step, evidence));
+      if (step.name === 'apb2') args.push('--', '--evidence', path.join(evidence, 'apb2'));
       if (step.name.endsWith('check-budgets')) args.push('--', '--json', path.join(evidence, `${step.name}.json`));
       await runCommand(
         step.name,
@@ -565,6 +770,7 @@ export async function releaseGate(evidence: string, offline: string) {
         [cli(cwd, step.tool), ...args],
         env,
         step.audit ? hash(await readFile(path.join(cwd, 'package-lock.json'))) : undefined,
+        step.report || step.name.endsWith('check-budgets') ? [path.join(evidence, `${step.name}.json`)] : [],
       );
     }
     if (step.report) {
@@ -574,6 +780,11 @@ export async function releaseGate(evidence: string, offline: string) {
         ...checkGateReport(step, JSON.parse(bytes.toString('utf8'))),
       });
     }
+    if (step.name === 'apb2')
+      checkApb2GateReceipt(JSON.parse(await readFile(path.join(evidence, 'apb2', 'receipt.json'), 'utf8')), {
+        sha,
+        tree,
+      });
     if (step.name.endsWith('-build')) {
       const firstPaint = requireObject(
         JSON.parse(await readFile(path.join(cwd, '.build-meta', 'dist', 'first-paint.json'), 'utf8')),
@@ -611,8 +822,11 @@ export async function releaseGate(evidence: string, offline: string) {
         );
       else if (step.report)
         args.push(step.report === 'vitest' ? '--vitest' : '--playwright', path.join(evidence, `${step.name}.json`));
+      if (step.report || step.tool === 'gitleaks' || step.name.endsWith('check-budgets'))
+        args.push('--receipt', `${step.name}-identity=${path.join(evidence, `${step.name}.json.identity.json`)}`);
       if (step.audit) args.push('--audit', path.join(evidence, `${step.name}.json`));
       else args.push('--receipt', `${step.name}=${path.join(evidence, `${step.name}-exit.json`)}`);
+      if (step.name === 'apb2') args.push('--receipt', `apb2-result=${path.join(evidence, 'apb2', 'receipt.json')}`);
       if (step.tool === 'gitleaks') {
         for (const suffix of ['', '-summary', '-tool'])
           args.push('--receipt', `${step.name}${suffix}=${path.join(evidence, `${step.name}${suffix}.json`)}`);

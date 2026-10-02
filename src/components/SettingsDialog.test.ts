@@ -18,7 +18,11 @@ const pinsRetained =
   'Your library and preferences were reset, but saved Compare pins could not be cleared. Allow storage and try Reset again.';
 const resetSaved = 'Your active library, Play later, ranking, Compare pins and preferences have been reset.';
 
-function renderFeedback(result: 'saved' | 'failed' | 'pins-retained' | null, warning: string | null) {
+function renderFeedback(
+  result: 'saved' | 'failed' | 'pins-retained' | null,
+  warning: string | null,
+  overrides: Partial<ComponentProps<typeof SettingsDialog>> = {},
+) {
   vi.mocked(useState).mockReturnValueOnce([false, vi.fn()]).mockReturnValueOnce([result, vi.fn()]);
   const props: ComponentProps<typeof SettingsDialog> = {
     motion: 'lite',
@@ -35,16 +39,27 @@ function renderFeedback(result: 'saved' | 'failed' | 'pins-retained' | null, war
     onRestore: vi.fn(async () => true),
     onAbout: vi.fn(),
     onClose: vi.fn(),
+    ...overrides,
   };
   const html = renderToStaticMarkup(createElement(SettingsDialog, props));
   const section = /<section class="device-settings">([\s\S]*?)<\/section>/.exec(html)?.[1];
   if (!section) throw new Error('Settings must retain the device section.');
   const messages = (role: 'alert' | 'status') =>
     [...section.matchAll(new RegExp(`<p\\b[^>]*role="${role}"[^>]*>([\\s\\S]*?)<\\/p>`, 'g'))].map((match) => match[1]);
-  return { props, section, alerts: messages('alert'), statuses: messages('status') };
+  return { props, html, section, alerts: messages('alert'), statuses: messages('status') };
 }
 
 describe('Settings reset feedback', () => {
+  it('distinguishes opening storage from an unavailable device store', () => {
+    const opening = renderFeedback(null, null, { loading: true, busy: true, persistent: false });
+    expect(opening.html).toContain('<p role="status">Opening your library…</p>');
+    expect(opening.html).not.toContain('Device storage is unavailable.');
+    expect(opening.html).not.toContain('Your changes are temporary.');
+    const unavailable = renderFeedback(null, null, { persistent: false });
+    expect(unavailable.html).toContain('Device storage is unavailable.');
+    expect(unavailable.html).not.toContain('Opening your library');
+  });
+
   it.each([
     ['failed', resetFailed],
     ['pins-retained', pinsRetained],

@@ -42,6 +42,20 @@ describe('vercel.json route matching', () => {
     expect(routePattern(MAIN_DOCUMENT_RULE).source).toBe(new RegExp(`^${MAIN_DOCUMENT_RULE}$`).source);
   });
 
+  it('reads a . outside groups and classes as a literal dot, as path-to-regexp does', () => {
+    expect(routePattern('/social-card.png').test('/social-card.png')).toBe(true);
+    expect(routePattern('/social-card.png').test('/social-cardXpng')).toBe(false);
+    expect(routePattern('/data/discovery/catalog.v1.json').test('/data/discovery/catalogXv1Xjson')).toBe(false);
+    expect(routePattern('/assets/(.*)').test('/assets/any/thing.js')).toBe(true);
+    expect(routePattern('/__/auth/(handler|iframe|experiments)\\.js').test('/__/auth/handlerXjs')).toBe(false);
+    expect(routePattern('/a[.]b').test('/a.b')).toBe(true);
+    expect(routePattern('/a[.]b').test('/aXb')).toBe(false);
+    expect(routePattern('/a[.(]b.c').test('/a(b.c')).toBe(true);
+    expect(routePattern('/a[.(]b.c').test('/a(bXc')).toBe(false);
+    for (const { source } of configuration.headers.filter((rule) => !/[()[\]\\:]/.test(rule.source)))
+      expect(routePattern(source).test(source), source).toBe(true);
+  });
+
   it('keeps the auth helpers out of the one main-document rule and everything else in it', () => {
     expect(configuration.headers.filter(isMainDocumentRule)).toHaveLength(1);
     expect(configuration.headers[0]!.source).toBe(MAIN_DOCUMENT_RULE);

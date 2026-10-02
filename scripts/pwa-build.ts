@@ -15,6 +15,7 @@ import {
 } from '../src/pwa/worker.ts';
 import type { PwaAsset, PwaBuildManifest, PwaDocumentPolicy } from '../src/pwa/types.ts';
 import { isMainDocumentRule } from '../src/lib/vercel-routes.ts';
+import { manifestEntry } from './preloaded-tool-chunks.ts';
 
 export const PWA_ROOTS = [
   'index.html',
@@ -40,6 +41,7 @@ const publicCore = [
   '/pwa/fallback.css',
   '/favicon.svg',
   '/data/collection.json',
+  '/icons/author-links.svg',
   '/data/discovery/catalog.v1.json',
   ...PWA_ICONS.map((icon) => `/pwa/${icon.file}`),
 ];
@@ -47,13 +49,14 @@ const publicCore = [
 export function pwaCorePaths(manifest: Manifest): string[] {
   const seen = new Set<string>();
   const paths = new Set(publicCore);
-  const visit = (key: string) => {
-    if (seen.has(key)) return;
-    if (key.startsWith('src/cloud/') || key.startsWith('src/components/scene/')) {
-      throw new Error(`The offline core unexpectedly imports an online/3D entry: ${key}`);
+  const visit = (root: string) => {
+    if (root.startsWith('src/cloud/') || root.startsWith('src/components/scene/')) {
+      throw new Error(`The offline core unexpectedly imports an online/3D entry: ${root}`);
     }
-    const chunk = manifest[key];
-    if (!chunk) throw new Error(`The offline build is missing required Vite entry ${key}.`);
+    const entry = manifestEntry(manifest, root);
+    if (!entry) throw new Error(`The offline build is missing required Vite entry ${root}.`);
+    const { key, chunk } = entry;
+    if (seen.has(key)) return;
     seen.add(key);
     for (const file of [
       chunk.file,

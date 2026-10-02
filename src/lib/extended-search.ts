@@ -4,6 +4,7 @@ import { sortDirection } from './collection';
 import { matchesCatalogQuery } from './catalog-query';
 import { matchesProgressFilters } from './game-progress';
 import { collectionGameForId } from './catalog-identity';
+import { matchesDiscoveryGenre } from './discovery-genres';
 
 export function extendedResultCount(count: number, queryKey: string, loading: boolean): string {
   const searching = Boolean(new URLSearchParams(queryKey).get('q')?.trim());
@@ -29,7 +30,7 @@ export function filterUnranked(
 ): LibraryRecord[] {
   if (filters.tier !== 'all') return [];
   const result = records.filter((record) => {
-    if (filters.genre && record.genre !== filters.genre) return false;
+    if (!matchesDiscoveryGenre(record.genre, filters.genre, filters.genreFamily)) return false;
     if (filters.year && record.year !== Number(filters.year)) return false;
     const state = progress[record.id];
     if (!matchesProgressFilters(state, filters)) return false;

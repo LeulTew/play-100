@@ -592,7 +592,7 @@ test('batched desktop and mobile pixels keep games before secondary filters and 
           };
         }),
       );
-      expect(controls).toHaveLength(5);
+      expect(controls).toHaveLength(6);
       expect(controls.every((control) => control.height >= 44 && control.contained && control.centered <= 0.5)).toBe(
         true,
       );

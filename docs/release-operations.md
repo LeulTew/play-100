@@ -1,6 +1,8 @@
 # Local release operations
 
-This is the procedure, not an executed release receipt. Hosted CI is disabled.
+This is the procedure, not an executed release receipt. Hosted CI does not run
+the gate; the dispatch-only [candidate CI runs](#candidate-ci-runs) add Linux
+evidence beside it.
 Every native command below must exit 0 before continuing. A deployment marked
 Ready is not a passed gate. Stop on an uncertain mutation: inspect its result
 before retrying; never repeat a deploy, promotion or rollback blindly.
@@ -115,9 +117,15 @@ outcome. Release 7 is the failing baseline for NVDA (a): one DOM focus move
 into the heading, yet NVDA speaks the dialog role, the whole body and the
 heading twice. In CI, Release 7 (b)
 returns focus to the card; the BODY loss seen with local NVDA did not
-reproduce on hosted runners. Run the light checks with
-`npm run typecheck` in `scripts/screen-reader-smoke` and
-`npx vitest run --project unit scripts/screen-reader-smoke/src/speech.test.ts`.
+reproduce on hosted runners. The harness keeps Guidepup and its Playwright in
+its own lockfile, so the root `npm ci`, `eslint .` and `tsconfig.node.json`
+leave out `tests/` and `playwright.config.ts`; the pure `src/` modules and their
+unit tests stay in the root lint and vitest `unit` project. Each workflow run
+first runs a `harness` job that installs both lockfiles, runs
+`npm run typecheck` in `scripts/screen-reader-smoke` against the pinned
+Guidepup types, and lints the whole folder with
+`SR_SMOKE_LINT=1 npx eslint scripts/screen-reader-smoke`; the reader jobs
+type-check again after their own `npm ci`.
 
 For consented Windows OS evidence, run
 `npm run release:pwa-os -- --url https://play-100-collection.vercel.app`
@@ -233,9 +241,182 @@ redacted JSON report and command log, not only a summary of its result.
 
 The committed runner is the default entry point. It follows the release operator's
 ordered local partitions, pins **Node 24.21.0**, refuses occupied suite ports
-(including IPv6), and stops on the first failure without retries or cleanup of
-evidence. The old, disabled hosted workflow was removed rather than kept as a
+(including IPv6), and stops on the first failure without cleanup of evidence.
+It sets `PLAY100_SOURCE_COMMIT` and `PLAY100_SOURCE_TREE` from the frozen
+candidate, embeds them in Playwright reports and writes hash/command-bound
+identity sidecars for native reports and generated command receipts.
+Every partition is zero-retry except the isolated FLAKE-01 film-download
+partition described below. The old, disabled hosted workflow was removed rather than kept as a
 second, incomplete definition. No CI, push or deployment is performed.
+
+### Lean release mode
+
+The full `npm run release:gate` **remains the default**. Lean mode is supported
+when the release operator schedules the required partitions separately to fit
+shared-host, device-lab or foreground screen-reader windows. It is an evidence
+collection mode, not a shorter list of checks or a deployment command. Every
+required result must identify the same clean candidate commit and tree at
+creation; neither an index assertion nor rebasing an unchanged tree replaces
+that identity. Freeze
+source, the lockfile and the intermittent register before collecting evidence.
+Any change to them requires a new candidate and matching evidence.
+
+Required evidence identifiers in the lean index:
+
+| Identifier | Required evidence |
+| --- | --- |
+| `static` | TypeScript app and Functions checks, ESLint/Prettier, data and discovery validators; exact commands and exits |
+| `units` | Relevant complete unit and mounted-browser suites, with native reports and no unexplained skips |
+| `configured-build`, `configured-csp`, `configured-budgets` | Configured build and its `check:csp` / `check:budgets` reports |
+| `offline-build`, `offline-csp`, `offline-budgets` | Separate unconfigured/offline build and its `check:csp` / `check:budgets` reports |
+| `e2e-production`, `e2e-development`, `e2e-offline` | Production, source-fixture development and offline end-to-end partitions |
+| `films-download` | The isolated native film case on desktop and mobile; retain both attempts if the sole rerun is needed |
+| `cloud-rules` | Real emulator rules suite, tested rules digest, and required race/convergence repetitions |
+| `cloud-ui-desktop`, `cloud-ui-mobile` | Both cloud UI projects, including one-worker rule-loading checks and required sync repetitions |
+| `floor-smoke` | Browser-floor smoke receipt |
+| `sw-probe` | Strict configured two-version service-worker campaign; validation-only mode is not release evidence |
+| `rollback-drill` | Rollback rehearsal and its compatibility-floor checks |
+| `apb2` | Complete APB2 startup/performance campaign and retained failures/limits |
+| `test-lab`, `ios-safari` | Test Lab and iOS Safari receipts with device/runtime and tested-build identity |
+| `screen-reader` | Real reader version, spoken output, keyboard/focus outcomes and tested-build identity |
+| `gitleaks` | Full reachable-history scan, pinned scanner identity and redacted native result |
+| `npm-audit`, `npm-signatures` | Audit and signature receipts for both installed build profiles; advisories remain visible for review |
+
+Keep raw logs, native reports and artifacts outside the checkout. Before each
+command, derive `PLAY100_SOURCE_COMMIT` and `PLAY100_SOURCE_TREE` from the clean
+candidate's `HEAD`, never from a previously recorded report. All four
+`playwright*.config.ts` configurations put them in `metadata`; Playwright's
+native JSON contains them under `config.metadata`. Ordinary local runs without
+these variables still work but do not produce identified release evidence.
+Setting only one variable or an invalid SHA stops config loading.
+
+For Vitest JSON and tools that cannot embed identity, run the creation command
+through the committed wrapper. It reads and exports both values itself before
+spawning, refuses existing report/sidecar paths, preserves the real exit code
+and checks that source stayed clean and unchanged before issuing
+`<report>.identity.json`. Each sidecar contains `schemaVersion: 1`, full
+`commit` and `tree`, the exact report `sha256`, and the creation `command`
+array. Failed reports get sidecars too; this does not turn failure into a pass.
+There is intentionally no command to stamp an already-existing receipt.
+
+```powershell
+$env:PLAY100_SOURCE_COMMIT = (git rev-parse HEAD).Trim()
+$env:PLAY100_SOURCE_TREE = (git rev-parse 'HEAD^{tree}').Trim()
+if (git status --porcelain) { throw 'Freeze the candidate before collecting evidence' }
+
+# Native Playwright metadata and a per-report sidecar, with zero retries.
+$env:PLAYWRIGHT_JSON_OUTPUT_FILE = "$evidence\e2e-production.json"
+$env:PLAY100_TEST_BUILD = 'production'
+$filmCase = 'optional films stay unloaded until Watch, play and seek natively, switch without overlap and restore focus'
+npm exec --no -- tsx scripts/release-evidence.ts --report "$evidence\e2e-production.json" -- npm exec --no -- playwright test --reporter=list,json --retries=0 --grep-invert "$filmCase"
+if ($LASTEXITCODE -ne 0) { throw 'Production partition failed; preserve the evidence' }
+
+# Vitest does not embed the source, so its sidecar is mandatory.
+npm exec --no -- tsx scripts/release-evidence.ts --report "$evidence\unit-browser.json" -- npm exec --no -- vitest run --reporter=default --reporter=json --outputFile="$evidence\unit-browser.json"
+if ($LASTEXITCODE -ne 0) { throw 'Unit/browser partition failed; preserve the evidence' }
+
+# For stdout-only checks, the wrapper captures a log and binds it.
+npm exec --no -- tsx scripts/release-evidence.ts --log "$evidence\types.log" -- npm exec --no -- tsc -b
+if ($LASTEXITCODE -ne 0) { throw 'Type check failed; preserve the evidence' }
+```
+
+Apply the same wrapper to each separately scheduled creation command, naming
+every output with repeatable `--report` arguments; `--log` optionally captures
+stdout/stderr. Keep device reports, screenshots and archives together and
+identify them when their actual device-test or archive command creates them.
+An old iOS `results.json`, Test Lab or reader receipt without creation-time
+identity cannot be admitted by relabelling it in the index. Device operators
+must additionally verify the target build matches this candidate; the source
+environment identifies the checkout, not a mutable remote origin.
+
+At execution time record each file in a JSON index with its full tested tree, byte count,
+SHA-256, UTC recording time and result. Include every evidence file; multiple
+files may share an identifier. For the film partition, use one receipt bundle
+per attempt (with its log, native report and artifacts inside), numbered 1 and
+optionally 2. Neither edit a failed receipt into a pass nor relabel an old
+receipt with the current tree.
+
+```json
+{
+  "schemaVersion": 1,
+  "tree": "FULL_40_CHARACTER_CANDIDATE_TREE",
+  "evidence": [
+    {
+      "check": "static",
+      "file": "static-receipt.json",
+      "tree": "FULL_40_CHARACTER_TESTED_TREE",
+      "sha256": "RECORDED_64_CHARACTER_SHA256",
+      "bytes": 1234,
+      "recordedAt": "2026-10-02T01:00:00.000Z",
+      "result": "passed"
+    }
+  ]
+}
+```
+
+This is a shape example, not an accepted complete index: all table identifiers
+are mandatory. Paths resolve relative to the index. Allowed results are
+`passed`; `failed` only for film attempt 1 followed by passed attempt 2; and
+`review-required` only for `npm-audit`. A second film failure stops release.
+Missing, blocked or not-yet-run reader/device checks cannot be encoded as passes.
+
+```powershell
+npm run release:manifest -- C:\release\evidence\lean-manifest.json --lean C:\release\evidence\index.json
+if ($LASTEXITCODE -ne 0) { throw 'Lean evidence is incomplete, changed or belongs to another tree' }
+```
+
+This extends the existing typed `release:manifest` command; its native-report
+mode stays available. Lean collection needs no `dist` or running server. It
+binds the current commit/tree, `package-lock.json`, `docs/intermittents.md`, the
+index and every listed file's digest, size and recorded tree, plus every used
+identity sidecar's digest and size. It refuses
+missing/changed files, other-tree evidence, dirty source, duplicate files,
+in-checkout output and overwrite of an existing manifest. **Every evidence
+category needs creation-time provenance**, even if the index row has the right
+tree. Accepted native identities are a complete `commit`/`tree` pair at the
+JSON root, `source` (`sha` is also accepted there), `metadata`, or Playwright's
+`config.metadata`; text logs need both `commit:` and `tree:` headers. Otherwise
+an adjacent `<file>.identity.json` must match the candidate and exact report
+bytes. Missing, partial, conflicting or different-commit/tree declarations fail,
+even when another identity source is valid.
+
+Candidate CI's original downloaded artifacts are the explicit legacy exception
+to per-report sidecars: they contain `identity.json` with `commit`, `tree`,
+`requestedSha`, `suite` and the workflow-run URL. Keep that artifact intact.
+A sibling `identity.json` is discovered automatically; for nested reports set
+the index row's optional `"identity": "candidate-ci/identity.json"` relative to
+the index. Reports must remain beneath that identity's artifact directory and
+the identity must name this repository's Candidate CI run and exact candidate.
+The manifest binds the downloaded report and identity bytes. These older CI
+identities have no per-report digest: their association relies on the original
+workflow artifact, not proof that a detached file came from that run. Verify
+the workflow URL and artifact origin; do not mix files from different runs.
+
+Creation-time metadata is not a cryptographic execution attestation. Review command headers, native
+results, device build identity and completeness before accepting it. The
+collector does not execute checks, approve audit advisories, reinterpret
+performance failures or authorize deployment. `reviewRequired: true` must
+receive an explicit advisory decision before promotion. A waiver or cross-tree
+carry-forward needs separate owner review and is not a passing lean manifest.
+
+### Isolated FLAKE-01 partition
+
+The full runner excludes exactly the named native film playback/download case
+from production e2e and runs it separately as `films-download` on desktop and
+mobile. Other tests in `tests/films.spec.ts` stay in production e2e; development
+fixtures are unchanged. Playwright itself always uses `--retries=0`.
+
+The first run writes `films-download-attempt-1.*` and a distinct results
+directory. On failure, keep every file and run that partition once more with
+`films-download-attempt-2.*`. Stop on a second failure; never restart another
+partition to obtain green. Playback, seek, switching, focus, native download
+and byte-identical SHA-256 assertions are unchanged. The successful aggregate
+receipt binds both attempts' log/exit/report bytes, including an explicitly
+missing native report if the first runner failed before writing it. The
+manifest includes the final native report and this exception receipt; it does
+not erase or relabel the first failure. See [FLAKE-01](intermittents.md#flake-01-phase-2-conclusion).
+
+### Full runner setup
 
 Prepare a separate clean offline checkout at the **same full candidate SHA**,
 with matching installed dependencies, as described in section 3. The runner
@@ -261,6 +442,11 @@ if ($LASTEXITCODE -ne 0) { throw 'Gate stopped; investigate retained evidence be
 
 The evidence directory must not exist and must be outside both checkouts.
 Dry-run prints the entire plan without starting servers, tests or builds.
+The full plan includes the three-engine floor smoke and the APB2 hook below.
+Before starting, set `PLAY100_FLOOR_CHROMIUM` to an installed, reviewed old
+Chromium executable and install the matching Playwright Firefox/WebKit engines.
+There is no two-engine substitute in the full gate. The runner also refuses to
+start if the committed `release:apb2` package script is absent.
 Execution first runs `npm audit signatures` against the installed tree in each
 checkout, before any static check or test. Each signature check must succeed;
 its log hash and exit receipt are bound into that checkout's release manifest.
@@ -475,11 +661,80 @@ readback requirements in §9 still apply.
 ### APB2 v3.2 campaign protocol
 
 APB2 remains a separately frozen performance campaign, not a result implied by
-`release:gate` or the SW probe. The committed runner port is **pending**; do not
-substitute a smaller benchmark or claim a campaign pass from unit checks.
-Until the full fixture/collector graph is ported, retain the reviewed v3.2 frozen
-artifact set and its native suite, freeze, preview, source-binding and capture
-receipts together. Do not use files still changing during the active gate.
+`release:gate` or the SW probe. `npm run release:apb2` is the committed runner. It
+drives the digest-pinned v3.2 measurement set, which stays outside the repository:
+name its folder with `--protocol <dir>` or `PLAY100_APB2_PROTOCOL`, never by a
+path in the repository. Before it loads any of that set, the runner checks all 145
+files against `scripts/release-apb2-v32-files.ts` (plan-freeze-v3-2 `c6eba71b`),
+and checks the pinned configuration's profiles, journey order and budgets against
+`scripts/release-apb2-contract.ts`; any difference stops the run. Do not substitute
+a smaller benchmark or claim a campaign pass from unit checks, and do not use files
+still changing during the active gate.
+
+```sh
+npm run release:apb2 -- verify --protocol <dir>
+npm run release:apb2 -- stage --protocol <dir> --profile fine1440cpu1 --dist dist \
+  --evidence <evidence> --stage-id <name> --browser-version <Chrome> --quiet-attested
+npm run release:apb2 -- stage --protocol <dir> --profile coarse393cpu4 --dist dist \
+  --evidence <evidence> --stage-id <name> --browser-version <Chrome> --quiet-attested \
+  --previous-runtime <protocol>/round4-apb2/<fine stage>/runtime.json
+npm run release:apb2 -- collect --protocol <dir> --profile <id> --capture <capture> \
+  --dist dist --evidence <evidence> --name <name>
+```
+
+A stage runs on the gate runtime. It binds the clean HEAD, every file of the build
+and the hint-authority sources (`motion-hint`, `personal-db`, `scoped-library`,
+`App`) into `<evidence>/<stage-id>/`, sets the fixture's IndexedDB version from the
+committed `DB_VERSION`, serves the build read-only on `127.0.0.1:4199` and launches
+stock Chrome, whose version must equal `--browser-version`. It proves the setup
+guards and the ordinary-Pin preflight before timing, then the pinned adapter
+captures the fixed 72-context population under a 19-minute lease. The capture stays
+where the pinned adapter writes it (`<protocol>/round4-apb2/<stage-id>/capture`).
+Afterwards the runner checks, for up to 15 seconds, that the owned Chrome's
+processes and both ports are gone, then re-checks HEAD, the tree, the build and
+the pinned set. A stage whose closure never holds, or that lacks this after-run
+check, is held (HOLD, or a failed smoke). It writes one JSON record per
+scheduled repetition, missing and failed ones included, with an index of SHA-256
+digests, and `table.json`: the pinned aggregation's rows beside rows recomputed in
+TypeScript from those records. The two must agree field by field, including
+which rows are gated, and each profile's table must have exactly the contract's
+29 gated rows, so a row relabelled informational cannot leave the gate.
+
+Exit code 0 means a complete capture whose gated rows all pass, 2 a complete
+capture with a gated row not passing, and 1 anything else; the receipts are kept in
+every case. A campaign stage needs `--quiet-attested`, the operator's attestation
+that no other test, server, emulator, build or WSL work runs on the host; the q40
+admission wait, the coordination marker and host covariates stay with the
+operator. `--smoke` runs the same path under a 3.5-minute lease, so it stops after
+the first contexts: it shows the runner works end to end, needs no attestation and
+makes no timing claim. `collect` re-collects a capture of the same HEAD, including
+one taken by another harness of the same pinned protocol.
+
+The gate's `apb2` step calls the runner's gate form,
+`npm run release:apb2 -- --evidence NEW_DIRECTORY`, with
+`PLAY100_APB2_SOURCE_COMMIT` and `PLAY100_APB2_SOURCE_TREE` set to the full
+candidate identities. It also passes the operator's `PLAY100_APB2_PROTOCOL`,
+`PLAY100_APB2_QUIET_ATTESTED=1` and `PLAY100_APB2_BROWSER_VERSION` through, which
+the configured profile would otherwise strip. Before its first step the full gate
+checks those three settings, as it checks `PLAY100_FLOOR_CHROMIUM`: an absolute
+protocol folder that verifies against the committed digests, the attestation and
+a four-part Chrome version. The gate form checks both
+identities against HEAD, verifies the pinned set, captures `fine1440cpu1` and then
+`coarse393cpu4` (with the fine runtime as its previous runtime) from the
+configured `dist`, and collects both. It then writes `NEW_DIRECTORY/receipt.json`
+conforming to `Apb2GateReceipt` in `scripts/release-gate.ts`: `schemaVersion: 1`,
+`source: { sha, tree }`, and `status: "passed"` only when both profiles are
+complete, their recomputed tables equal the pinned aggregation and all 29 gated
+rows of each pass; otherwise `failed`, with its reasons. The receipt binds each
+profile's stage receipt, `table.json`, record index and capture `run.json` by
+SHA-256, with the runner's file digests and the pinned set's verification; it
+never merely echoes the environment as proof. An operator who must admit the host
+between the profiles runs the same sequence as `gate --step fine1440cpu1`,
+`--step coarse393cpu4` and `--step receipt` against one evidence folder. The gate
+verifies the exit and exact source identity and hashes the receipt in its final
+configured manifest. Missing runner, receipt, wrong identity or failed status
+blocks the gate; there is no skip, fabricated pass, or fallback to a smaller
+benchmark.
 
 The v3.2 amendment changes only fixture IndexedDB opens to the source-bound
 `DB_VERSION` (3 for R22), read lazily through validated
@@ -626,7 +881,8 @@ Invoke-RecordedCheck csp { npm run check:csp }
 Invoke-RecordedCheck budget-check { npm run check:budgets -- --json "$evidence\budgets.json" }
 $env:PLAY100_TEST_BUILD = 'production'
 $env:PLAYWRIGHT_JSON_OUTPUT_NAME = "$evidence\e2e-production.json"
-npm run test:e2e -- --reporter=list,json
+$filmCase = 'optional films stay unloaded until Watch, play and seek natively, switch without overlap and restore focus'
+npm run test:e2e -- --reporter=list,json --retries=0 --grep-invert "$filmCase"
 if ($LASTEXITCODE -ne 0) { throw 'Production e2e failed' }
 $env:PLAY100_TEST_BUILD = 'development'
 $env:PLAYWRIGHT_JSON_OUTPUT_NAME = "$evidence\e2e-development.json"
@@ -639,6 +895,14 @@ Each config starts its own strict server on 4187. Stop any other server first;
 never adopt a stale server. Preserve `dist` and its environment after this build.
 Any offline-build expansion must use a separate build/evidence directory and
 manifest; never describe it as this configured candidate.
+
+The production command deliberately excludes the native film case. Run and
+record the [isolated film partition](#isolated-flake-01-partition) as well before
+calling these diagnostic commands release coverage. `release:gate` handles its
+two-project invocation, immutable attempt paths and one-rerun limit. For a lean
+run, use `tests/films.spec.ts --grep "$filmCase"` with `--retries=0`, distinct
+report/output paths for each attempt, and both desktop/mobile projects; retain
+the two passing selected cases and any first failed attempt in the lean index.
 
 **Browser-floor smoke.** The partitions above run current Chromium only. The
 floor smoke (`tests/floor-smoke.spec.ts`, `playwright.floor.config.ts`) runs the
@@ -660,7 +924,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Floor smoke failed' }
 Remove-Item Env:PLAYWRIGHT_JSON_OUTPUT_NAME, Env:PLAY100_FLOOR_CHROMIUM -ErrorAction SilentlyContinue
 ```
 
-Without `PLAY100_FLOOR_CHROMIUM` only `floor-firefox` and `floor-webkit` run.
+Without `PLAY100_FLOOR_CHROMIUM` this standalone command runs only
+`floor-firefox` and `floor-webkit`. That is partial coverage, not the full
+`release:gate` floor partition, which requires all three engines and all 15
+configured cases with no skips.
 
 For cloud-UI use three terminals in this **same checkout**. Terminal A:
 
@@ -817,6 +1084,165 @@ Do not add this report to the configured manifest's report list or claim it
 tested the configured candidate. Return to the original configured shell and
 its unchanged environment, checkout, `dist` and `$evidence` for §4.
 
+### Candidate CI runs
+
+[`.github/workflows/candidate-ci.yml`](../.github/workflows/candidate-ci.yml)
+runs one suite on a GitHub-hosted `ubuntu-24.04` runner against an exact
+commit. It only runs on `workflow_dispatch`: nothing triggers it on push, and it
+never deploys. Use it for loops and Linux cells that would otherwise occupy the
+release machine.
+
+**What a run proves.** The named specs passed, with zero retries and
+`--forbid-only`, at the dispatched 40-character SHA, on Linux, the runner image
+and the browser that `identity.json` records. The workflow checks out that SHA,
+confirms `HEAD` and a clean tree, runs `npm ci` on Node 24.21.0 and copies the
+gate's builds and environment:
+
+- `e2e-prod` and `lighthouse` use the configured build (`VITE_FIREBASE_REQUIRED=true`
+  and the public `VITE_FIREBASE_*` and `VITE_SITE_URL` repository variables);
+- `e2e-offline` uses a build with every `VITE_FIREBASE_*` variable absent;
+- `e2e-dev` uses the configured development server; `playwright.config.ts` then
+  matches only its source-fixture specs (`menu.spec.ts`, `public-browsing.spec.ts`
+  and the rest of that list), and other specs report "No tests found". It runs
+  headed under Xvfb: in headless Linux Chromium the background tab that a
+  modified click opens from the dev server stalls before Playwright sees it
+  (`menu.spec.ts` `:412` and `:532`), and disabling background throttling does
+  not help. The `browser_env` input overrides this (`default`, `unthrottled`,
+  `xvfb-headed`), and `identity.json` records the value used as `browserEnv`;
+- `cloud-rules` and `cloud-ui` use Java 21 and the pinned `firebase-tools`
+  emulators (`demo-play100`, auth and Firestore). `cloud-rules` starts a fresh
+  `emulators:exec` for each repeat, as the convergence loop does. `cloud-ui`
+  serves `vite --mode cloud-test` on 4187 and allocates the compare fixture
+  first when the specs include `compare-orientation`.
+
+Production builds are served by `scripts/low-end-profile.ts`, which applies
+`vercel.json` headers and rewrites over HTTPS. `lighthouse` runs Lighthouse
+12.8.2 (pinned by `.github/candidate-ci/lighthouse/package-lock.json`) with
+three mobile and three desktop runs in each of two cells: `linux-liberation`
+(the runner's fonts) and `linux-dejavu` (a fontconfig with only
+`/usr/share/fonts/truetype/dejavu`, which fails the run if any other family is
+visible). It writes the JSON and HTML reports, `fonts-<cell>.txt` and
+`summary.json` with per-run scores and medians.
+
+Each run uploads an evidence artifact, `candidate-ci-<suite>-<sha>-<run>-<attempt>`, for
+30 days. It holds the Playwright JSON and JUnit reports or the per-iteration
+Vitest reports, the console log, and the traces and `error-context.md` files of
+failures. It also holds the emulator debug logs and `identity.json`, which records:
+
+- commit, tree, the requested SHA and the inputs;
+- the `package-lock.json` and built `dist/index.html` SHA-256;
+- the runner image (`ImageOS`, `ImageVersion`), kernel, Node, npm, Java (cloud
+  suites), Playwright, Vitest, firebase-tools, Lighthouse and Chromium versions;
+- the run URL and the workflow commit;
+- `fonts`: `fc-match sans-serif` and `serif`, and each Lighthouse font cell;
+- `files`: the POSIX path (relative to the artifact root), bytes and SHA-256 of
+  every other uploaded file. It is written last, so a detached report can be
+  matched to its run.
+
+When a test fails, the run also uploads a small `failures-<suite>-<sha>-<run>-<attempt>`
+artifact for quick diagnosis: `failures.json` (each failed attempt's title,
+`file:line`, project, repeat index, status and first error) and every failed
+Playwright attempt's `error-context.md` and screenshots, without traces or
+videos. It is a convenience copy outside `identity.json`'s `files`; cite the
+full artifact as evidence. Fetch it with
+`gh run download <run> --repo LeulTew/play-100 -p 'failures-*'`.
+
+**What it does not prove.** A run is not a gate receipt. It does not replace
+`npm run release:gate`, §3, the manifest or any manual gate. It runs one suite
+on Linux Chromium only, with no Chrome channel, Windows or macOS fonts, WebKit,
+real devices or deployment checks. Its builds are not the release `dist`: a CI
+report counts in a lean manifest only for the Linux checks listed below, through
+`npm run ci:collect`, and never in place of a local row the gate must record. Cite the run URL and
+`identity.json`, check that `commit` equals the candidate, and record failures
+as evidence (the `docs/intermittents.md` rows included); never re-dispatch until
+green.
+
+Dispatch from a branch that carries the workflow, with the full SHA. `specs` is
+a space-separated path list, `project` is `desktop`, `mobile` or `both`, and
+`repeat` is passed to `--repeat-each` (for `cloud-rules`, the count of fresh
+emulator runs). `workers` overrides the suite default (3 for `e2e-*` suites, as in the local gate; 1 for
+cloud suites), and the optional `grep` is passed as `--grep` or `-t`.
+
+```bash
+sha=FULL_40_CHARACTER_SHA
+ref=BRANCH_WITH_THE_WORKFLOW
+gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=e2e-prod -f project=both -f specs='tests/frequent-action-focus.spec.ts' -f repeat=3
+gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=e2e-dev -f project=desktop -f specs='tests/menu.spec.ts' -f repeat=3
+gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=e2e-offline -f project=both -f specs='tests/root-navigation-guards.spec.ts'
+gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=cloud-rules -f specs='tests-cloud/friend-all.test.ts' -f repeat=20
+gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=cloud-ui -f project=desktop -f specs='tests-cloud-ui/identity.spec.ts' -f grep='cross-tab identity change' -f repeat=20
+gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=lighthouse
+gh run download RUN_ID
+```
+
+#### Final-tip plan, dispatch and collect
+
+[`scripts/candidate-ci/plan.json`](../scripts/candidate-ci/plan.json) lists the
+full final-tip set, one entry per dispatch: `checks`, `csp-refresh`, `floor` and
+`lighthouse`; full `e2e-prod`, `e2e-dev` and `e2e-offline` on both projects;
+FLAKE-01 alone; every open `docs/intermittents.md` row at its loop count; the
+R24 focus specs ×20; `cloud-rules` full ×3; `cloud-ui` full on each project; and
+the cloud-ui loops. Long loops are split per project so no job nears its
+180-minute timeout. Each entry has an `id`, a `purpose`, the workflow inputs
+(`suite`, `specs`, `project`, `repeat`, `workers`, `grep`, `browserEnv`) and
+optionally `lean` (the lean check it supplies) and `expectedPassed`. Edit the
+plan when `docs/intermittents.md` changes.
+
+```bash
+npm run ci:dispatch -- --sha "$sha" --dry-run            # print each gh command
+npm run ci:dispatch -- --sha "$sha" --out ../ci/runs.json # dispatch and record the runs
+npm run ci:dispatch -- --sha "$sha" --only floor,lighthouse --out ../ci/runs-small.json
+npm run ci:collect -- --runs ../ci/runs.json --out ../ci/evidence --wait
+```
+
+`ci:dispatch` dispatches from `--ref` (default `leultew-r24-candidate-ci`; it
+must carry the workflow) and passes each entry a unique `request` id,
+`<entry>.<sha8>.<nonce>`. The workflow puts it in the run name and in
+`identity.json` as `requestId`. Dispatch replies are unordered and carry no run
+id, so the script matches each run by its exact name and refuses ambiguity;
+`ci:collect` then confirms the match from the artifact itself. `runs.json`
+records each entry, request id, run id and URL.
+
+`ci:collect` refuses an output inside the checkout and, with `--wait`, polls
+until every run completes. For each run it downloads the artifact into
+`<out>/<entry>/` and verifies `identity.json`: `commit` and `requestedSha` equal
+the SHA, `tree` equals that commit's tree (when the commit is in the local
+clone) and is the same for every run, `requestId` and `workflow.run` name this
+run, the recorded inputs equal the entry, and `files[]` matches the downloaded
+files exactly, by path, bytes and SHA-256, in both directions. Any mismatch
+stops collection. It then writes:
+
+- `summary.md` and `summary.json`: entry, suite, project, spec, repeat, passed,
+  failed, skipped, result and run URL. An entry passes only if its run
+  succeeded, it passed at least one test, nothing failed or was skipped, and the
+  count equals `expectedPassed` when set. Vitest counts the tests a `-t` filter
+  deselects as skipped, so a `cloud-rules` entry with `grep` tolerates skips.
+  Playwright's `flaky` counts as failed;
+  `lighthouse` has no counts and passes on the run's conclusion. Hidden files
+  (Playwright's `test-results/.last-run.json`) are not uploaded or digested.
+- `index.json`: a partial lean evidence index (`partial: true`) for
+  `scripts/release-lean-manifest.ts`. Its rows are `e2e-production`,
+  `e2e-development`, `e2e-offline`, `films-download` (attempt 1),
+  `floor-smoke`, `cloud-rules`, `cloud-ui-desktop` and `cloud-ui-mobile`. Each
+  points at the run's report and its `identity.json`, which the manifest's CI
+  provenance check verifies. A failed run's row is omitted and listed under
+  `omitted`, except FLAKE-01's, which is kept as `failed` so a local second
+  attempt can follow it. `runs` repeats the summary.
+
+The command exits 1 when any entry failed, after writing the files.
+
+Caveats:
+
+- The index is partial: the manifest still needs every local row, so merge the
+  CI rows into the gate's index, keeping the `file` and `identity` paths
+  relative to the merged index's directory.
+- The CI `e2e-prod` full run includes the FLAKE-01 case, which the gate runs
+  separately; a FLAKE-01 failure there drops the `e2e-production` row.
+- `checks`, `csp-refresh`, `lighthouse` and the loops appear only in the summary.
+  They are Linux evidence for the reviewers, not lean rows.
+
+These runs do not replace `npm run release:gate`, §3 or any manual gate.
+
 ## 4. Manifest and complete evidence packet
 
 Back in the configured-build shell, ensure the same public Production
@@ -824,6 +1250,11 @@ environment and unchanged `dist`, lockfile and clean source. Create
 `decisions.json` in `$evidence` with both arrays:
 `{"carryForward":[],"waivers":[]}`. Replace empty arrays only with the explicit
 reasoned records defined in [the manifest documentation](../README.md#portable-local-release-evidence).
+
+The native-report command below illustrates collection of the named partitions,
+not a complete release certificate. Use the full runner's generated manifests
+or the complete [lean index](#lean-release-mode) to bind the isolated film
+attempts, floor smoke, APB2 and every other required receipt as well.
 
 ```powershell
 if (git status --porcelain) { throw 'Commit or investigate source changes before release' }
@@ -1094,18 +1525,74 @@ with the owner's readback.
 Owner: project owner; check daily and after each authorized production deployment,
 and review by 2026-10-02 with the WAF decision or immediately on an abuse signal.
 
-**Automatic alert (owner's choice, 2026-10-01).** The `Production alert`
-workflow (`.github/workflows/production-alert.yml`) runs daily at 06:30 UTC,
-after the 06:00 cron. It requests the home page and the fixed
+**Automatic alert (owner's choice, 2026-10-01; hourly since R24).** The
+`Production alert` workflow (`.github/workflows/production-alert.yml`) runs at
+30 minutes past every hour. It requests the home page and the fixed
 `/api/operational-probe` once each, without retries or query parameters. If
-either fails, it opens one issue titled "Production alert: the daily check
-failed" (or comments on the open one) and fails the run, so GitHub emails the
-owner. The next passing run closes the issue. To test the channel, run it
-manually with **drill** checked; that reports a simulated failure. The repository
-is public, so the run uses no Actions quota. GitHub pauses scheduled workflows
-after 60 days without repository activity; if that happens, re-enable the
-workflow in the Actions tab. The alert covers availability and the probe's
-three checks only; the manual checks below still apply.
+either fails, it opens one issue titled "Production alert: the production check
+failed", labelled `production-check-failed` (it creates the label if needed),
+or comments on the open one, and fails the run, so GitHub emails the owner. It
+does so only when the failure is new or has changed: each report carries a
+hidden state marker, and while the same failure persists the hourly runs only
+warn. The next passing run closes the issue. To test the channel, run it
+manually with **drill** checked; each drill reports a simulated failure. The
+repository is public, so the runs use no Actions quota. GitHub pauses scheduled
+workflows after 60 days without repository activity; if that happens, re-enable
+the workflow in the Actions tab. The probe caches each result for 15 minutes,
+so the hourly calls add at most 24 rounds of its four upstream requests a day.
+
+Anyone can open an issue or comment on this public repository, so the workflow
+trusts only its own posts. It uses only an open issue it opened itself, with
+the label or one of its alert titles (including the old one, "the daily check
+failed"), and reads state markers only from its own issue text and comments.
+It locks every alert issue, so only collaborators can comment. GitHub doesn't
+let the workflow's own account comment on a locked issue, so the workflow
+unlocks the issue for each of its comments and locks it again.
+
+**Client report alerts (R24).** The two report functions push their own alert
+to one GitHub issue, labelled `client-report-spike`, when
+`PRODUCTION_ALERT_GITHUB_TOKEN` is set (see the
+[runbook](security-release-runbook.md#production-alert-token)); without it they
+do nothing extra and log nothing extra. Each function instance counts the
+reports it accepted over a rolling hour (`api/_lib/production-alert.ts`):
+- five client error reports naming one error class and area: a page load sends
+  at most four reports, so this needs at least two page loads;
+- twenty client error reports of any category, so at least five page loads;
+- three CSP violations in main documents, which the policy should never
+  produce; three rather than one tolerate a stray extension script. The sign-in
+  helper documents' violations are not counted.
+
+The report that reaches a threshold tries to post, and its own 204 waits for
+the post: that adds up to 5 s to that one report's response, at most once per
+instance per hour. The senders are browser beacons and CSP reports, which don't
+wait for the response. The instance then waits an hour before it can try again,
+whether the post worked or not. Only the open labelled issue that the token's
+owner opened counts, and only the owner's posts on it. A post comments on that
+issue, or opens and locks a new one. It is skipped if the owner already posted
+that exact text, or if the owner's newest spike post is under an hour old.
+Without that hourly wait, every new or scaled-out instance could post once. It
+contains the fixed categories and counts, the window and the deployment ID,
+never a URL with a query, a user agent or an address. The report's own log line
+gains `alert`: `created`, `commented`, `duplicate`, `cooldown` (the owner's
+newest spike post is under an hour old), `unlocked` (opened the issue, but
+GitHub refused to lock it, with its status in `alertStatus`; the workflow locks
+it within the hour), or `failed` with `alertStatus` (the GitHub status, or 0
+when the request failed or got no answer within 5 s); a failure is recorded
+nowhere else. Counts are per instance and come from anonymous reports, so a
+spread-out spike can stay under the thresholds, and forged reports can raise a
+false alert. Instances together post about once an hour: two that reach a
+threshold within the same second can both post. Admission still bounds each
+endpoint. The functions post with the owner's token, and GitHub doesn't notify
+people of their own activity, so the hourly workflow acknowledges each new
+spike post with one comment and fails that run, which emails the owner. It
+reads spike posts only from the owner's issue and posts, and its own
+acknowledgements only from its own comments, and keeps the issue locked. It
+closes the issue after 24 hours without a new spike. On a spike, open the
+deployment's logs and compare the `client-error-count` or `csp-count` lines with
+the categories in the issue, as in step 4 below.
+
+The alerts cover availability, the probe's three checks and these report
+spikes; the manual checks below still apply.
 
 1. In the Vercel project, open **Settings → Cron Jobs**. Confirm the job is
    enabled and `/api/operational-probe` is scheduled at `0 6 * * *` (UTC; allow

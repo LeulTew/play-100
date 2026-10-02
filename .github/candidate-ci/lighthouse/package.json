@@ -1,0 +1,8 @@
+{
+  "name": "play100-candidate-ci-lighthouse",
+  "private": true,
+  "description": "Pinned Lighthouse for the Candidate CI workflow, installed apart from the candidate's own lockfile.",
+  "dependencies": {
+    "lighthouse": "12.8.2"
+  }
+}

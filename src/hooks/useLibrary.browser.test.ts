@@ -7,7 +7,8 @@ import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
 import { createFetchSafeViteServer } from '../lib/test-server-ports';
 import { DB_NAME, DB_VERSION, STATE_KEY, STORE_NAME } from '../lib/personal-db';
-import { applyPersonalAction, emptyPersonalLibrary, readLibraryBackup } from '../lib/personal-library';
+import { applyPersonalAction, emptyPersonalLibrary } from '../lib/personal-library';
+import { readLibraryBackup } from '../lib/backup-restore';
 import type { PersonalLibraryState } from '../lib/personal-types';
 import { discoveryFixture } from '../lib/discovery-test-fixtures';
 import { accountScope } from '../lib/cloud-types';
@@ -376,7 +377,12 @@ describe('blocked library recovery', () => {
       await page.getByRole('button', { name: 'Add temporary game', exact: true }).click();
       await banner.getByRole('button', { name: 'Try again', exact: true }).click();
       await page.getByRole('button', { name: 'Discard tab changes and try again', exact: true }).click();
-      await page.evaluate(() => window.libraryRetryFixture.addTemporary());
+      const reviewedRevision = await page.evaluate(() => window.libraryRetryFixture.state().revision);
+      expect(await page.evaluate(() => window.libraryRetryFixture.addTemporary())).toBe(true);
+      // perform() publishes its authoritative ref before React commits the snapshot exposed by this fixture.
+      await browserExpect
+        .poll(() => page.evaluate(() => window.libraryRetryFixture.state().revision))
+        .toBe(reviewedRevision + 1);
       const newer = await page.evaluate(() => window.libraryRetryFixture.state());
       await blocker.close();
       await page.getByRole('button', { name: 'Discard and try again', exact: true }).click();

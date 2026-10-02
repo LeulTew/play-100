@@ -54,7 +54,7 @@ export function useAppPanel(scope: string, opening: boolean) {
     prefetchStop.current = scheduleIdlePrefetch(loadSecondaryDialogs, 150, 'intent');
   }, []);
   const loadPanel = useCallback((next: 'about' | 'settings', request: number) => {
-    const title = next === 'about' ? 'credits' : 'Settings';
+    const title = next === 'about' ? 'About & credits' : 'Settings';
     noticeTimer.current = setTimeout(() => {
       if (alive.current && generation.current === request) setMessage({ text: `Opening ${title}…`, error: false });
     }, 500);
@@ -73,7 +73,7 @@ export function useAppPanel(scope: string, opening: boolean) {
         );
         if (alive.current && generation.current === request) {
           clearTimeout(noticeTimer.current);
-          setMessage({ text: `${next === 'about' ? 'Credits' : title} didn't load.`, error: true });
+          setMessage({ text: `${title} didn't load.`, error: true });
           setPanelFailure(next);
         }
       });
@@ -130,7 +130,13 @@ export function useAppPanel(scope: string, opening: boolean) {
         warm();
     };
     for (const name of ['pointerover', 'focusin', 'pointerdown']) document.addEventListener(name, intent, true);
-    window.addEventListener('popstate', cancel);
+    // Browser Back or Forward closes an open dialog rather than changing the page beneath it, as the Menu does (UX-027).
+    // The app's own popstate events (a Google return path) are untrusted and leave the dialog open.
+    const back = (event: Event) => {
+      cancel();
+      if (event.isTrusted) commit(null);
+    };
+    window.addEventListener('popstate', back);
     window.addEventListener('play100:navigate', cancel);
     window.addEventListener('keydown', escape);
     // panel and panelFromMenu start from this intent (readyPanelFromUrl, panelIntentFromUrl); a dialog that isn't loaded yet loads now.
@@ -145,7 +151,7 @@ export function useAppPanel(scope: string, opening: boolean) {
       clearTimeout(noticeTimer.current);
       prefetchStop.current?.();
       for (const name of ['pointerover', 'focusin', 'pointerdown']) document.removeEventListener(name, intent, true);
-      window.removeEventListener('popstate', cancel);
+      window.removeEventListener('popstate', back);
       window.removeEventListener('play100:navigate', cancel);
       window.removeEventListener('keydown', escape);
     };

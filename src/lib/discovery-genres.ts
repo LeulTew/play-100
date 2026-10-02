@@ -1,4 +1,4 @@
-import type { LibraryRecord } from './personal-types';
+import type { LibraryRecord } from './personal-types.js';
 
 export const DISCOVERY_GENRE_FAMILIES = [
   { id: 'action-adventure', label: 'Action & adventure' },

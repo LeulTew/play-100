@@ -6,15 +6,17 @@ import '../../styles.css';
 import '../../shared-ui.css';
 const added: string[] = [];
 const waiting: ((result: boolean | 'reject') => void)[] = [];
+const root = createRoot(fixtureElement('mount'));
 window.manualFormFixture = {
   added,
   pending: () => waiting.length,
+  unmount: () => root.unmount(),
   finish(result) {
     const next = waiting.shift();
     if (next) next(result);
   },
 };
-createRoot(fixtureElement('mount')).render(
+root.render(
   h(ManualGameForm, {
     busy: false,
     actionLabel: 'Add to my library',

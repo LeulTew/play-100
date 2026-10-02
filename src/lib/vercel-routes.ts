@@ -6,10 +6,27 @@ export const MAIN_DOCUMENT_RULE = '/((?!__/auth/(?:handler|iframe|handler[.]js|i
 
 /**
  * vercel.json's sources are anchored regular expressions, apart from their named parameters: :name matches one
- * segment, :name+ one or more and :name* any number. A (?: group's colon is not a parameter.
+ * segment, :name+ one or more and :name* any number. A (?: group's colon is not a parameter. As in path-to-regexp,
+ * a `.` outside groups and character classes is literal, so /social-card.png does not match /social-cardXpng.
  */
 export function routePattern(source: string): RegExp {
-  const pattern = source.replace(/(?<!\?):\w+([*+]?)/g, (_, modifier: string) =>
+  let literalDots = '';
+  let depth = 0;
+  let inClass = false;
+  for (let index = 0; index < source.length; index++) {
+    const char = source[index]!;
+    if (char === '\\') {
+      literalDots += source.slice(index, index + 2);
+      index++;
+      continue;
+    }
+    if (inClass) inClass = char !== ']';
+    else if (char === '[') inClass = true;
+    else if (char === '(') depth++;
+    else if (char === ')') depth--;
+    literalDots += char === '.' && depth === 0 && !inClass ? '\\.' : char;
+  }
+  const pattern = literalDots.replace(/(?<!\?):\w+([*+]?)/g, (_, modifier: string) =>
     modifier === '*' ? '.*' : modifier === '+' ? '.+' : '[^/]+',
   );
   return new RegExp(`^${pattern}$`);

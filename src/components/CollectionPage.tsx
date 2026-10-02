@@ -15,7 +15,7 @@ import { Icon } from './Icon';
 import Magnet from './bits/Magnet';
 import AnimatedContent from './bits/AnimatedContent';
 import { AfterFirstPaint } from './AfterFirstPaint';
-import { FIRST_PASS_CARDS, rendersAtOnce, scheduleSecondPass } from './landing-passes';
+import { FIRST_PASS_CARDS, firstPassSettled, rendersAtOnce, scheduleSecondPass } from './landing-passes';
 import { navigationKind } from '../lib/navigation-kind';
 import { author } from '../lib/author';
 import { preloadCollectionExtras } from '../lib/collection-extras-preload';
@@ -24,7 +24,7 @@ import './catalog/discover.css';
 import { catalogActionRecord } from '../lib/catalog-identity';
 import { SavedCatalogCopies } from './catalog/SavedCatalogCopies';
 import type { MotionOriginHint } from '../motion';
-import { formatResultRange } from '../lib/local-pagination';
+import { formatResultRange } from '../lib/result-range';
 
 interface CollectionPageProps {
   collection: ReturnType<typeof useCollection>;
@@ -111,11 +111,11 @@ function CollectionPage({
   const [secondPass, setSecondPass] = useState(() =>
     rendersAtOnce({ constrained, navigation: navigationKind(), filmsLinked }),
   );
-  const cardsReady = collection.status === 'ready';
+  const settled = firstPassSettled(collection.status);
   useEffect(() => {
-    if (secondPass || !cardsReady) return;
+    if (secondPass || !settled) return;
     return scheduleSecondPass(() => setSecondPass(true));
-  }, [secondPass, cardsReady]);
+  }, [secondPass, settled]);
   const showcaseReserve = <div className="first-paint-reserve" aria-hidden="true" />;
   return (
     <>
@@ -219,10 +219,6 @@ function CollectionPage({
                 busy={busy}
                 onSelectAll={() => setSelected(new Set(resultRecords.map((record) => record.id)))}
                 onClear={() => setSelected(new Set())}
-                onDone={() => {
-                  setSelecting(false);
-                  setSelected(new Set());
-                }}
                 onAction={(action) => {
                   void bulk(action);
                 }}
@@ -330,7 +326,7 @@ function CollectionPage({
                   {filters.list === 'later' && savedCount === 0
                     ? 'Your next great game goes here.'
                     : filters.list === 'completed' && completedCount === 0
-                      ? 'Every collection starts somewhere.'
+                      ? 'No completed games yet'
                       : 'No worlds found. Yet.'}
                 </h3>
                 <p>

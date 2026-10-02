@@ -3,11 +3,21 @@
 The `iOS Safari smoke` workflow runs Apple's Mobile Safari with Appium 3.8.0
 and XCUITest driver 12.13.3 inside real iOS Simulator runtimes on `macos-15`.
 It does not use desktop
-WebKit with an iPhone user-agent override. It needs no secrets, downloads no
-app dependencies, and never deploys or changes production data. Its default
+WebKit with an iPhone user-agent override. It needs no secrets and never deploys or changes production data. The inventory
+job installs the repository's locked dependencies to check types, lint and the
+Vitest unit project; simulator jobs install only the dedicated runner lockfile.
+Its default
 target is production; manual runs can use an HTTPS candidate origin instead.
 
 ## Coverage and evidence
+
+The inventory artifact includes `target-identity.json`: the validated target
+origin, UTC fetch time, byte count and SHA-256 of the HTML served at that origin's
+root. The planner fetches without cache and refuses redirects, failed HTTP
+responses, non-HTML and empty bodies; it hashes response bytes without text
+normalization. This identifies the observed build before simulator jobs begin.
+Keep a candidate immutable for the run: this snapshot does not prove that a
+mutable origin served identical bytes to every later browser navigation.
 
 Each fresh simulator cold-loads the selected origin (production by default) and
 checks both hero phrases, the hidden boot-error panel and app-started state.
@@ -23,6 +33,15 @@ fail the job; screenshots, Safari diagnostics and partial results upload even
 on failure. An additional simulator screenshot covers driver startup failures.
 The uncaught-error allowlist starts empty; any future exception must be narrowly
 matched, justified and linked to an issue.
+
+For the [lean release manifest](release-operations.md#lean-release-mode), a
+`results.json` file does not acquire candidate provenance from its index row or
+from the workflow's harness checkout. It needs an embedded full tested
+commit/tree or a creation-time `<report>.identity.json` binding those values,
+the report's SHA-256 and its creation command. Run new evidence producers
+through the documented wrapper and verify the remote target's build identity
+separately. Older unbound simulator results remain historical evidence, not
+passing same-candidate lean receipts.
 
 The script requests `pageLoadStrategy: none` and injects `error` and
 `unhandledrejection` listeners as soon as WebDriver can execute in each new
@@ -172,6 +191,21 @@ performance benchmarks.
 
 ## Running
 
+The harness is TypeScript executed by `tsx` on the repository's pinned Node
+24.21.0 (`.nvmrc`). `tsconfig.node.json` includes every harness source and test;
+the local release gate's `tsc -b` and Vitest unit project therefore cover them.
+Run the focused unit checks with
+`npm exec -- vitest run --project unit --maxWorkers=1 scripts/ios-safari-smoke`.
+The inventory job also checks types, focused lint, formatting and these thirteen tests
+before starting any simulator job.
+
+`scripts/ios-safari-smoke/package-lock.json` locks Appium, XCUITest and their
+transitive dependencies. Simulator jobs use `npm ci` in that package, never a
+global install or a separately resolved `appium driver install`. Appium starts
+inside that package so it discovers the locked driver dependency; do not set
+`APPIUM_HOME`, which overrides this project-based discovery. Dependabot monitors
+the dedicated package as well as the root dependencies.
+
 The workflow runs only when dispatched: select **Actions -> iOS Safari smoke ->
 Run workflow**, or use:
 
@@ -195,11 +229,13 @@ The candidate must remain reachable for the entire matrix run.
 
 Inspect the device jobs and download the `ios-safari-*` artifacts. They are retained for
 30 days. To reproduce on a Mac, select an installed Xcode with
-`DEVELOPER_DIR`, create and boot a fresh simulator with `xcrun simctl`, install
-the pinned Appium and XCUITest versions above, download the verified simulator
+`DEVELOPER_DIR`, create and boot a fresh simulator with `xcrun simctl`, run
+`npm ci --prefix scripts/ios-safari-smoke`, download the verified simulator
 WebDriverAgent asset as in the workflow, set `WDA_APP` and `WDA_BUNDLE_ID`, start
-`appium --address 127.0.0.1 --port 4444`, set `IOS_UDID`, `IOS_DEVICE_NAME` and
-`IOS_VERSION`, then run `node scripts/ios-safari-smoke/smoke.mjs`.
+`./node_modules/.bin/appium --address 127.0.0.1 --port 4444` from inside
+`scripts/ios-safari-smoke`, set `IOS_UDID`, `IOS_DEVICE_NAME` and
+`IOS_VERSION`, then from the repository root run
+`scripts/ios-safari-smoke/node_modules/.bin/tsx scripts/ios-safari-smoke/smoke.ts`.
 
 This is simulator Safari coverage, **not physical iPhone certification**.
 It does not certify Add to Home Screen, installed standalone behavior,

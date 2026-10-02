@@ -14,12 +14,8 @@ import { DiscoveryCard } from './DiscoveryCard';
 import { DiscoverFilters, DiscoverSources } from './DiscoverControls';
 import { selectionOperation } from '../../lib/game-progress';
 import type { useCollection } from '../../hooks/useCollection';
-import {
-  catalogActionRecord,
-  collectionGameForId,
-  collidingCatalogTitles,
-  newOnlineMatchCounts,
-} from '../../lib/catalog-identity';
+import { catalogActionRecord, collectionGameForId } from '../../lib/catalog-identity';
+import { collidingCatalogTitles, newOnlineMatchCounts } from '../../lib/catalog-matches';
 import { LocalPager } from '../LocalPager';
 import { gameDetailSearch } from '../../lib/my-games-navigation';
 import './discover.css';
@@ -269,10 +265,6 @@ export default function DiscoverPage({
             busy={busy}
             onSelectAll={() => setSelected(new Set(records.map((record) => record.id)))}
             onClear={() => setSelected(new Set())}
-            onDone={() => {
-              setSelecting(false);
-              setSelected(new Set());
-            }}
             onAction={(action) => {
               void bulk(action);
             }}

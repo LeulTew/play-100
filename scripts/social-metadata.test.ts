@@ -39,6 +39,7 @@ describe('public social metadata', () => {
     expect(new URL(meta('og:image')).origin).toBe(new URL(meta('og:url')).origin);
     expect(meta('og:type')).toBe('website');
     expect(meta('og:site_name')).toBe('Play 100');
+    expect(meta('author', 'name')).toBe('Leul Tewodros Agonafer');
   });
 
   it('defines explicit Twitter fields that match Open Graph without fallback', () => {
@@ -48,6 +49,9 @@ describe('public social metadata', () => {
     }
     expect(meta('og:image:alt')).toBe('Play 100. Good games. Great escapes. One hundred games worth making time for.');
     expect(meta('og:title')).toBe('Play 100 — Good games. Great escapes.');
+    expect(meta('description', 'name')).toContain('save games to Play later');
+    expect(meta('og:description')).toContain('save games to Play later');
+    expect(html.match(/<noscript>([\s\S]*?)<\/noscript>/)?.[1]).toContain('your private Play later list');
   });
 
   it('matches the hero and social artwork tagline and declares both SVG and PNG favicons', () => {

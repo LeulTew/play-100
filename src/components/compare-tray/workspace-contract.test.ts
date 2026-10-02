@@ -235,7 +235,12 @@ describe('workspace embedding contract', () => {
     expect(completed).not.toContain('Beta game');
     expect(completed).toContain('Alpha game');
     expect(completed).toContain('Clear search, progress filters and selection to reorder.');
-    expect(completed).toContain('disabled=""');
+    // The drag handle stays focusable and reports its state; the native `disabled` the manual form's submit once
+    // carried is gone (ManualGameForm keeps its focus while saving).
+    const handle = (markup: string, title: string) =>
+      new RegExp(`<button[^>]*aria-label="Drag ${title} to reorder Play later"[^>]*>`).exec(markup)?.[0] ?? '';
+    expect(handle(queue, 'Beta game')).toContain('aria-disabled="false"');
+    expect(handle(completed, 'Alpha game')).toContain('aria-disabled="true"');
   });
   it('names the Queue trash action as queue-only while Library retains its full-removal action', () => {
     const queue = renderToStaticMarkup(h(LibraryPage, { ...props, embedded: true, workspaceView: 'queue' }));

@@ -35,7 +35,11 @@ describe('collection result scope and accessible names', () => {
         onShare: vi.fn(),
       }),
     );
-    const select = html.match(/<select\b[^>]*id="genre-filter"[\s\S]*?<\/select>/)?.[0];
+    const family = html.match(/<select\b[^>]*id="genre-filter"[\s\S]*?<\/select>/)?.[0];
+    expect(family).toContain('<option value="role-playing">Role-playing</option>');
+    expect(family).not.toContain(rawGenre);
+    expect(html).toContain('<details class="discovery-help" open="">');
+    const select = html.match(/<select\b[^>]*id="exact-genre-filter"[\s\S]*?<\/select>/)?.[0];
     expect(select).toContain(`<option>${game.genre}</option>`);
     expect(select).toContain(`<optgroup label="Saved additions"><option selected="">${rawGenre}</option></optgroup>`);
     expect(select?.match(new RegExp(rawGenre, 'g'))).toHaveLength(1);
@@ -65,9 +69,7 @@ describe('collection result scope and accessible names', () => {
       );
       const button = html
         .match(/<button\b[^>]*>[\s\S]*?<\/button>/g)
-        ?.find((value) =>
-          value.endsWith(`</svg>${selecting ? 'Exit selection mode' : 'Select multiple games'}</button>`),
-        );
+        ?.find((value) => value.endsWith(`</svg>${selecting ? 'Done selecting' : 'Select multiple games'}</button>`));
       expect(button).toBeDefined();
       expect(button).not.toContain('aria-pressed');
       expect(html).toContain('Core 50 · #1–50');

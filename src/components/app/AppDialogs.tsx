@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { CatalogArtwork } from '../../lib/discovery-catalog';
 import { resetLibraryAndCompare } from '../../lib/compare-tray';
@@ -10,6 +10,7 @@ import { useNotice } from '../../hooks/useNotice';
 import { SavedCatalogCopies } from '../catalog/SavedCatalogCopies';
 import type { AppModel } from './app-model';
 import { DialogHost } from './DialogHost';
+import { appDocumentTitle } from '../../lib/document-title';
 
 export interface AppDialogsProps {
   app: AppModel;
@@ -40,6 +41,20 @@ export function AppDialogs({
   const gameOpen = Boolean(selectedGame && selectedPersonalRecord && !onlineOpening);
   const catalogOpen = Boolean(!selectedGame && selectedRecord && !onlineOpening);
   const notice = useNotice(app.notices, gameOpen || catalogOpen);
+  const missingGame = Boolean(
+    selectedSlug &&
+    !awaitingCanonicalPreview &&
+    !previewLoading &&
+    !previewModuleError &&
+    collection.status !== 'loading' &&
+    library.status !== 'loading' &&
+    !onlineOpening &&
+    !selectedRecord,
+  );
+  const title = appDocumentTitle(page, selectedGame, selectedRecord, app.titlePanel, app.gamesView, missingGame);
+  useEffect(() => {
+    document.title = title;
+  }, [title]);
   return (
     <DialogHost
       page={page}
@@ -121,16 +136,7 @@ export function AppDialogs({
           : null
       }
       metadataFailure={previewModuleError}
-      missingGame={Boolean(
-        selectedSlug &&
-        !awaitingCanonicalPreview &&
-        !previewLoading &&
-        !previewModuleError &&
-        collection.status !== 'loading' &&
-        library.status !== 'loading' &&
-        !onlineOpening &&
-        !selectedRecord,
-      )}
+      missingGame={missingGame}
       onCloseGame={closeGame}
       menu={
         panel === 'menu'
@@ -181,6 +187,7 @@ export function AppDialogs({
                 onRestore: commands.restoreLibrary,
                 state: library.state,
                 persistent: library.status === 'ready',
+                loading: library.status === 'loading' || onlineOpening,
                 busy: libraryBusy,
                 onAbout: () => commands.setPanel('about'),
                 onAccount: ONLINE_AVAILABLE

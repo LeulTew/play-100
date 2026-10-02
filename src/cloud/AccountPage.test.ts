@@ -128,7 +128,7 @@ function props(overrides: Partial<AccountPageProps> = {}): AccountPageProps {
 }
 
 function fingerprint(value: AccountPageProps) {
-  // Captured on 7c118f54 before extraction; compare the whole DOM without normalizing text or attributes.
+  // Whole-DOM contract from 7c118f54, refreshed only for the visible Data use external-link indicator.
   const html = renderToStaticMarkup(createElement(AccountPage, value));
   expect(html).toContain('class="app-page account-page" aria-labelledby="account-title"');
   return createHash('sha256').update(html).digest('hex');

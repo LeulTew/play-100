@@ -237,10 +237,10 @@ for (const entry of ['footer', 'deep link'] as const) {
       await page.goto(entry === 'footer' ? '/?catalogs=off' : '/?info=credits&catalogs=off');
       if (entry === 'footer')
         await page.locator('.site-footer').getByRole('button', { name: 'About & credits', exact: true }).click();
-      await expect(page.locator('.toast')).toContainText('Opening credits…');
+      await expect(page.locator('.toast')).toContainText('Opening About & credits…');
       await expect(page.locator('dialog[open]')).toHaveCount(0);
       await page.getByRole('button', { name: 'Dismiss notification', exact: true }).click();
-      await expect(page.locator('.toast')).not.toContainText('Opening credits…');
+      await expect(page.locator('.toast')).not.toContainText('Opening About & credits…');
       release();
       await expect(page.locator('#about-title')).toBeFocused();
     } finally {
@@ -272,10 +272,10 @@ test('credits requested inside Settings announces inside that modal instead of t
     await expect(status).toBeEmpty();
     expect(await status.evaluate((element) => element.getBoundingClientRect().height)).toBe(0);
     await trigger.click();
-    await expect(status).toContainText('Opening credits…');
+    await expect(status).toContainText('Opening About & credits…');
     await expect(status).toBeVisible();
     await expect(trigger).toBeFocused();
-    await expect(page.locator('.toast')).not.toContainText('Opening credits…');
+    await expect(page.locator('.toast')).not.toContainText('Opening About & credits…');
     release();
     await expect(page.locator('#about-title')).toBeFocused();
   } finally {
@@ -299,18 +299,18 @@ test('Settings credits failure stays in its modal and restores credits only afte
   await expect(status).toBeEmpty();
   expect(await status.evaluate((element) => element.getBoundingClientRect().height)).toBe(0);
   await trigger.click();
-  const alert = settings.locator('.inline-error').filter({ hasText: "Credits didn't load." });
-  await expect(alert.getByRole('alert')).toContainText("Credits didn't load.");
-  await expect(alert).toContainText("Credits didn't load.");
+  const alert = settings.locator('.inline-error').filter({ hasText: "About & credits didn't load." });
+  await expect(alert.getByRole('alert')).toContainText("About & credits didn't load.");
+  await expect(alert).toContainText("About & credits didn't load.");
   await expect(alert).toHaveClass('inline-error');
   await expect(trigger).toBeFocused();
-  await expect(page.locator('.toast')).not.toContainText("Credits didn't load.");
+  await expect(page.locator('.toast')).not.toContainText("About & credits didn't load.");
   await expect(page.locator('.toast')).toHaveAttribute('role', 'status');
   await expect(page.locator('.toast')).toHaveAttribute('aria-live', 'polite');
   await trigger.click();
-  await expect(alert).toContainText("Credits didn't load.");
+  await expect(alert).toContainText("About & credits didn't load.");
   expect(attempts).toBe(1);
-  const reload = alert.getByRole('button', { name: 'Reload and open credits', exact: true });
+  const reload = alert.getByRole('button', { name: 'Reload and open About & credits', exact: true });
   const original = page.url();
   await page.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, value: false }));
   await reload.click();
@@ -336,9 +336,9 @@ test('a failed URL panel above a game retains a usable modal recovery and the ga
   await page.goto('/?game=the-witcher-3-wild-hunt&info=credits&catalogs=off');
   await expect(page.locator('#game-title')).toBeAttached();
   const failure = page.getByRole('dialog', { name: 'Dialog unavailable', exact: true });
-  await expect(failure.getByRole('alert')).toContainText("Credits didn't load.");
+  await expect(failure.getByRole('alert')).toContainText("About & credits didn't load.");
   await page.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, value: false }));
-  await failure.getByRole('button', { name: 'Reload and open credits', exact: true }).click();
+  await failure.getByRole('button', { name: 'Reload and open About & credits', exact: true }).click();
   await expect(failure.getByRole('status')).toContainText("You're offline. Reconnect, then try again.");
   await failure.getByRole('button', { name: 'Close dialog', exact: true }).click();
   await expect(failure).toHaveCount(0);
@@ -357,9 +357,9 @@ test('toast recovery can be dismissed by touch and a later explicit request resu
   });
   await page.goto('/?info=credits&catalogs=off');
   const toast = page.locator('.toast');
-  await expect(toast.getByRole('alert')).toContainText("Credits didn't load.");
+  await expect(toast.getByRole('alert')).toContainText("About & credits didn't load.");
   await page.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, value: false }));
-  await toast.getByRole('button', { name: 'Reload and open credits', exact: true }).click();
+  await toast.getByRole('button', { name: 'Reload and open About & credits', exact: true }).click();
   await expect(toast.getByRole('status')).toContainText("You're offline. Reconnect, then try again.");
   await page.evaluate(() => Object.defineProperty(navigator, 'onLine', { configurable: true, value: true }));
   const dismiss = toast.getByRole('button', { name: 'Dismiss loading error', exact: true });
@@ -371,6 +371,6 @@ test('toast recovery can be dismissed by touch and a later explicit request resu
   await expect(page).not.toHaveURL(/info=/);
   await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeFocused();
   await page.locator('.site-footer').getByRole('button', { name: 'About & credits', exact: true }).click();
-  await expect(toast.getByRole('alert')).toContainText("Credits didn't load.");
+  await expect(toast.getByRole('alert')).toContainText("About & credits didn't load.");
   expect(attempts).toBe(1);
 });

@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { CatalogExternalRating, ExternalCatalogArtwork as Artwork } from '../../lib/catalog-enrichment';
 import type { PublicCatalogLookup, useCatalogEnrichment } from '../../hooks/useCatalogEnrichment';
 import { GameArtworkCredit } from '../games/GameArtwork';
 import { Icon } from '../Icon';
 import { CatalogRetry } from './CatalogSourceStatus';
+import { captureControlFocus } from '../../lib/control-focus';
 import './catalog-enrichment.css';
 
 export function ExternalCatalogArtwork({ artwork }: { artwork: Artwork }) {
@@ -73,6 +74,14 @@ export function CatalogEnrichment({
   lookup?: PublicCatalogLookup;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
+  const enableRef = useCallback((button: HTMLButtonElement | null) => {
+    if (!button) return;
+    return () => {
+      const handoff = captureControlFocus(button);
+      const target = heading.current;
+      queueMicrotask(() => handoff.focus(target));
+    };
+  }, []);
   if (!lookup) return null;
   const { data, status, error, cached, connected, retry } = enrichment;
   const ratingSourceFailed = data?.sources.some(
@@ -89,7 +98,14 @@ export function CatalogEnrichment({
       {!lookup.online && (
         <p className="catalog-enrichment-note">
           Online lookup is off. Only bundled or previously loaded public details are shown.{' '}
-          <button className="text-button" disabled={!connected} onClick={lookup.onEnableOnline}>
+          <button
+            ref={enableRef}
+            className="text-button"
+            aria-disabled={!connected || undefined}
+            onClick={() => {
+              if (connected) lookup.onEnableOnline();
+            }}
+          >
             Enable online details
           </button>
         </p>

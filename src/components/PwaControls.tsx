@@ -21,7 +21,7 @@ export default function PwaControls({
       <summary>Install &amp; offline access</summary>
       <p>Keep The 100 and this device's library available offline.</p>
       <p>
-        Account services and live catalog results need a connection. Offline preparation downloads public files, not
+        Account services and online game searches need a connection. Offline preparation downloads public files, not
         private or account data.
       </p>
       {pwa.installState === 'installed' ? (
@@ -74,8 +74,8 @@ export default function PwaControls({
         )}
       </div>
       <p className="section-help">
-        Offline files are stored within your browser's storage limits. Workbooks, films, online-only pages and live
-        catalog results are not downloaded for offline use.
+        Offline files are stored within your browser's storage limits. Workbooks, films and online-only pages are not
+        downloaded for offline use.
       </p>
       <div role="status">{pwa.message && <p>{pwa.message}</p>}</div>
       {pwa.error && !pwa.moduleError && (
@@ -114,8 +114,8 @@ export default function PwaControls({
         (confirm ? (
           <div className="reset-confirmation" role="group" aria-label="Confirm app update">
             <p>
-              Updating reloads this page, so finish any unsent forms first. It saves your ratings and notes before
-              reloading, and stops if you edit, change page or have Play 100 open in another window.
+              Updating reloads this page. Finish or clear unsubmitted forms first. It saves your ratings and notes
+              before reloading, and stops if you edit, change page or have Play 100 open in another window.
             </p>
             <div className="button-row">
               <button className="button button-outline" autoFocus onClick={() => setConfirm(false)}>

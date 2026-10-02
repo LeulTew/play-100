@@ -21,7 +21,7 @@ an existing worker or erase its cache, and does not change the emitted worker.
 
 User-facing instructions describe public files and storage limits, not workers
 or an app shell. They still exclude private/account data, online-only pages,
-sign-in details, live catalog results, films and workbooks from offline preparation.
+sign-in details, online game search results, films and workbooks from offline preparation.
 
 Preparing offline access is explicit, not a first-visit download. The build
 generates `sw.js` and `pwa-assets.json` from Vite's manifest; `sw.js` is
@@ -146,8 +146,9 @@ registration; it still does not bootstrap an account.
 The conditional collection table, additional results and film UI share an
 explicitly precached `CollectionExtras` entry. A prepared offline
 `/?view=table` deep link and subsequent grid/table toggles can therefore load
-without a network. The three existing sign-in/comparison intent roots keep
-their source-keyed manifest entries; no offline root is removed or remapped.
+without a network. The three sign-in/comparison intent roots stay offline roots;
+the two comparison roots, which always load together, share one chunk and so
+one core file (scripts/preloaded-tool-chunks.ts).
 Movie/poster files remain outside the core. The 51-file limit, including the
 two metadata entries, remains unchanged and is enforced against emitted output.
 
@@ -172,12 +173,12 @@ Failed app-module imports are terminal for the current document, including
 failures in shared JavaScript or CSS dependencies. Recovery never reloads
 automatically: the visible action checks connectivity with a network-only
 five-second `HEAD /` probe before replacing the current URL. The worker does
-not intercept non-GET requests. Settings and credits restore their explicit
+not intercept non-GET requests. Settings and About & credits restore their explicit
 intent through `info=settings` or `info=credits`, preserving other URL parameters.
 An offline or failed probe leaves the current app and recovery action available.
 HTTP errors report an unavailable site rather than claiming the device is offline.
 Browsers without `AbortSignal.timeout` use a cleared five-second abort timer.
-Credits do not depend on account readiness. Settings opens with the current
+About & credits does not depend on account readiness. Settings opens with the current
 library's existing busy/disabled controls rather than waiting for authentication
 or a hint error to clear. Explicit panel requests survive account transitions;
 URL-restored intents survive provisional authentication and adopt its first

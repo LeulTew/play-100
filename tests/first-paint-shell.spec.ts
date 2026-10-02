@@ -195,13 +195,21 @@ function differences(before: Box[], after: Box[], tolerance: number, started = f
   });
 }
 
-/** Web fonts may change widths slightly, but nothing may move 3px or more or wrap differently. */
-function fontSwapDifferences(before: Box[], after: Box[]): string[] {
+/**
+ * Web fonts may change widths slightly, but nothing may move 3px or more or wrap differently. Where glyphs are laid
+ * out on whole pixels (Linux Chromium with Liberation Sans for Arial), each advance rounds by up to half a pixel, and
+ * the rounding adds up along a row: there, `wholePixels` allows a row to drift sideways by up to 8px, yet nothing may
+ * move vertically, change height or wrap.
+ */
+function fontSwapDifferences(before: Box[], after: Box[], wholePixels = false): string[] {
   if (before.map((box) => box.key).join() !== after.map((box) => box.key).join())
     return ['different elements are rendered'];
   return before.flatMap((from, index) => {
     const to = after[index]!;
-    const moved = Math.abs(from.x - to.x) >= 3 || Math.abs(from.y - to.y) >= 3 || Math.abs(from.height - to.height) > 1;
+    const moved =
+      Math.abs(from.x - to.x) >= (wholePixels ? 8 : 3) ||
+      Math.abs(from.y - to.y) >= 3 ||
+      Math.abs(from.height - to.height) > 1;
     return moved
       ? [
           `${from.key}: (${from.x.toFixed(2)}, ${from.y.toFixed(2)}, h ${from.height.toFixed(2)}) -> (${to.x.toFixed(2)}, ${to.y.toFixed(2)}, h ${to.height.toFixed(2)})`,
@@ -411,14 +419,27 @@ for (const scenario of SCENARIOS) {
         await page.evaluate(() => document.fonts.ready.then(() => undefined));
         await frames(page);
         const after = await capture(page, FONT_SWAP);
+        // Two long strings in the local Arial fallback both measure whole pixels only where advances round to whole pixels.
+        const wholePixels = await page.evaluate(() =>
+          ['Hamburgefonstiv 0123456789', 'The quick brown fox jumps over the lazy dog'].every((text) => {
+            const span = document.createElement('span');
+            span.style.cssText = "position:absolute;white-space:nowrap;font:400 100px 'P100 Sans Fallback'";
+            span.textContent = text;
+            document.body.append(span);
+            const { width } = span.getBoundingClientRect();
+            span.remove();
+            return Number.isInteger(width);
+          }),
+        );
+        test.info().annotations.push({ type: 'glyph layout', description: wholePixels ? 'whole pixels' : 'subpixel' });
         expect(
-          fontSwapDifferences(before, after),
+          fontSwapDifferences(before, after, wholePixels),
           'web fonts replace the metric-matched fallbacks without reflow',
         ).toEqual([]);
-        expect(
-          await page.evaluate(() => window.p100TakeLayoutShift?.() ?? Number.NaN),
-          'layout shift while the web fonts swap in',
-        ).toBe(0);
+        const swapShift = await page.evaluate(() => window.p100TakeLayoutShift?.() ?? Number.NaN);
+        // The sideways drift of whole-pixel rounding scores a tiny layout shift (about 1e-5 on desktop); allow 0.001.
+        if (wholePixels) expect(swapShift, 'layout shift while the web fonts swap in').toBeLessThan(0.001);
+        else expect(swapShift, 'layout shift while the web fonts swap in').toBe(0);
       }
       expect(await page.evaluate(() => window.p100CspViolations)).toEqual([]);
     } finally {

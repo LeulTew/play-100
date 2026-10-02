@@ -44,6 +44,7 @@
 }
 .card-played {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
@@ -134,24 +135,18 @@
   margin-bottom: 23px;
   flex-wrap: wrap;
 }
-.author-footer p {
+.author-footer p,
+.author-block p {
   font-size: 13px;
   line-height: 1.5;
 }
-.author-footer nav {
-  display: flex;
-  gap: 18px;
-  align-items: center;
-  flex-wrap: wrap;
+.author-links .icon-button {
+  color: var(--ink);
 }
-.author-footer a {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  text-decoration: underline;
-  text-underline-offset: 4px;
+.menu-author {
+  flex: 0 0 auto;
+  padding: 12px 20px;
+  border-top: 1px solid var(--line);
 }
 .source-version-notice {
   display: flex;
@@ -242,6 +237,10 @@
 }
 .ratings-explainer .check-control {
   font-size: 12px;
+}
+.ratings-explainer .text-button {
+  display: inline;
+  padding-block: 13px;
 }
 .ratings-scroll {
   position: relative;
@@ -484,6 +483,7 @@
 }
 .record-title {
   display: block;
+  min-inline-size: 44px;
   min-height: 44px;
   text-align: left;
   background: transparent;

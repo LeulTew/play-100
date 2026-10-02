@@ -10,7 +10,6 @@ interface SelectionBarProps {
   busy: boolean;
   onSelectAll: () => void;
   onClear: () => void;
-  onDone: () => void;
   onAction: (action: SelectionAction) => void;
   onRemove?: () => void;
   context?: 'collection' | 'library' | 'discover';
@@ -24,7 +23,6 @@ export function SelectionBar({
   busy,
   onSelectAll,
   onClear,
-  onDone,
   onAction,
   onRemove,
   context = 'collection',
@@ -54,10 +52,6 @@ export function SelectionBar({
           aria-disabled={busy || !total || undefined}
         >
           {count === total ? 'Clear selection' : (selectAllLabel ?? `Select all ${total} in this view`)}
-        </button>
-        <button className="text-button selection-done" onClick={onDone}>
-          Done selecting
-          <Icon name="close" width="16" height="16" />
         </button>
       </div>
       <div className="selection-actions">

@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import type { CatalogArtwork } from '../../lib/discovery-catalog-shared';
 import type { LibraryRecord } from '../../lib/personal-types';
 import type { LibraryPageProps } from './LibraryPage';
@@ -7,6 +8,7 @@ import { CompletedToggle } from '../CompletedToggle';
 import { CompareDragSource } from '../compare-tray/CompareDragSource';
 import { ComparePinButton } from '../compare-tray/ComparePinButton';
 import { RecordIdentity } from './RecordIdentity';
+import { captureControlFocus } from '../../lib/control-focus';
 
 export function LibraryRecordRow({
   record,
@@ -16,7 +18,7 @@ export function LibraryRecordRow({
   active,
   selecting,
   selected,
-  ranked,
+  rankingPosition,
   tab,
   onSelect,
   onOpen,
@@ -24,18 +26,53 @@ export function LibraryRecordRow({
   onUnpin,
   pinnedIds,
   onAction,
+  onPresentationChange,
   requestRemoval,
-}: Pick<LibraryPageProps, 'state' | 'busy' | 'onOpen' | 'onPin' | 'onUnpin' | 'pinnedIds' | 'onAction'> & {
+  removeFromQueue,
+}: Pick<
+  LibraryPageProps,
+  'state' | 'busy' | 'onOpen' | 'onPin' | 'onUnpin' | 'pinnedIds' | 'onAction' | 'onPresentationChange'
+> & {
   record: LibraryRecord;
   artwork?: CatalogArtwork;
   active: boolean;
   selecting: boolean;
   selected: boolean;
-  ranked: boolean;
+  rankingPosition?: number;
   tab: 'later' | 'completed' | 'all';
   onSelect: (id: string) => void;
   requestRemoval: (records: LibraryRecord[], trigger: HTMLElement) => void;
+  removeFromQueue: (record: LibraryRecord, trigger: HTMLElement) => Promise<void>;
 }) {
+  const rankedLink = useRef<HTMLAnchorElement>(null);
+  const rankFocus = useRef<ReturnType<typeof captureControlFocus> | null>(null);
+  useLayoutEffect(
+    () => () => {
+      rankFocus.current?.cancel();
+      rankFocus.current = null;
+    },
+    [record.id, active],
+  );
+  useLayoutEffect(() => {
+    if (!rankingPosition || !rankFocus.current) return;
+    rankFocus.current.focus(rankedLink.current);
+    rankFocus.current = null;
+  }, [rankingPosition]);
+  const addToRanking = async (control: HTMLButtonElement) => {
+    if (busy) return;
+    rankFocus.current?.cancel();
+    const handoff = captureControlFocus(control);
+    rankFocus.current = handoff;
+    let saved = false;
+    try {
+      saved = await onAction({ type: 'add-ranking', records: [record] });
+    } finally {
+      if (!saved) {
+        handoff.cancel();
+        if (rankFocus.current === handoff) rankFocus.current = null;
+      }
+    }
+  };
   return (
     <CompareDragSource record={record} disabled={!active}>
       {(binding) => (
@@ -101,27 +138,48 @@ export function LibraryRecordRow({
               </button>
             )}
             <span className="record-tail">
-              <button
-                className="text-button"
-                aria-disabled={busy || ranked || undefined}
-                aria-label={`Add ${record.title} to my ranking`}
-                onClick={() => {
-                  if (!busy && !ranked) void onAction({ type: 'add-ranking', records: [record] });
-                }}
-              >
-                <Icon name="rank" width="20" height="20" />
-                Rank
-              </button>
+              {rankingPosition ? (
+                <a
+                  ref={rankedLink}
+                  className="text-button"
+                  href={`/my-games?tab=ranking#${new URLSearchParams({ rank: record.id })}`}
+                  aria-label={`Ranked #${rankingPosition}: ${record.title}. Open in Ranking`}
+                  aria-disabled={busy || undefined}
+                  onClick={(event) => {
+                    if (busy) {
+                      event.preventDefault();
+                      return;
+                    }
+                    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+                    event.preventDefault();
+                    const destination = event.currentTarget.href;
+                    void onPresentationChange(() => location.assign(destination));
+                  }}
+                >
+                  Ranked #{rankingPosition}
+                </a>
+              ) : (
+                <button
+                  className="text-button"
+                  aria-disabled={busy || undefined}
+                  aria-label={`Add ${record.title} to my ranking`}
+                  onClick={(event) => void addToRanking(event.currentTarget)}
+                >
+                  <Icon name="rank" width="20" height="20" />
+                  Rank
+                </button>
+              )}
               <button
                 className="icon-button remove-library-action"
-                disabled={busy}
+                aria-disabled={busy || undefined}
                 aria-label={
                   tab === 'later' ? `Remove from Play later: ${record.title}` : `Remove ${record.title} from my library`
                 }
                 title={tab === 'later' ? 'Remove from Play later' : undefined}
                 onClick={(event) => {
+                  if (busy) return;
                   if (tab === 'later') {
-                    void onAction({ type: 'set-progress', records: [record], key: 'later', value: false });
+                    void removeFromQueue(record, event.currentTarget);
                   } else requestRemoval([record], event.currentTarget);
                 }}
               >

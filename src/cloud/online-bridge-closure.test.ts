@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { PRELOADED_TOOL_CHUNKS } from '../../scripts/preloaded-tool-chunks';
 
 const cloud = path.dirname(fileURLToPath(import.meta.url));
 const relative = (file: string) => path.relative(cloud, file).replaceAll('\\', '/');
@@ -71,17 +72,13 @@ describe('what the online bridge loads with it', () => {
     expect(bridge).not.toContain('account-deletion-action.ts');
   });
 
-  // The offline core precaches each module the idle preload imports dynamically as its own entry chunk
-  // (scripts/pwa-build.ts). Rolldown keeps that chunk for a module the controller also loads only while the
-  // controller's own module imports it; imported only from deeper in the controller's chunk, it lost its entry.
-  it("imports from the controller's own module each preloaded module the controller also loads", () => {
+  // The offline core precaches each module the idle preload imports dynamically as its own chunk
+  // (scripts/pwa-build.ts). Loaded statically by the controller too, such a module loses that chunk to an unnamed
+  // shared one unless the preloaded-tools group in vite.config.ts names it (scripts/preloaded-tool-chunks.ts).
+  it('gives each preloaded module the controller also loads its own named chunk, and steers with no imports', () => {
     const preload = path.join(cloud, '../lib/app-tool-preload.ts');
     const preloaded = [...readFileSync(preload, 'utf8').matchAll(/import\('(\.{1,2}\/[^']+)'\)/g)].map((match) =>
       relative(resolveModule(preload, match[1]!)),
-    );
-    const controller = path.join(cloud, 'OnlineController.tsx');
-    const own = edges(readFileSync(controller, 'utf8')).map((specifier) =>
-      relative(resolveModule(controller, specifier)),
     );
     const shared = preloaded.filter((file) => staticClosure('OnlineController.tsx').includes(file));
     expect(shared).toEqual(
@@ -91,9 +88,14 @@ describe('what the online bridge loads with it', () => {
         '../lib/google-intent.ts',
       ]),
     );
-    expect(shared.filter((file) => !own.includes(file))).toEqual([]);
+    const grouped = Object.keys(PRELOADED_TOOL_CHUNKS).map((file) => relative(path.join(cloud, '..', '..', file)));
+    expect(shared.filter((file) => !grouped.includes(file))).toEqual([]);
+    const controller = path.join(cloud, 'OnlineController.tsx');
+    const own = edges(readFileSync(controller, 'utf8')).map((specifier) =>
+      relative(resolveModule(controller, specifier)),
+    );
+    expect(own.filter((file) => grouped.includes(file))).toEqual([]);
   });
-
   it.each(['CommunityPage.tsx', 'PublicProfilePage.tsx', 'PublishPage.tsx', 'CreatorPage.tsx', 'AccountPage.tsx'])(
     'loads the publication methods with %s',
     (page) => {

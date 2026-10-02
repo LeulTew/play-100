@@ -1,5 +1,6 @@
 import type { AuthorRating, CollectionData, Critics, Filters, Game, Progress, SortOrder } from './types';
 import { isRecord, hasText } from './guards.js';
+import { matchesDiscoveryGenre } from './discovery-genres.js';
 
 const SCORE_SCALES: Record<keyof Critics, number> = {
   metacritic: 100,
@@ -186,7 +187,7 @@ export function filterGames(
 ): Game[] {
   const terms = searchText(filters.q).split(' ').filter(Boolean);
   const selected = games.filter((game) => {
-    if (filters.genre && game.genre !== filters.genre) return false;
+    if (!matchesDiscoveryGenre(game.genre, filters.genre, filters.genreFamily)) return false;
     if (filters.year && game.year !== Number(filters.year)) return false;
     if (filters.tier !== 'all' && game.tier !== filters.tier) return false;
     const state = progress[game.slug];

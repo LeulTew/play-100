@@ -60,9 +60,11 @@
     // when the web fonts arrive. Expected boxes come from the derivation in shell.css, and the Impact,
     // Arial and Roboto faces share them, within about 1%, as glyphs snap to device pixels. The bold
     // string, which the shell renders, stops at -0.85%: a Roboto variable font rendered without its
-    // wght axis measures 1.1% too narrow.
+    // wght axis measures 1.1% too narrow. The display range is ±1.25% of 609.6: Linux Chromium rounds each glyph
+    // advance to a whole CSS pixel at any ratio, which can move the 14-glyph string by up to 7 px (1.15%), and
+    // Liberation Sans Bold, Arial Bold's metric clone, measures 616 there. Roboto's 677.3 stays far outside.
     var probes = [
-      ['p100-probe-display', 'GREAT ESCAPES.', 603.5, 615.7, 120],
+      ['p100-probe-display', 'GREAT ESCAPES.', 601.98, 617.22, 120],
       ['p100-probe-sans', 'Find your next world.', 923.1, 941.7, 130],
       ['p100-probe-sans-bold', 'GOOD THINGS, COLLECTED.', 1291, 1313.3, 130],
     ];

@@ -1,6 +1,8 @@
 import { isIP } from 'node:net';
 import { nullableObject } from '../src/lib/guards.js';
 import type { Admission } from './_lib/admission.js';
+import { createCspAlert, productionAlertOptions } from './_lib/production-alert.js';
+import type { ReportAlert } from './_lib/production-alert.js';
 import { createReportHandler } from './_lib/report-handler.js';
 import { reportRouteTemplate } from '../src/lib/client-error-schema.js';
 
@@ -97,7 +99,11 @@ export function cspCounts(input: unknown, batch: boolean) {
   return [...counts.values()];
 }
 
-export function createCspReportHandler(admission?: Admission, log?: (line: string) => void) {
+export function createCspReportHandler(
+  admission?: Admission,
+  log?: (line: string) => void,
+  alert: ReportAlert<ReturnType<typeof cspCounts>> | null = null,
+) {
   return createReportHandler({
     contentTypes: ['application/csp-report', 'application/reports+json'],
     maxBytes: MAX_BYTES,
@@ -106,7 +112,9 @@ export function createCspReportHandler(admission?: Admission, log?: (line: strin
     errorEvent: 'csp-report-error',
     admission,
     log,
+    alert,
   });
 }
 
-export default createCspReportHandler();
+// Alerts only with a fine-grained PRODUCTION_ALERT_GITHUB_TOKEN (docs/release-operations.md, client report alerts).
+export default createCspReportHandler(undefined, undefined, createCspAlert(productionAlertOptions(process.env)));

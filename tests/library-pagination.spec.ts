@@ -289,8 +289,8 @@ test('first-run add choices yield to useful tools without remounting a draft or 
   await expect(query(page)).toBeFocused();
   await expect(page.getByRole('heading', { name: 'No matches', exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Bulk game actions' }).getByRole('status')).toHaveText('0 selected');
-  await expect(page.getByRole('button', { name: 'Exit selection', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Exit selection', exact: true })).not.toHaveAttribute('aria-pressed');
+  await expect(page.getByRole('button', { name: 'Done selecting', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Done selecting', exact: true })).not.toHaveAttribute('aria-pressed');
   await page.getByRole('button', { name: 'Clear search and progress filter', exact: true }).click();
   await expect(libraryRows(page)).toHaveCount(1);
   await expect(query(page)).toHaveValue('');
@@ -608,6 +608,7 @@ test('confirmed last-row deletion clamps the final page and focuses results; pas
   expect(new URL(page.url()).searchParams.has('page')).toBe(false);
   await expect(libraryRows(page)).toHaveCount(25);
   await expect(results(page)).toBeFocused();
+
   expect(await readLibrary(page)).toEqual(applyPersonalAction(before, { type: 'remove-records', ids: [id] }));
   await installGuestLibrary(page, libraryFixture(26));
   await selectPage(page, 2);
@@ -672,9 +673,10 @@ test('Queue uses its own bounded pager and retains global arrow order', async ({
   await queuePager.getByRole('button', { name: 'Next', exact: true }).click();
   await expect(queue.locator('.personal-row')).toHaveCount(1);
   await expect(page.getByRole('heading', { name: 'Play later results', exact: true })).toBeFocused();
-  expect(new URL(page.url()).searchParams.has('page')).toBe(false);
+  expect(new URL(page.url()).searchParams.get('page')).toBe('2');
   await tab(page, 'Library').click();
   await expect(pager(page).getByRole('combobox')).toHaveValue('1');
+  expect(new URL(page.url()).searchParams.has('page')).toBe(false);
   await expect(libraryRows(page)).toHaveCount(25);
   await expect(rankingEditors(page)).toHaveCount(0);
 });
@@ -768,8 +770,11 @@ test('a queued boundary move cannot follow or steal focus after a native-history
   await heldEditor(page);
   await page.getByRole('button', { name: `Move ${moved.title} up in Play later`, exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-library-flush-count', '1');
-  await page.goBack();
+  expect(new URL(page.url()).searchParams.get('page')).toBe('2');
+  // The queue's page 2 is its own history entry, so leaving the tab natively takes two steps back.
+  await page.evaluate(() => history.go(-2));
   await expect(tab(page, 'Library')).toHaveAttribute('aria-current', 'page');
+  expect(new URL(page.url()).searchParams.has('page')).toBe(false);
   const target = tab(page, 'Library');
   await target.focus();
   await finishEditor(page);

@@ -66,6 +66,20 @@ describe('display-only external score precision', () => {
 });
 
 describe('separate public review provenance', () => {
+  it.each([false, true])('keeps online consent natively focusable when connected=%s', (connected) => {
+    const html = renderToStaticMarkup(
+      createElement(CatalogEnrichment, {
+        enrichment: { ...state(), connected },
+        lookup: { ...lookup, online: false },
+      }),
+    );
+    const enable = html.match(/<button\b[^>]*>Enable online details<\/button>/)?.[0];
+    expect(enable).toBeDefined();
+    expect(enable?.includes('aria-disabled="true"')).toBe(!connected);
+    expect(enable).not.toContain(' disabled=');
+    expect(html).toContain('id="catalog-enrichment-title" tabindex="-1"');
+  });
+
   it.each([
     { status: 'error', connected: true, blocked: false },
     { status: 'loading', connected: true, blocked: true },

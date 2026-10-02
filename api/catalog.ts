@@ -170,8 +170,8 @@ async function wikidataPage(query: string, offset: number, signal: AbortSignal):
     offset,
     nextOffset,
     notices: [
-      'Wikidata structured data is CC0. This search includes entries explicitly classified as video games; it is not an exhaustive census.',
-      'The year is shown only when source date claims yield one unambiguous year. Preferred source dates take precedence.',
+      'Wikidata lists many games, not all. This search includes entries classified as video games. Its structured data is CC0.',
+      'A year appears only when the sources agree on one.',
       ...(validated.length < ids.length
         ? ['Some search hits lacked a usable title or current video-game classification and were not imported.']
         : []),

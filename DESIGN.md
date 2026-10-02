@@ -286,6 +286,14 @@ The play mark's triangle is intentionally made from transparent top/bottom borde
 Direct and compact. Standard buttons have a **48px minimum height**, a 12px internal gap and the frontmatter padding. Text actions have a 44px minimum height; icon buttons are 44px square. Keep the overall 44px touch-target floor.
 Primary header navigation also keeps a 44px minimum inline size, including
 Friends in the compact header at 768px, 851px and 1024px.
+Compact Library and Play later record titles also keep a 44px minimum inline
+size, even for short names such as Halo 3, without changing their wrapping.
+
+Grid-card action rows never shrink into a neighboring card. While an offscreen
+card uses its intrinsic size estimate, its identity link can shrink and clips
+its own overflow; rendered cards still fit their complete title and metadata.
+The bookmark stays on its own cover. Tall local-font regression fixtures
+exercise this geometry without adding a runtime brand font.
 
 Dark, lime, outline, quiet and destructive variants use the extracted assignments. Outline buttons use a 1px `#a5ac98` border, changing to ink on hover. Disabled buttons use opacity `.45` and a `not-allowed` cursor. Button/link color, background-color and border-color transitions last 150ms.
 
@@ -437,6 +445,27 @@ Mutation feedback follows the public-detail controls, so a rating blur cannot
 insert a new message above a pressed Enable action and move its pointer target
 before the click completes. Online consent still waits for the registered save
 and cancels if the route or scope changes.
+
+When online consent removes its focused Enable control, focus moves to
+**Ratings from other sites** in the same current dialog, whether lookup succeeds
+or fails. A successful single Play later removal focuses the next surviving
+row action, then a previous one, or **Play later results** when the queue is
+empty; last-page removal waits for the clamped page to render. Refused writes
+keep the original control. Manual add remains focusable while saving and hands
+off to **Game title** only after clearing its own submitted draft. A newer draft,
+newer focus, navigation, hidden pane, or unmounted owner cancels these handoffs.
+
+Personal ratings stay focused and read-only during a write; Enter saves without
+blurring. Fine pointers retain the 650ms debounce. Coarse pointers save on blur
+or Enter, not during a pause while a decimal is being typed. The pending-editor
+registry still flushes on navigation and preserves failed or invalid drafts.
+Confirmed Library and Ranking removals return to the next surviving row title,
+then the previous row, and only use the results heading if no row remains.
+
+Deep-linked Settings says **Opening your library…** while storage is loading,
+not that storage is unavailable. A backup chosen then is still read; replacement
+waits for readiness. A missing-game dialog owns **Game not found | Play 100**,
+below any foreground utility title, and closing it restores the route title.
 
 Search and native selects use visible labels above 48px controls. A shared
 select shell centers its noninteractive SVG chevron on the value row, with the

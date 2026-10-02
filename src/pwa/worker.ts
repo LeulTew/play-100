@@ -100,6 +100,7 @@ const publicFiles = new Set([
   '/pwa/icon-maskable-512.png',
   '/pwa/apple-touch-icon.png',
   '/data/collection.json',
+  '/icons/author-links.svg',
   '/data/discovery/catalog.v1.json',
 ]);
 
@@ -757,7 +758,7 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
       );
       return;
     }
-    if (url.search || url.hash) return;
+    if (url.search || (url.hash && url.pathname !== '/icons/author-links.svg')) return;
     const asset = core.get(url.pathname);
     if (asset) {
       event.respondWith(

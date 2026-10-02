@@ -8,6 +8,7 @@ import { visibleFocusTarget } from '../lib/dialog-focus';
 import { DataUseLink } from './DataUseLink';
 import { Dialog } from './Dialog';
 import { Icon } from './Icon';
+import { AuthorLinks } from './AuthorLinks';
 
 interface MenuDialogProps {
   page: AppPage;
@@ -256,6 +257,7 @@ export function MenuDialog({
           </section>
         </div>
       </nav>
+      <AuthorLinks className="author-block menu-author" />
     </Dialog>
   );
 }
