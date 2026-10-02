@@ -758,7 +758,7 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
       );
       return;
     }
-    if (url.search || url.hash) return;
+    if (url.search || (url.hash && url.pathname !== '/icons/author-links.svg')) return;
     const asset = core.get(url.pathname);
     if (asset) {
       event.respondWith(
