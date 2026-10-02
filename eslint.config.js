@@ -3,6 +3,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
+import { play100Plugin } from './scripts/eslint/no-url-search-params-size.ts';
 
 // Files that no tsconfig project covers are linted without type information (README, Quality checks).
 const untypedFiles = ['**/*.{js,mjs,cjs}'];
@@ -30,6 +31,12 @@ export default tseslint.config(
       'react-hooks/exhaustive-deps': 'error',
       'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
     },
+  },
+  {
+    // Type-aware: older supported engines read URLSearchParams#size as undefined (scripts/eslint/no-url-search-params-size.ts).
+    files: ['**/*.{ts,tsx}'],
+    plugins: { play100: play100Plugin },
+    rules: { 'play100/no-url-search-params-size': 'error' },
   },
   {
     rules: {
