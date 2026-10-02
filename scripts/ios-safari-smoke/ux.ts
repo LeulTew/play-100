@@ -42,8 +42,7 @@ const queueSnapshot = `
 const sheetPredicate = 'visible == true AND (name == "ActivityListView" OR label == "Copy")';
 const sheetClosePredicate =
   'type == "XCUIElementTypeButton" AND visible == true AND (label ==[c] "Close" OR label ==[c] "Cancel")';
-const sheetDismissPredicate =
-  `(${sheetClosePredicate}) OR (name == "PopoverDismissRegion" AND visible == true)`;
+const sheetDismissPredicate = `(${sheetClosePredicate}) OR (name == "PopoverDismissRegion" AND visible == true)`;
 
 async function go(context: SmokeContext, path: string) {
   const before = await context.execute<string>('return window.__iosSmoke.documentId;');
