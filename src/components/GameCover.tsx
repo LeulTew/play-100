@@ -2,13 +2,14 @@ import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { artworkUrl } from '../lib/collection';
 import type { Game } from '../lib/types';
-import coverMetadata from '../generated/cover-metadata.json';
+import coverSizes from '../generated/cover-sizes.json';
 
 export function GameCover({ game, large = false, eager = false }: { game: Game; large?: boolean; eager?: boolean }) {
   const [failed, setFailed] = useState(false);
   const source = artworkUrl(game);
-  const metadata: Record<string, { width: number; height: number }> = coverMetadata;
-  const dimensions = metadata[game.slug];
+  // The cover's native size, by rank (scripts/prepare-assets.ts).
+  const [width, height] = coverSizes[game.rank - 1] ?? [];
+  const dimensions = width && height ? { width, height } : undefined;
   const variant = game.rank % 5;
   return (
     <div
