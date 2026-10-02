@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import type { Project } from '@playwright/test';
-import base, { floorSmokeSpec } from './playwright.config';
+import base, { floorOfflineSpec, floorSmokeSpec } from './playwright.config';
 import { sourceMetadata } from './scripts/playwright-env';
 
 // READINESS-08: the browser-floor smoke (tests/floor-smoke.spec.ts) on engines other than current Chromium, which is
@@ -24,7 +24,7 @@ if (floorChromium)
 export default defineConfig({
   ...base,
   metadata: sourceMetadata(process.env),
-  testMatch: floorSmokeSpec,
+  testMatch: [floorSmokeSpec, floorOfflineSpec],
   testIgnore: [],
   globalSetup: undefined,
   projects,

@@ -21,11 +21,12 @@ const sourceFixtureSpecs = [
 // The browser-floor smoke runs only under playwright.floor.config.ts (npm run test:floor), on Firefox, WebKit and an
 // old Chromium.
 export const floorSmokeSpec = '**/floor-smoke.spec.ts';
+export const floorOfflineSpec = '**/floor-offline.spec.ts';
 export default defineConfig({
   metadata: sourceMetadata(process.env),
   testDir: './tests',
   testMatch: developmentFixtures ? sourceFixtureSpecs : '**/*.spec.ts',
-  testIgnore: developmentFixtures ? [] : [...sourceFixtureSpecs, floorSmokeSpec],
+  testIgnore: developmentFixtures ? [] : [...sourceFixtureSpecs, floorSmokeSpec, floorOfflineSpec],
   fullyParallel: true,
   forbidOnly: gate.forbidOnly,
   workers: process.env.CI ? 2 : 3,
