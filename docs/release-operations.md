@@ -1,6 +1,8 @@
 # Local release operations
 
-This is the procedure, not an executed release receipt. Hosted CI is disabled.
+This is the procedure, not an executed release receipt. Hosted CI does not run
+the gate; the dispatch-only [candidate CI runs](#candidate-ci-runs) add Linux
+evidence beside it.
 Every native command below must exit 0 before continuing. A deployment marked
 Ready is not a passed gate. Stop on an uncertain mutation: inspect its result
 before retrying; never repeat a deploy, promotion or rollback blindly.
@@ -887,6 +889,77 @@ but the offline configuration and artifact hashes identify a different build.
 Do not add this report to the configured manifest's report list or claim it
 tested the configured candidate. Return to the original configured shell and
 its unchanged environment, checkout, `dist` and `$evidence` for §4.
+
+### Candidate CI runs
+
+[`.github/workflows/candidate-ci.yml`](../.github/workflows/candidate-ci.yml)
+runs one suite on a GitHub-hosted `ubuntu-24.04` runner against an exact
+commit. It only runs on `workflow_dispatch`: nothing triggers it on push, and it
+never deploys. Use it for loops and Linux cells that would otherwise occupy the
+release machine.
+
+**What a run proves.** The named specs passed, with zero retries and
+`--forbid-only`, at the dispatched 40-character SHA, on Linux, the runner image
+and the browser that `identity.json` records. The workflow checks out that SHA,
+confirms `HEAD` and a clean tree, runs `npm ci` on Node 24.21.0 and copies the
+gate's builds and environment:
+
+- `e2e-prod` and `lighthouse` use the configured build (`VITE_FIREBASE_REQUIRED=true`
+  and the public `VITE_FIREBASE_*` and `VITE_SITE_URL` repository variables);
+- `e2e-offline` uses a build with every `VITE_FIREBASE_*` variable absent;
+- `e2e-dev` uses the configured development server;
+- `cloud-rules` and `cloud-ui` use Java 21 and the pinned `firebase-tools`
+  emulators (`demo-play100`, auth and Firestore). `cloud-rules` starts a fresh
+  `emulators:exec` for each repeat, as the convergence loop does. `cloud-ui`
+  serves `vite --mode cloud-test` on 4187 and allocates the compare fixture
+  first when the specs include `compare-orientation`.
+
+Production builds are served by `scripts/low-end-profile.ts`, which applies
+`vercel.json` headers and rewrites over HTTPS. `lighthouse` runs Lighthouse
+12.8.2 (pinned by `.github/candidate-ci/lighthouse/package-lock.json`) with
+three mobile and three desktop runs in each of two cells: `linux-liberation`
+(the runner's fonts) and `linux-dejavu` (a fontconfig with only
+`/usr/share/fonts/truetype/dejavu`, which fails the run if any other family is
+visible). It writes the JSON and HTML reports, `fonts-<cell>.txt` and
+`summary.json` with per-run scores and medians.
+
+Each run uploads one artifact, `candidate-ci-<suite>-<sha>-<run>-<attempt>`, for
+30 days. It holds the Playwright JSON and JUnit reports or the per-iteration
+Vitest reports, the console log, and the traces and `error-context.md` files of
+failures. It also holds the emulator debug logs and `identity.json`, which records:
+
+- commit, tree, the requested SHA and the inputs;
+- the `package-lock.json` and built `dist/index.html` SHA-256;
+- the runner image (`ImageOS`, `ImageVersion`), kernel, Node, npm, Java (cloud
+  suites), Playwright, Vitest, firebase-tools, Lighthouse and Chromium versions;
+- the run URL and the workflow commit.
+
+**What it does not prove.** A run is not a gate receipt. It does not replace
+`npm run release:gate`, §3, the manifest or any manual gate. It runs one suite
+on Linux Chromium only, with no Chrome channel, Windows or macOS fonts, WebKit,
+real devices or deployment checks. Its builds are not the release `dist`, so
+never add its reports to a release manifest. Cite the run URL and
+`identity.json`, check that `commit` equals the candidate, and record failures
+as evidence (the `docs/intermittents.md` rows included); never re-dispatch until
+green.
+
+Dispatch from a branch that carries the workflow, with the full SHA. `specs` is
+a space-separated path list, `project` is `desktop`, `mobile` or `both`, and
+`repeat` is passed to `--repeat-each` (for `cloud-rules`, the count of fresh
+emulator runs). `workers` overrides the suite default (3 for `e2e-*` suites, as in the local gate; 1 for
+cloud suites), and the optional `grep` is passed as `--grep` or `-t`.
+
+```bash
+sha=FULL_40_CHARACTER_SHA
+ref=BRANCH_WITH_THE_WORKFLOW
+gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=e2e-prod -f project=both -f specs='tests/frequent-action-focus.spec.ts' -f repeat=3
+gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=e2e-dev -f project=desktop -f specs='tests/unified-search.spec.ts' -f repeat=10
+gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=e2e-offline -f project=both -f specs='tests/root-navigation-guards.spec.ts'
+gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=cloud-rules -f specs='tests-cloud/friend-all.test.ts' -f repeat=20
+gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=cloud-ui -f project=desktop -f specs='tests-cloud-ui/identity.spec.ts' -f grep='cross-tab identity change' -f repeat=20
+gh workflow run candidate-ci.yml --ref "$ref" -f sha="$sha" -f suite=lighthouse
+gh run download RUN_ID
+```
 
 ## 4. Manifest and complete evidence packet
 

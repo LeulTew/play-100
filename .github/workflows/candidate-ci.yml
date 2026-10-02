@@ -4,9 +4,6 @@ name: Candidate CI
 # rules and cloud-UI suites against the Firebase emulators, and Lighthouse on the production build. It complements the
 # local release gate and does not replace it (docs/release-operations.md, "Candidate CI runs").
 on:
-  # Temporary, to register the workflow from this branch; every job is skipped on push.
-  push:
-    branches: [leultew-r24-candidate-ci]
   workflow_dispatch:
     inputs:
       sha:
@@ -59,7 +56,6 @@ permissions:
 
 jobs:
   run:
-    if: github.event_name == 'workflow_dispatch'
     name: ${{ inputs.suite }} ${{ inputs.project }} @ ${{ inputs.sha }}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
@@ -190,7 +186,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$OUT"
-          if command -v java >/dev/null; then export JAVA_VERSION_LINE="$(java -version 2>&1 | head -n 1)"; fi
+          if [[ "$SUITE" == cloud-* ]] && command -v java >/dev/null; then export JAVA_VERSION_LINE="$(java -version 2>&1 | head -n 1)"; fi
           node "$CI_TOOLS/identity.mjs" "$OUT/identity.json"
           for log in firebase-debug.log firestore-debug.log; do
             if [[ -f "$log" ]]; then cp "$log" "$OUT/"; fi
