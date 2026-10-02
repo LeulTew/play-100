@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Native dialog control</title></head>
+<body>
+<main>
+<h1>Native dialog control</h1>
+<button id="open" type="button">Open Control Game</button>
+</main>
+<dialog id="d" aria-labelledby="t" aria-describedby="s">
+<h2 id="t" tabindex="-1" autofocus>Control Game</h2>
+<p id="s">Number 1 in the control.</p>
+<p>A longer body paragraph that a reader may read on demand, ending with the control closing words.</p>
+<button type="button" id="close">Close</button>
+</dialog>
+<script>
+const d = document.getElementById('d');
+document.getElementById('open').addEventListener('click', () => d.showModal());
+document.getElementById('close').addEventListener('click', () => d.close());
+</script>
+</body>
+</html>

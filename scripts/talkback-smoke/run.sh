@@ -25,10 +25,15 @@ press() {
   local name="$1" wait="$2"; shift 2
   step=$((step + 1))
   adb logcat -c
-  for code in "$@"; do adb shell input keyevent "$code"; sleep 0.4; done
+  for code in "$@"; do
+    # "59+61" is a chord (Shift+Tab); a plain number is one key.
+    if [[ "$code" == *+* ]]; then adb shell input keycombination ${code//+/ }; else adb shell input keyevent "$code"; fi
+    sleep 0.4
+  done
   sleep "$wait"
   adb logcat -d -v threadtime > "$out/raw/$(printf %03d $step).txt"
-  grep -oP 'action=SPEAK\s+text="\K[^"]*' "$out/raw/$(printf %03d $step).txt" > "$out/last-speech.txt" || true
+  grep -P ' talkback: Actors: act\(\)' "$out/raw/$(printf %03d $step).txt" \
+    | grep -oP 'action=SPEAK\s+text="\K[^"]*' > "$out/last-speech.txt" || true
   {
     echo "## $step $name"
     sed 's/^/  > /' "$out/last-speech.txt"
@@ -58,9 +63,9 @@ field() { jq -r "$1" "$out/focus.json" 2>/dev/null; }
 
 # Tab (or Shift+Tab) until the focused element satisfies a jq predicate on the focus JSON.
 tab_until() {
-  local name="$1" predicate="$2" max="$3" i
+  local name="$1" predicate="$2" max="$3" key="${4:-61}" i
   for ((i = 1; i <= max; i++)); do
-    press "$name (Tab $i)" 0.8 61 > /dev/null
+    press "$name (Tab $i)" 0.8 "$key" > /dev/null
     focus > /dev/null
     if [ "$(jq -r "$predicate" "$out/focus.json" 2>/dev/null)" = true ]; then
       echo "reached after $i Tab: $(cat "$out/focus.json")"; return 0
@@ -70,12 +75,15 @@ tab_until() {
 }
 
 open_page() {
-  local url="$1"
+  local url="$1" ready="${2:-document.querySelectorAll("li.game-card[data-game]").length > 0}"
+  # A fresh Chrome process, so each journey starts from a newly loaded page with focus at the top.
+  run adb shell am force-stop com.android.chrome
+  sleep 2
   run adb shell am start -a android.intent.action.VIEW -d "$url" com.android.chrome
   for i in $(seq 1 40); do
     sleep 2
     adb forward tcp:$CDP_PORT localabstract:chrome_devtools_remote > /dev/null 2>&1
-    [ "$(cdp 'document.querySelectorAll("li.game-card[data-game]").length > 0 && document.readyState === "complete"')" = true ] && break
+    [ "$(cdp "($ready) && document.readyState === \"complete\"")" = true ] && break
   done
   sleep 3
 }
@@ -150,6 +158,25 @@ check setup 'TalkBack runs with verbose speech logging' "$started" "$(paste -sd 
 cat "$out/receipt.json"
 
 if [ "$started" = 1 ]; then
+  # Native control: a plain showModal dialog with an autofocused heading and a short description, served from the
+  # runner, so the app's announcements can be compared with what TalkBack and Chrome do for any native modal.
+  log 'control: native modal dialog'
+  echo '# control: native modal dialog' >> "$out/speech.txt"
+  (cd scripts/talkback-smoke && python3 -m http.server 8765 --bind 127.0.0.1 > "$out/control-server.txt" 2>&1 &)
+  sleep 2
+  run adb reverse tcp:8765 tcp:8765
+  open_page 'http://127.0.0.1:8765/control.html' 'document.querySelector("#open") !== null'
+  control_dialog=0
+  if tab_until 'Tab to the control opener' '.text == "Open Control Game"' 5; then
+    press 'open the control with Enter' 5 66
+    heard=$(spoken)
+    shot control-open
+    control_dialog=$(grep -oiw dialog <<< "$heard" | wc -l)
+    echo "control dialog: $control_dialog, heading: $(grep -oiw heading <<< "$heard" | wc -l)" | tee -a "$out/counts-control.txt"
+    check control 'the control heading is spoken' "$(has "$heard" 'Control Game')" 'Control Game'
+    press 'close the control with Escape' 4 111
+  else check control 'the control opener is reachable by Tab' 0 "$(cat "$out/focus.json")"; fi
+
   # (a) Tab to a card in The 100, open it with Enter, hear it; Escape returns to the card.
   log 'journey (a): card detail dialog'
   echo '# (a) card detail dialog' >> "$out/speech.txt"
@@ -164,7 +191,12 @@ if [ "$started" = 1 ]; then
     tail_words=$(cdp '(document.querySelector("dialog[open] .rationale")?.textContent || "").replace(/\s+/g, " ").trim().split(" ").slice(-5).join(" ")' | jq -r .)
     check a 'the dialog opened' "$([ "$(field .dialog)" = true ] && echo 1 || echo 0)" "$(field .dialogTitle)"
     check a 'the game name is spoken' "$(has "$heard" "$title")" "$title"
-    check a 'the dialog role is spoken' "$(has "$heard" dialog)" 'dialog'
+    # The role check follows the native control: required when TalkBack speaks "dialog" for the control.
+    if [ "$control_dialog" -gt 0 ]; then
+      check a 'the dialog role is spoken' "$(has "$heard" dialog)" "dialog (control: $control_dialog)"
+    else
+      echo "INFO	a	the dialog role is not spoken; the native control is not announced as a dialog either	control: 0" >> "$out/checks.tsv"
+    fi
     check a 'the dialog is not announced as clickable' "$(lacks "$heard" clickable)" 'clickable'
     if [ -n "$tail_words" ]; then
       check a 'the body is not read automatically' "$(lacks "$heard" "$tail_words")" "$tail_words"
@@ -187,7 +219,8 @@ if [ "$started" = 1 ]; then
   echo '# (c) settings' >> "$out/speech.txt"
   open_page "$origin/?catalogs=off&talkback=c"
   shot c-01-opened
-  if tab_until 'Tab to Menu' '.tag == "BUTTON" and .text == "Menu"' 60; then
+  # Menu is the last control in the bottom navigation, so walk backwards from the top with Shift+Tab.
+  if tab_until 'Shift+Tab to Menu' '.tag == "BUTTON" and .text == "Menu"' 12 59+61; then
     press 'open Menu with Enter' 3 66
     if tab_until 'Tab to Settings & backups' '.tag == "BUTTON" and (.text | startswith("Settings & backups"))' 40; then
       press 'open Settings & backups with Enter' 4 66
