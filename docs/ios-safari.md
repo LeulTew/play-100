@@ -208,10 +208,11 @@ gesture that starts moving immediately.
 
 The SE on both runtimes and Pro Max on iOS 26.2 passed native sharing,
 dismissal and no-fallback assertions. Pro Max/iOS 18.5 reached
-`ActivityListView` before its presentation finished; its screenshot showed
-the dimmed app, while the sheet's dismissal controls had not arrived.
-The harness now waits for those native controls before capturing and dismissing.
-That synchronization change passed the typed inventory gate in
+`ActivityListView`, but its native close button used lowercase `close`, not
+`Close`. A later native tree identified it as `header.closeButton`.
+The harness now matches Close/Cancel case-insensitively and waits for native
+dismissal controls before capturing and dismissing.
+The preceding synchronization change passed the typed inventory gate in
 [run 36970334659](https://github.com/LeulTew/play-100/actions/runs/36970334659),
 but the candidate's DNS failed before simulator jobs could run.
 This is partial evidence, not a green four-device expanded suite.

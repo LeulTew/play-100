@@ -40,8 +40,10 @@ const queueSnapshot = `
   }));
 `;
 const sheetPredicate = 'visible == true AND (name == "ActivityListView" OR label == "Copy")';
+const sheetClosePredicate =
+  'type == "XCUIElementTypeButton" AND visible == true AND (label ==[c] "Close" OR label ==[c] "Cancel")';
 const sheetDismissPredicate =
-  'visible == true AND ((type == "XCUIElementTypeButton" AND (label == "Close" OR label == "Cancel")) OR name == "PopoverDismissRegion")';
+  `(${sheetClosePredicate}) OR (name == "PopoverDismissRegion" AND visible == true)`;
 
 async function go(context: SmokeContext, path: string) {
   const before = await context.execute<string>('return window.__iosSmoke.documentId;');
@@ -215,10 +217,7 @@ async function nativeShare(context: SmokeContext) {
   } finally {
     if (sheetOpened) {
       await context.nativeAction(async () => {
-        const close = await nativeElements(
-          context,
-          'type == "XCUIElementTypeButton" AND visible == true AND (label == "Close" OR label == "Cancel")',
-        );
+        const close = await nativeElements(context, sheetClosePredicate);
         assert.ok(close.length <= 1, 'The native share sheet dismissal button must be unambiguous.');
         if (close[0]) {
           await context.nativeTouch(close[0]);
