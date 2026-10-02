@@ -40,6 +40,8 @@ const queueSnapshot = `
   }));
 `;
 const sheetPredicate = 'visible == true AND (name == "ActivityListView" OR label == "Copy")';
+const sheetDismissPredicate =
+  'visible == true AND ((type == "XCUIElementTypeButton" AND (label == "Close" OR label == "Cancel")) OR name == "PopoverDismissRegion")';
 
 async function go(context: SmokeContext, path: string) {
   const before = await context.execute<string>('return window.__iosSmoke.documentId;');
@@ -199,6 +201,14 @@ async function nativeShare(context: SmokeContext) {
       await context.artifact('10-native-share-observed.xml', await context.wd<string>('GET', '/source'));
       assert.ok(sheet.length, 'The native iOS ActivityListView or Copy option must appear.');
       sheetOpened = true;
+      const readyDeadline = Date.now() + 15_000;
+      let dismissal = await nativeElements(context, sheetDismissPredicate);
+      while (!dismissal.length && Date.now() < readyDeadline) {
+        await delay(200);
+        dismissal = await nativeElements(context, sheetDismissPredicate);
+      }
+      await context.artifact('10-native-share-ready.xml', await context.wd<string>('GET', '/source'));
+      assert.ok(dismissal.length, 'The native share sheet must finish presenting its dismissal control.');
       await context.artifact('10-native-share-sheet.xml', await context.wd<string>('GET', '/source'));
       await context.capture('10-native-share-sheet');
     });
