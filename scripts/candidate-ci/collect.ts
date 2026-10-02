@@ -17,10 +17,9 @@ import {
   verifyIdentity,
   type Collected,
   type Counts,
-  type RunRecord,
 } from './evidence.ts';
 import { evidenceFiles } from './identity.ts';
-import { LEAN_CI_CHECKS } from './plan.ts';
+import { LEAN_CI_CHECKS, MIN_POLL_SECONDS, pollSeconds } from './plan.ts';
 
 /**
  * `npm run ci:collect -- --runs runs.json --out <dir> [--wait]`: downloads every run's artifact into <dir>/<entry>/,
@@ -33,10 +32,11 @@ const { values } = parseArgs({
     runs: { type: 'string', default: 'runs.json' },
     out: { type: 'string' },
     wait: { type: 'boolean', default: false },
-    'poll-seconds': { type: 'string', default: '60' },
+    'poll-seconds': { type: 'string', default: String(MIN_POLL_SECONDS) },
   },
   strict: true,
 });
+const poll = pollSeconds(values['poll-seconds']);
 if (!values.out) throw new Error('Pass --out with a directory outside the checkout.');
 const runsFile = parseRuns(JSON.parse(readFileSync(values.runs, 'utf8')) as unknown);
 const { sha, repo } = runsFile;
@@ -54,15 +54,40 @@ interface RunState {
   status: string;
   conclusion: string;
 }
-async function finished(run: RunRecord): Promise<RunState> {
+/** One batched run list per poll (plus a run view only for runs that fell outside it), at MIN_POLL_SECONDS or slower. */
+async function settledStates(): Promise<Map<number, RunState>> {
   for (;;) {
-    const state = JSON.parse(
-      gh(['run', 'view', String(run.runId), '--repo', repo, '--json', 'status,conclusion']),
-    ) as RunState;
-    if (state.status === 'completed') return state;
-    if (!values.wait) throw new Error(`${run.entry.id} (${run.url}) is ${state.status}; rerun with --wait.`);
-    console.log(`waiting: ${run.entry.id} is ${state.status}`);
-    await sleep(Number(values['poll-seconds']) * 1000);
+    const listed = JSON.parse(
+      gh([
+        'run',
+        'list',
+        '--repo',
+        repo,
+        '--workflow',
+        'candidate-ci.yml',
+        '--branch',
+        runsFile.ref,
+        '--event',
+        'workflow_dispatch',
+        '--json',
+        'databaseId,status,conclusion',
+        '-L',
+        String(Math.max(100, runsFile.runs.length * 3)),
+      ]),
+    ) as (RunState & { databaseId: number })[];
+    const states = new Map<number, RunState>(listed.map((run) => [run.databaseId, run]));
+    for (const run of runsFile.runs)
+      if (!states.has(run.runId))
+        states.set(
+          run.runId,
+          JSON.parse(gh(['run', 'view', String(run.runId), '--repo', repo, '--json', 'status,conclusion'])) as RunState,
+        );
+    const open = runsFile.runs.filter((run) => states.get(run.runId)!.status !== 'completed');
+    if (!open.length) return states;
+    const names = open.map((run) => run.entry.id).join(', ');
+    if (!values.wait) throw new Error(`Still running: ${names}; rerun with --wait.`);
+    console.log(`waiting ${poll} s: ${open.length} open (${names})`);
+    await sleep(poll * 1000);
   }
 }
 
@@ -80,8 +105,9 @@ try {
   console.log(`${sha} is not in this clone; trees are checked between runs only.`);
 }
 const items: Collected[] = [];
+const states = await settledStates();
 for (const run of runsFile.runs) {
-  const state = await finished(run);
+  const state = states.get(run.runId)!;
   const target = path.join(out, run.entry.id);
   rmSync(target, { recursive: true, force: true });
   mkdirSync(target, { recursive: true });

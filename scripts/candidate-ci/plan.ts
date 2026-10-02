@@ -178,6 +178,16 @@ export function resolvedBrowserEnv(entry: Pick<PlanEntry, 'suite' | 'browserEnv'
   return HEADED_SUITES.includes(entry.suite) ? 'xvfb-headed' : 'default';
 }
 
+/** Shared API budget: dispatch and collect never poll GitHub more often than once every five minutes. */
+export const MIN_POLL_SECONDS = 300;
+
+export function pollSeconds(value: string | undefined): number {
+  const seconds = Number(value ?? MIN_POLL_SECONDS);
+  if (!Number.isInteger(seconds) || seconds < MIN_POLL_SECONDS)
+    throw new Error(`--poll-seconds must be a whole number of at least ${MIN_POLL_SECONDS}.`);
+  return seconds;
+}
+
 /** Quotes arguments for a POSIX shell, for printing copyable command lines. */
 export function shellLine(command: string, args: string[]): string {
   const quote = (arg: string) => (/^[A-Za-z0-9_./:=@%+,-]+$/.test(arg) ? arg : `'${arg.replaceAll("'", `'\\''`)}'`);

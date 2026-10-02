@@ -1,7 +1,17 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { dispatchArgs, findRun, parsePlan, requestId, resolvedBrowserEnv, runName, shellLine } from './plan.ts';
+import {
+  dispatchArgs,
+  findRun,
+  MIN_POLL_SECONDS,
+  parsePlan,
+  pollSeconds,
+  requestId,
+  resolvedBrowserEnv,
+  runName,
+  shellLine,
+} from './plan.ts';
 
 const sha = 'a49f27a665c18288e2b1bd253ca3244fc70a4a61';
 const entry = (extra: Record<string, unknown> = {}) => ({ id: 'focus', suite: 'e2e-prod', ...extra });
@@ -136,5 +146,15 @@ describe('dispatching', () => {
     expect(resolvedBrowserEnv({ suite: 'cloud-ui', browserEnv: 'auto' })).toBe('default');
     expect(resolvedBrowserEnv({ suite: 'e2e-offline', browserEnv: 'default' })).toBe('default');
     expect(resolvedBrowserEnv({ suite: 'e2e-dev', browserEnv: 'unthrottled' })).toBe('unthrottled');
+  });
+});
+
+describe('pollSeconds', () => {
+  it('defaults to five minutes and refuses anything faster', () => {
+    expect(MIN_POLL_SECONDS).toBe(300);
+    expect(pollSeconds(undefined)).toBe(300);
+    expect(pollSeconds('600')).toBe(600);
+    for (const value of ['299', '60', '0', '-300', '300.5', 'soon'])
+      expect(() => pollSeconds(value)).toThrow('at least 300');
   });
 });

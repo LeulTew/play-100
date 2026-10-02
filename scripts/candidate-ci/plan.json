@@ -36,6 +36,7 @@
     { "id": "unified-search-restart", "suite": "e2e-prod", "specs": ["tests/unified-search.spec.ts"], "grep": "full browser restart", "repeat": 10, "purpose": "Intermittent row loop: persistent browser restart" },
     { "id": "native-zoom-navigation", "suite": "e2e-prod", "specs": ["tests/mobile-nav-readability.spec.ts"], "grep": "native 200 percent browser zoom", "repeat": 10, "purpose": "Intermittent row loop" },
     { "id": "first-paint-shell", "suite": "e2e-prod", "specs": ["tests/first-paint-shell.spec.ts"], "repeat": 10, "purpose": "Intermittent row loop (includes :214 and :659)" },
+    { "id": "resize-observer-loop", "suite": "e2e-prod", "specs": ["tests/resize-observer-loop.spec.ts"], "project": "desktop", "repeat": 20, "purpose": "Intermittent row loop (desktop 320 px software-GL renderer stall)" },
     {
       "id": "dialogs",
       "suite": "e2e-prod",

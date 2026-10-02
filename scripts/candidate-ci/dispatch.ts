@@ -4,7 +4,16 @@ import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
 import type { RunRecord, RunsFile } from './evidence.ts';
-import { dispatchArgs, findRun, parsePlan, requestId, runName, shellLine } from './plan.ts';
+import {
+  dispatchArgs,
+  findRun,
+  MIN_POLL_SECONDS,
+  parsePlan,
+  pollSeconds,
+  requestId,
+  runName,
+  shellLine,
+} from './plan.ts';
 
 /**
  * `npm run ci:dispatch -- --sha <sha> [--plan <plan.json>] [--only <id,...>] [--dry-run]`: dispatches every plan
@@ -22,10 +31,12 @@ const { values } = parseArgs({
     out: { type: 'string', default: 'runs.json' },
     only: { type: 'string' },
     'dry-run': { type: 'boolean', default: false },
-    'match-timeout': { type: 'string', default: '600' },
+    'match-timeout': { type: 'string', default: '1800' },
+    'poll-seconds': { type: 'string', default: String(MIN_POLL_SECONDS) },
   },
   strict: true,
 });
+const poll = pollSeconds(values['poll-seconds']);
 
 const sha = values.sha ?? '';
 if (!/^[a-f0-9]{40}$/.test(sha)) throw new Error('Pass --sha with the full 40-character commit.');
@@ -48,7 +59,12 @@ const pending = entries.map((entry) => {
 
 if (values['dry-run']) {
   for (const item of pending) console.log(shellLine('gh', item.args));
+  const listPages = Math.ceil(Math.max(100, pending.length * 3) / 100);
   console.log(`\n${pending.length} dispatches for ${sha} on ${values.ref} (dry run; nothing dispatched).`);
+  console.log(
+    `API budget: ${pending.length * 2} calls to dispatch, then ${listPages} per run-list match poll every ${poll} s` +
+      ' (normally one poll).',
+  );
   process.exit(0);
 }
 
@@ -71,7 +87,7 @@ while (runs.size < pending.length) {
     const missing = pending.filter((item) => !runs.has(item.request)).map((item) => item.entry.id);
     throw new Error(`No run appeared for ${missing.join(', ')}.`);
   }
-  await sleep(10_000);
+  await sleep(poll * 1000);
   const listed = JSON.parse(
     gh([
       'run',

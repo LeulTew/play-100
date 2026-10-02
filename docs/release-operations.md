@@ -1220,6 +1220,15 @@ id, so the script matches each run by its exact name and refuses ambiguity;
 `ci:collect` then confirms the match from the artifact itself. `runs.json`
 records each entry, request id, run id and URL.
 
+Both tools poll GitHub no more than once every five minutes: `--poll-seconds`
+defaults to 300 and anything lower is refused. `ci:dispatch` makes two API calls
+per entry (workflow lookup and dispatch), then waits 300 s and matches every run
+from one paged `gh run list` (one page per 100 runs; `--match-timeout`, default
+1800 s, bounds the retries). `ci:collect --wait` checks every run with the same
+single `gh run list` per poll, falling back to `gh run view` only for runs
+outside that page, and downloads each artifact once, after completion (about
+two calls per run). The dry run prints this budget.
+
 `ci:collect` refuses an output inside the checkout and, with `--wait`, polls
 until every run completes. For each run it downloads the artifact into
 `<out>/<entry>/` and verifies `identity.json`: `commit` and `requestedSha` equal
