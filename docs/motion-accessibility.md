@@ -32,6 +32,12 @@ or the catalog source summary), not the complete dialog text. The rationale,
 source notes and tracking controls remain available in ordinary reading order.
 DOM focus/description assertions and native screen-reader speech are separate
 checks; neither substitutes for the other.
+NVDA 2026.2 with Chrome 154 can announce the dialog and heading twice even on
+a minimal native `showModal` page with one DOM focus move. The speech gate
+compares these counts with that native control; it still requires the name,
+role and heading, no automatic body read, no dialog click action, and return
+focus on Escape. This is a reader/browser limitation, not an extra app focus
+step or a waiver of those other checks.
 
 Eligible collection and Discover previews connect the existing public artwork
 to the native detail using one temporary numbered sleeve or licensed catalog

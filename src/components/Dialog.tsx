@@ -140,29 +140,22 @@ export function Dialog({
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog || !open) return;
-    let pointer: number | null = null;
+    let backdropPressed = false;
+    const isBackdrop = (event: MouseEvent) => event.target === dialog && foregroundDialog() === dialog;
     const down = (event: PointerEvent) => {
-      pointer =
-        event.isPrimary && event.button === 0 && event.target === dialog && foregroundDialog() === dialog
-          ? event.pointerId
-          : null;
+      backdropPressed = event.isPrimary && event.button === 0 && isBackdrop(event);
     };
-    const up = (event: PointerEvent) => {
-      const dismiss = pointer === event.pointerId && event.target === dialog && foregroundDialog() === dialog;
-      pointer = null;
+    const click = (event: MouseEvent) => {
+      const dismiss = backdropPressed && event.detail > 0 && isBackdrop(event);
+      backdropPressed = false;
       if (dismiss) close.current();
-    };
-    const cancel = () => {
-      pointer = null;
     };
     // A document-level pointer gesture keeps the accessible dialog itself free of a click action.
     document.addEventListener('pointerdown', down, true);
-    document.addEventListener('pointerup', up, true);
-    document.addEventListener('pointercancel', cancel, true);
+    document.addEventListener('click', click, true);
     return () => {
       document.removeEventListener('pointerdown', down, true);
-      document.removeEventListener('pointerup', up, true);
-      document.removeEventListener('pointercancel', cancel, true);
+      document.removeEventListener('click', click, true);
     };
   }, [open]);
   return (
@@ -171,7 +164,6 @@ export function Dialog({
       className={`dialog ${className}`}
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
-      aria-modal={open}
       data-motion-owned={motion !== undefined ? 'true' : undefined}
       onKeyDown={(event) => {
         if (
