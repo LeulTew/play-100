@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { criticalAppCss } from '../../../scripts/first-paint/plugin';
 import { shellMarkup } from '../../../scripts/first-paint/shell-html';
+import { renderShell } from '../../first-paint/shell-render';
 import { emptyPersonalLibrary } from '../../lib/personal-library';
 import type { PersonalLibraryState, LibraryRecord } from '../../lib/personal-types';
 import type { Filters } from '../../lib/types';
@@ -71,7 +72,10 @@ const props = {
 
 describe('tray first-paint isolation', () => {
   it.each(['online', 'offline'] as const)('keeps only the existing root tokens in the %s shell', async (variant) => {
-    const root = shellMarkup(readFileSync(new URL('../../../index.html', import.meta.url), 'utf8'), variant);
+    const root = shellMarkup(
+      readFileSync(new URL('../../../index.html', import.meta.url), 'utf8'),
+      renderShell(variant),
+    );
     const css = readFileSync(new URL('./compare-tray.css', import.meta.url), 'utf8');
     const rootTokens = `
       :root { --compare-tray-bottom: 20px; }

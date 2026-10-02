@@ -26,6 +26,7 @@ import {
 } from './plugin.ts';
 import { cspProblems, sha256Source } from './csp.ts';
 import { MAIN_DOCUMENT_RULE } from '../../src/lib/vercel-routes.ts';
+import { loadShellRenderer } from './render-shell.ts';
 import { removeShell, shellMarkup, shellText } from './shell-html.ts';
 import { readFirstPaintRecord, textDigest } from '../build-metadata.ts';
 import { eagerHtmlFiles } from '../check-budgets.ts';
@@ -35,7 +36,10 @@ const read = (file: string) => readFileSync(new URL(`../../${file}`, import.meta
 const indexHtml = read('index.html');
 const bootJs = read('src/first-paint/boot.js');
 const shellCss = read('src/first-paint/shell.css');
-const offlineRoot = shellMarkup(indexHtml, 'offline');
+// The shells a build renders, through the loader it uses.
+const renderShell = await loadShellRenderer(repository);
+const shells = { offline: renderShell('offline'), online: renderShell('online') } as const;
+const offlineRoot = shellMarkup(indexHtml, shells.offline);
 
 // The entry stylesheet's font faces as Vite and Lightning CSS emit them.
 const FONT_FACES = [
@@ -329,7 +333,7 @@ describe('beasties critical CSS', () => {
 describe('first-paint fallback faces', () => {
   it('cover every character of the shell text, including the house marks', () => {
     for (const variant of ['offline', 'online'] as const) {
-      const text = shellText(shellMarkup(indexHtml, variant));
+      const text = shellText(shellMarkup(indexHtml, shells[variant]));
       expect(text).toContain('Opening the collection…');
       expect(text).toContain('Illustrated view · Lite mode');
       expect([...new Set(text)].filter((char) => char > '~').sort()).toEqual(['·', '…']);
@@ -415,7 +419,9 @@ describe('first-paint shell stylesheet', () => {
     for (const state of states)
       expect(script, `the boot script sets ${state}`).toMatch(new RegExp(`(['"\`])${state}\\1`));
     for (const variant of ['offline', 'online'] as const) {
-      const captions = [...shellMarkup(indexHtml, variant).matchAll(/<span data-shell-art="(\w+)">([^<]*)<\/span>/g)];
+      const captions = [
+        ...shellMarkup(indexHtml, shells[variant]).matchAll(/<span data-shell-art="(\w+)">([^<]*)<\/span>/g),
+      ];
       expect(captions.map(([, state]) => state).sort(), `one ${variant} caption per state`).toEqual([...states].sort());
       // Until a visitor's preference is known, the caption names no mode.
       expect(captions.find(([, state]) => state === 'pending')?.[2]).toBe('Illustrated view');
@@ -481,7 +487,7 @@ describe('emitted entry stylesheets', () => {
   });
 
   it("are checked one by one before the shell's rules are selected", async () => {
-    const input = { html: builtIndexHtml(), variant: 'offline' as const, shellCss, bootScript: bootJs };
+    const input = { html: builtIndexHtml(), shell: shells.offline, shellCss, bootScript: bootJs };
     await expect(
       inlineFirstPaintShell({
         ...input,
@@ -615,7 +621,7 @@ describe('first-paint font preloads', () => {
   });
 
   it("are checked against the entry stylesheet before the shell's rules are selected", async () => {
-    const input = { html: builtIndexHtml(), variant: 'offline' as const, shellCss, bootScript: bootJs };
+    const input = { html: builtIndexHtml(), shell: shells.offline, shellCss, bootScript: bootJs };
     await expect(
       inlineFirstPaintShell({ ...input, readStylesheet: () => '.site-header{display:flex}' }),
     ).rejects.toThrow(
@@ -629,7 +635,7 @@ describe('first-paint index.html', () => {
     const appCss = `${FONT_FACES}:root{--ink:#20231e}.site-header{display:flex}.game-card{color:blue}`;
     const result = await inlineFirstPaintShell({
       html: builtIndexHtml(),
-      variant,
+      shell: shells[variant],
       shellCss,
       bootScript: bootJs,
       readStylesheet: (href) => {
@@ -675,7 +681,7 @@ describe('first-paint index.html', () => {
     expect(result.style).toContain('.site-header{display:flex}');
     expect(result.style).not.toContain('.game-card');
     expect(result.style.endsWith(minifyShellCss(shellCss))).toBe(true);
-    expect(result.html).toContain(`${shellMarkup(indexHtml, variant)}\n    <noscript>`);
+    expect(result.html).toContain(`${shellMarkup(indexHtml, shells[variant])}\n    <noscript>`);
     expect(result.html).not.toMatch(/<!--\/?shell:|<!--p100:/);
     expect(result.html.includes('site-header-online')).toBe(variant === 'online');
     expect(result.html.includes('href="/my-games?tab=ranking"')).toBe(variant === 'offline');
@@ -683,7 +689,7 @@ describe('first-paint index.html', () => {
 
   it('needs exactly one module entry and an entry stylesheet', async () => {
     const input = {
-      variant: 'offline' as const,
+      shell: shells.offline,
       shellCss,
       bootScript: bootJs,
       readStylesheet: () => ':root{--ink:#20231e}',
@@ -704,7 +710,7 @@ describe('first-paint index.html', () => {
 
   it("needs the boot script's failure notice as the last child of #root", async () => {
     const input = {
-      variant: 'offline' as const,
+      shell: shells.offline,
       shellCss,
       bootScript: bootJs,
       readStylesheet: () => ':root{--ink:#20231e}',
@@ -781,7 +787,7 @@ describe('first-paint index.html', () => {
                 (
                   await inlineFirstPaintShell({
                     html: builtIndexHtml(),
-                    variant,
+                    shell: shells[variant],
                     shellCss,
                     bootScript: bootJs,
                     readStylesheet: () => appCss,
@@ -815,7 +821,8 @@ describe('first-paint index.html', () => {
             ],
           }),
         );
-        const plugin = firstPaintShell({ variant: 'offline', cspMismatch });
+        // This root holds no source tree to render the shell from.
+        const plugin = firstPaintShell({ variant: 'offline', cspMismatch, renderShell });
         const logged: string[] = [];
         if (typeof plugin.configResolved !== 'function')
           throw new Error('The shell plugin must read the resolved root.');

@@ -218,7 +218,7 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [index.html:100](../index.html#L100) | HTML fallback | Play 100 A curated collection of 100 games. Enable JavaScript for search, filters and your private Play later list, or explore the complete downloadable workbook. Download the 100-game workbook | JavaScript unavailable (noscript) |
+| [index.html:58](../index.html#L58) | HTML fallback | Play 100 A curated collection of 100 games. Enable JavaScript for search, filters and your private Play later list, or explore the complete downloadable workbook. Download the 100-game workbook | JavaScript unavailable (noscript) |
 ## public/404.html
 
 | Source | Kind | Copy or expression | Showing condition / owner |

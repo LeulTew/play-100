@@ -18,25 +18,27 @@ import {
   sha256Source,
   withInlineHashes,
 } from './csp.ts';
+import { loadShellRenderer } from './render-shell.ts';
+import type { ShellRenderer } from './render-shell.ts';
 import {
   ROOT_OPEN,
   SHELL_OPEN,
   STYLESHEET_MARKER,
   bootNotice,
-  normalizeShellWhitespace,
   removeShell,
-  selectShellVariant,
   shellRegion,
   shellText,
+  withShell,
 } from './shell-html.ts';
 import type { ShellVariant } from './shell-html.ts';
 
 /**
  * Static first-paint shell (docs/first-paint-shell.md).
  *
- * index.html carries the markup of React's first commit at "/" inside #root. For a build this
+ * #root in index.html holds a placeholder for React's first commit at "/". For a build this
  * plugin runs after Vite has injected its tags and:
- *  - keeps the header variant this build renders (online tools configured or not);
+ *  - renders that commit in its place from the landing components (src/first-paint/shell-render.tsx),
+ *    with the header variant this build renders (online tools configured or not);
  *  - moves every startup tag from <head> into an inert <template id="p100-deferred">: Vite's
  *    module entry, its modulepreloads and the entry stylesheet, and the font and collection
  *    preloads. Template content starts no request (Chromium's preload scanner skips it as well);
@@ -640,9 +642,10 @@ function removeTag(html: string, { start, end }: { readonly start: number; reado
 }
 
 export interface InlineShellInput {
-  /** index.html after Vite injected its tags; the shell markup must still carry its variant markers. */
+  /** index.html after Vite injected its tags; #root must still hold the shell placeholder. */
   readonly html: string;
-  readonly variant: ShellVariant;
+  /** The shell rendered for the build's header variant. */
+  readonly shell: string;
   /** Reads a stylesheet emitted by the build, by its root-relative URL. */
   readonly readStylesheet: (href: string) => string;
   readonly shellCss: string;
@@ -658,7 +661,7 @@ export interface InlineShellResult {
 }
 
 export async function inlineFirstPaintShell(input: InlineShellInput): Promise<InlineShellResult> {
-  let html = normalizeShellWhitespace(selectShellVariant(input.html, input.variant));
+  let html = withShell(input.html, input.shell);
   const region = shellRegion(html);
   const root = html.slice(region.start, region.end);
   // The boot script shows it when the app cannot start (src/first-paint/boot.js).
@@ -717,12 +720,22 @@ export interface FirstPaintShellOptions {
    * as it would read with this build's hashes, so any other problem still fails, and records them for the writer.
    */
   readonly cspMismatch?: 'fail' | 'record';
+  /**
+   * Renders the shell of a variant. By default the build loads it once from src/first-paint/shell-render.tsx under its
+   * root, through Vite's module runner (scripts/first-paint/render-shell.ts).
+   */
+  readonly renderShell?: ShellRenderer;
 }
 
-export function firstPaintShell({ variant, cspMismatch = 'fail' }: FirstPaintShellOptions): Plugin {
+export function firstPaintShell({ variant, cspMismatch = 'fail', renderShell }: FirstPaintShellOptions): Plugin {
   let root = process.cwd();
   let outDir = path.resolve('dist');
   let logger: ResolvedConfig['logger'] | undefined;
+  let renderer: Promise<ShellRenderer> | undefined;
+  const render = async (name: ShellVariant) => {
+    renderer ??= renderShell ? Promise.resolve(renderShell) : loadShellRenderer(root);
+    return (await renderer)(name);
+  };
   // This build's inline blocks, recorded once Vite has written index.html.
   let inlined: Omit<FirstPaintRecord, 'indexHtml'> | undefined;
   return {
@@ -754,13 +767,13 @@ export function firstPaintShell({ variant, cspMismatch = 'fail' }: FirstPaintShe
             return typeof asset.source === 'string' ? asset.source : new TextDecoder().decode(asset.source);
           },
         };
-        const result = await inlineFirstPaintShell({ ...input, variant });
+        const result = await inlineFirstPaintShell({ ...input, shell: await render(variant) });
         const charset = assertCharsetDeclaration(result.html);
         const committed = mainDocumentPolicy(JSON.parse(source('vercel.json')));
         // A strict style-src must list the other variant's inline style too (vercel.json serves both
         // kinds of build), and nothing else. check:budgets gates both variants' style as well.
         const other = variant === 'online' ? 'offline' : 'online';
-        const otherStyle = (await inlineFirstPaintShell({ ...input, variant: other })).style;
+        const otherStyle = (await inlineFirstPaintShell({ ...input, shell: await render(other) })).style;
         const styleOf = (name: ShellVariant) => (name === variant ? result.style : otherStyle);
         const policy =
           cspMismatch === 'record'
