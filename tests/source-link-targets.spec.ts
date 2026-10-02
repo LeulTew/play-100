@@ -97,6 +97,12 @@ for (const forcedColors of ['none', 'active'] as const) {
       ...(await expectSourceLinks(page, catalogSources, catalogLinks)),
       ...(await expectSourceLinks(page, projectSources, projectLinks)),
     ];
+    expect(
+      await about.evaluate((element) => ({
+        containerFits: element.scrollWidth <= element.clientWidth + 1,
+        pageFits: document.documentElement.scrollWidth <= innerWidth,
+      })),
+    ).toEqual({ containerFits: true, pageFits: true });
     await expect(about).toContainText('FreeToGame data retains credit and source links.');
     await expect(about).toContainText('React Bits is copyright 2026 David Haz, used under MIT + Commons Clause.');
     await expect(about).toContainText('Barlow Condensed and Hanken Grotesk use the SIL Open Font License.');
