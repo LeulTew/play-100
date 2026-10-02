@@ -84,10 +84,12 @@ export function actionMessage(action: PersonalAction, before?: ActionState, afte
       const ids = [...new Set(action.ids)];
       if (ids.length === 1 && before?.records[ids[0]!])
         return `${before.records[ids[0]!]!.title} removed from your ranking.`;
-      return 'Removed from your personal ranking.';
+      return 'Selected games removed from your ranking.';
     }
-    case 'move-item':
-      return `${action.list === 'queue' ? 'Play later' : 'Ranking'} order updated.`;
+    case 'move-item': {
+      const title = after?.records[action.id]?.title ?? before?.records[action.id]?.title;
+      return `${title ? `${title}: ` : ''}${action.list === 'queue' ? 'Play later' : 'Ranking'} order updated.`;
+    }
     case 'edit-ranking': {
       const title = after?.records[action.id]?.title ?? before?.records[action.id]?.title;
       const saved = Object.hasOwn(action, 'note')
@@ -110,14 +112,14 @@ export function actionMessage(action: PersonalAction, before?: ActionState, afte
         ? progressMessage(action.records, action.key, action.value, before)
         : action.key === 'later'
           ? 'Play later updated.'
-          : 'Your play history is updated.';
+          : 'Play history updated.';
     case 'toggle-progress':
       return before && after
         ? progressMessage([action.record], action.key, Boolean(after.progress[action.record.id]?.[action.key]), before)
         : action.key === 'later'
           ? 'Play later updated.'
-          : 'Your play history is updated.';
+          : 'Play history updated.';
     default:
-      return 'Your library is updated.';
+      return 'My games updated.';
   }
 }

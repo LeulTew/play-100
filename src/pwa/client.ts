@@ -91,7 +91,7 @@ export function sendPwaRequest(
     };
     const timeout = window.setTimeout(() => {
       finish();
-      reject(new Error('The offline worker did not reply. Retry when it is available.'));
+      reject(new Error('Offline access did not respond. Try again when connected.'));
     }, 5000);
     ports.port1.onmessage = (event) => {
       const reply: unknown = event.data;
@@ -173,7 +173,7 @@ export function createPwaController(): PwaController {
   const checkRegistration = (value: ServiceWorkerRegistration) => {
     const worker = value.installing ?? value.waiting ?? value.active;
     if (value.scope !== `${location.origin}/` || !trustedPwaWorker(worker, location.origin)) {
-      throw new Error('A different offline worker controls this scope. Play 100 did not replace it.');
+      throw new Error('Another offline app is active here. Play 100 left it unchanged.');
     }
   };
   const refresh = async (start: number) => {

@@ -244,7 +244,7 @@ export function DiscoverSources({
       {filters.source === 'collection' ? (
         <p>Showing entries from The 100. Choose another source to look beyond the collection.</p>
       ) : progressView !== 'all' ? (
-        <p>Online lookup is paused for this progress view. Your play history is not sent to providers.</p>
+        <p>Online lookup is paused for this progress view. Your play history is not sent to catalog sources.</p>
       ) : filters.catalogs === 'off' ? (
         <p>
           Online lookup is off.{' '}
@@ -285,14 +285,14 @@ export function DiscoverSources({
         </label>
         <p>
           Verified matches link to the original entry from The 100, including when found through Wikidata. Include The
-          100 to browse those entries here once. Other editions stay separate; titles alone are never merged. Provider
+          100 to browse those entries here once. Other editions stay separate; titles alone are never merged. Source
           counts show new matches after local filters and duplicate matching.
         </p>
         <p>
-          Only public search terms and exact public game IDs are sent to providers, not your saved progress, ratings or
-          notes. Opening an eligible game can load separately labelled ratings and licensed artwork while online lookup
-          is on. Metadata from Wikidata (CC0) and FreeToGame. Image credits are under each game's More actions or in its
-          details.
+          Only public search terms and exact public game IDs are sent to catalog sources, not your saved progress,
+          ratings or notes. Opening an eligible game can load separately labelled ratings and licensed artwork while
+          online lookup is on. Metadata from Wikidata (CC0) and FreeToGame. Image credits are under each game's More
+          actions or in its details.
         </p>
         <div className="button-row" role="group" aria-label="Public catalog sources">
           <a

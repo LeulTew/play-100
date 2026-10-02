@@ -107,7 +107,14 @@ describe('separate public review provenance', () => {
     const details = html.match(/<details class="catalog-review-details">([\s\S]*?)<\/details>/)?.[1];
     expect(details).toBeDefined();
     expect(details).toContain('<summary>Source details for Example publication</summary>');
-    for (const text of ['PC', 'Critic average', '32 source reviews/ratings', '2024-04-20', '2024-04-21', '2026-09-22'])
+    for (const text of [
+      'PC',
+      'Critic average',
+      '32 source reviews or ratings',
+      '2024-04-20',
+      '2024-04-21',
+      '2026-09-22',
+    ])
       expect(details).toContain(text);
     expect(details).toContain('https://www.wikidata.org/wiki/Q15408545#P444');
     expect(details).toContain('https://example.com/reviews/game');

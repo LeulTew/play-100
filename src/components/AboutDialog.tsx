@@ -125,9 +125,9 @@ export function AboutDialog({
           </a>
         </div>
         <p>
-          Online search sends your query through a read-only relay to your chosen provider, never your private library,
-          notes or rankings. Pages load on request. Wikidata includes entries classified as video games; FreeToGame
-          covers its free-to-play catalog. Neither covers every game.
+          Online search sends your query to your chosen catalog through this site's read-only service, never your
+          private library, notes or rankings. Pages load on request. Wikidata includes entries classified as video
+          games; FreeToGame covers its free-to-play catalog. Neither covers every game.
         </p>
         <p>
           Searches import facts, not descriptions, prices or reviews. With online lookup on, eligible Discover details

@@ -150,7 +150,7 @@ export function CatalogEnrichment({
                     <p>
                       {rating.count === null
                         ? 'Review count not supplied'
-                        : `${rating.count.toLocaleString()} ${rating.source === 'steam' ? 'Steam reviews' : 'source reviews/ratings'}`}
+                        : `${rating.count.toLocaleString()} ${rating.source === 'steam' ? 'Steam reviews' : 'source reviews or ratings'}`}
                       {' · '}
                       {rating.asOf ? (
                         <>

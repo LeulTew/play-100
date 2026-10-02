@@ -328,7 +328,7 @@ export class CloudStore {
           saved.digest !== chunk.digest ||
           !isUnknownArray(saved.holders)
         )
-          throw new Error('A previously stored online chunk failed validation. Your local copy is retained.');
+          throw new Error('Part of the online copy could not be read. Your device copy is unchanged.');
         if (!saved.holders.includes(generation))
           tx.update(ref, { holders: [...saved.holders, generation], holder: generation });
       } else tx.set(ref, { ...chunk, holders: [generation], holder: generation, createdAt: serverTimestamp() });
@@ -421,7 +421,9 @@ export class CloudStore {
       const current = head.exists() ? parseHead(head.data()) : null;
       if (current && publishedAlready(current, expected, snapshot.manifest.digest)) return current;
       if (!current || !generation.exists() || generation.data().status !== 'staging')
-        throw new Error('The staged online snapshot is no longer available. Your local copy remains pending.');
+        throw new Error(
+          'The online copy being saved is no longer available. Your device changes are still waiting to save online.',
+        );
       sameHead(current, expected);
       guard();
       tx.update(this.generationRef(snapshot.manifest.generation), { status: 'ready' });

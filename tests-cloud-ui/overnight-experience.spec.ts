@@ -375,7 +375,7 @@ test('My games keeps old links, unranked additions, manual drafts, valid exit sa
   await progress.selectOption('all');
   await page.goto('/discover?q=Kingdomcome&catalogs=off');
   await card(page).locator('summary').click();
-  await card(page).getByRole('button', { name: 'Add to ranking', exact: true }).click();
+  await card(page).getByRole('button', { name: 'Add to my ranking', exact: true }).click();
   await page.goto('/my-rankings');
   await expect(tab(page, 'Ranking')).toHaveAttribute('aria-current', 'page');
   await row(page)

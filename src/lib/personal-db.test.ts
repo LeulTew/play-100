@@ -693,7 +693,7 @@ describe('connection lifecycle and local notifications', () => {
 
   it('reports unavailable IndexedDB rather than silently falling back to memory', async () => {
     vi.stubGlobal('indexedDB', undefined);
-    await expect(loadPersonalLibrary(canonical)).rejects.toThrow(/IndexedDB is unavailable/);
+    await expect(loadPersonalLibrary(canonical)).rejects.toThrow(/Device storage is unavailable/);
   });
 
   it('closes on versionchange and reports the incompatible version on the next access', async () => {

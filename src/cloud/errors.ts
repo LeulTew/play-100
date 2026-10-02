@@ -4,14 +4,14 @@ export function onlineError(error: unknown): string {
   const messages: Record<string, string> = {
     'auth/invalid-credential': 'The sign-in details were not accepted. Check them or reset your password.',
     'auth/invalid-email': 'Enter a valid email address.',
-    'auth/email-already-in-use': 'This email already has an account. Sign in instead, or use its existing provider.',
+    'auth/email-already-in-use': 'This email already has an account. Sign in with the method you used before.',
     'auth/weak-password': 'Choose a longer password or passphrase.',
     'auth/password-does-not-meet-requirements': 'Choose a password or passphrase with at least 12 characters.',
     'auth/too-many-requests': 'Too many attempts. Wait a little before trying again.',
     'auth/network-request-failed': 'The sign-in service could not be reached. Check your connection and try again.',
     'auth/popup-blocked': 'Google could not open a separate window. Continue with Google in this tab, or use email.',
     'auth/internal-error':
-      'Google sign-in could not initialize. Continue again when connected, or use email. Your library is unchanged.',
+      'Google sign-in could not start. Try again when connected, or use email. Your library is unchanged.',
     'auth/web-storage-unsupported':
       'Google could not use temporary storage in this tab. Use email or keep using this device; your library is unchanged.',
     'auth/user-mismatch':
@@ -26,7 +26,7 @@ export function onlineError(error: unknown): string {
       "Your sign-in expired. Sign in again; local changes remain in this account's copy on this device.",
     'auth/expired-action-code': 'This email link expired. Request a fresh verification or reset email.',
     'permission-denied':
-      'The server did not authorize this action. Check email verification and refresh Account. Your local copy remains safe.',
+      'This action is not allowed right now. Check email verification and refresh Account. Your device copy remains safe.',
     'resource-exhausted':
       'The online service has reached a limit. Changes remain on this device; try again later. Billing is not enabled automatically.',
     unavailable: 'Online storage is temporarily unreachable. Local changes remain pending; retry when connected.',

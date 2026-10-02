@@ -24,8 +24,8 @@ describe('concise provider genre labels', () => {
     ['tactical role-playing game / puzzle video game', 'Role-playing · Strategy · Puzzles'],
     ['RPG / role-playing video game / RPG', 'Role-playing'],
     ['real-time strategy / historical video game', 'Strategy'],
-    ['unknown shooterish theme', 'Other / unclassified'],
-    [null, 'Other / unclassified'],
+    ['unknown shooterish theme', 'Other or unclassified'],
+    [null, 'Other or unclassified'],
   ])('summarizes %s without rewriting it', (genre, expected) => {
     const record = Object.freeze({ source: 'wikidata' as const, genre });
     expect(catalogGenreLabel(record)).toBe(expected);

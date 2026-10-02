@@ -105,7 +105,7 @@ test('search and real filters survive reload and browser history', async ({ page
   await page.goForward();
   await expect(page.getByLabel('Year', { exact: true })).toHaveValue('2018');
   await page.getByLabel('Collection', { exact: true }).selectOption('essential');
-  await expect(page.getByRole('heading', { name: 'No worlds found. Yet.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No matching games' })).toBeVisible();
   await page.getByRole('button', { name: 'Browse all 100', exact: true }).click();
   await expect(page.locator('.game-card')).toHaveCount(24);
 });
@@ -237,7 +237,7 @@ test('play-later and completion are independent and persist on this device', asy
     .locator('.collection-tabs')
     .getByRole('button', { name: /Play later/ })
     .click();
-  await expect(page.getByRole('heading', { name: 'Your next great game goes here.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Play later is empty' })).toBeVisible();
 });
 
 test('blocked and corrupt storage remain usable, explicit and non-destructive', async ({ page }) => {

@@ -438,8 +438,8 @@ for (const [genre, label] of [
     'role-playing video game / turn-based Japanese role-playing game / time travel video game / video game with LGBT character',
     'Role-playing',
   ],
-  ['time travel video game / unknown shooterish theme', 'Other / unclassified'],
-  [null, 'Other / unclassified'],
+  ['time travel video game / unknown shooterish theme', 'Other or unclassified'],
+  [null, 'Other or unclassified'],
 ] as const) {
   test(`provider genre ${genre ?? 'missing'} keeps its full source classification`, async ({ page }) => {
     await page.route('**/data/discovery/catalog.v1.json', (route) =>

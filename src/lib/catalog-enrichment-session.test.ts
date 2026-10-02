@@ -32,7 +32,7 @@ describe('public detail lookup eligibility and lifecycle', () => {
       now += 16_999;
       session.retry();
       expect(fetcher).toHaveBeenCalledOnce();
-      expect(session.getSnapshot().error).toContain('rate-limiting');
+      expect(session.getSnapshot().error).toContain('receiving too many requests');
       now += 1;
       session.retry();
       await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
@@ -186,7 +186,7 @@ describe('public detail lookup eligibility and lifecycle', () => {
     await vi.waitFor(() => expect(session.getSnapshot().data?.ratings).toHaveLength(1));
     session.retry();
     expect(load).toHaveBeenCalledOnce();
-    expect(session.getSnapshot().error).toMatch(/rate-limiting/);
+    expect(session.getSnapshot().error).toMatch(/receiving too many requests/);
     clock += 31_000;
     session.retry();
     await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(2));
