@@ -135,7 +135,8 @@
   margin-bottom: 23px;
   flex-wrap: wrap;
 }
-.author-footer p {
+.author-footer p,
+.author-block p {
   font-size: 13px;
   line-height: 1.5;
 }
@@ -147,10 +148,6 @@
 }
 .author-links .icon-button {
   color: var(--ink);
-}
-.author-block p {
-  font-size: 13px;
-  line-height: 1.5;
 }
 .menu-author {
   flex: 0 0 auto;

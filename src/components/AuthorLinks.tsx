@@ -3,9 +3,8 @@ import { author, authorLinks } from '../lib/author';
 export function AuthorLinks() {
   return (
     <nav className="author-links" aria-label={`${author.shortName}'s links`}>
-      {authorLinks.map(([icon, label, href]) => {
+      {authorLinks.map(([icon, title, href]) => {
         const email = icon === 'email';
-        const title = email ? `Email ${author.shortName} at ${author.email}` : `${author.shortName} on ${label}`;
         return (
           <a
             key={icon}
