@@ -113,8 +113,10 @@ export function useUrlState() {
   const changeGamesView = useCallback(
     (tab: MyGamesTab) => {
       const current = parseUrl(window.location.search);
+      // The Library page carries through Ranking; a Play later page belongs to Play later alone.
+      const fromQueue = myGamesTab(window.location.pathname, window.location.search) === 'queue';
       navigate(
-        myGamesSearch(current.filters, tab, current.game, parseLibraryPage(window.location.search)),
+        myGamesSearch(current.filters, tab, current.game, fromQueue ? 1 : parseLibraryPage(window.location.search)),
         'push',
         null,
         PAGE_PATHS.games,
