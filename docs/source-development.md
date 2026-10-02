@@ -100,7 +100,7 @@ Source updates must still contain the intended 100 author-ordered records.
 | `scripts` | Data preparation, first-paint build, CSP/budget checks and candidate-bound release evidence |
 | `src\components\scene` | Authored Three.js folios, static SVG, lifecycle and frame budget |
 | `src\components\bits` | Customized, attributed React Bits components |
-| `src\generated\cover-metadata.json` | Actual native artwork dimensions |
+| `src\generated\cover-sizes.json` | Actual native artwork dimensions, by rank |
 | `data` | Canonical source, workbook, originals, provenance and reproduction code |
 | `public` | Deployable data, optimized covers, download, social card and notices |
 | `tests` | Real-browser interaction and accessibility coverage |
