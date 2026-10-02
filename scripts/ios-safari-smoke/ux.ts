@@ -113,7 +113,7 @@ async function queueReorder(context: SmokeContext) {
     state.observer.observe(document.body, { subtree: true, attributes: true, childList: true, characterData: true });
   `);
   let gesture: unknown;
-  let touchEvents: TouchEvidence[] = [];
+  let touchEvents: TouchEvidence[];
   try {
     gesture = await context.drag(from, to);
     await context.waitFor(
