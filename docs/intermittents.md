@@ -1,5 +1,12 @@
 # Intermittent test register
 
+**ID scope:** `REL-nn` IDs belong to this register, not to the G12 tech review.
+Here, REL-11 is the cloud-UI development-server stall and REL-12 is the
+`friend-all.spec.ts:430` emulator cleanup refusal. G12's **REL-11** instead
+means "a backup chosen while busy is dropped" (fixed in `eaf5e510`), and G12's
+**REL-12** means module service-worker registration on Firefox below 147
+(support detection and accurate offline copy fixed in `219e6e39`).
+
 Track a failed attempt even when its retry passes. "Host load" is a hypothesis
 unless the receipt establishes the cause; a one-off pass is not loop evidence.
 The release operator retains native reports, command exits and debug logs
