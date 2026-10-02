@@ -273,10 +273,12 @@ export const DRIVER = `(async () => {
     }
     return { ms: Math.round(performance.now() - start), ok };
   };
-  // When each part of the visit starts, so long tasks can be told apart by what the visit was doing.
+  // When each part of the visit starts, so long tasks can be told apart by what the visit was doing. The marks put the
+  // same boundaries in a DevTools trace of the visit.
   const steps = {};
   const step = (name) => {
     steps[name] = Math.round(performance.now());
+    performance.mark('p100:' + name);
   };
   step('scrollHome');
   result.scrollHome = await frames(5000, scroll(25));
