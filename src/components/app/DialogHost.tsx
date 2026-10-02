@@ -7,9 +7,10 @@ import type { CatalogOwnership } from '../../lib/catalog-identity';
 import { filterGames } from '../../lib/collection';
 import { useExtendedSearchResults } from '../../hooks/useExtendedSearch';
 import { focusPendingEditor, visibleMenuTrigger } from '../../lib/dialog-focus';
-import { catalogDetailModule, loadCatalogDetail } from '../../lib/catalog-detail-preload';
+import { loadCatalogDetail, peekCatalogDetail } from '../../lib/catalog-detail-preload';
 import type { DeviceHints } from '../../lib/device-capabilities';
 import { scheduleIdlePrefetch } from '../../lib/idle-prefetch';
+import { createMemoizedModule } from '../../lib/memoized-module';
 import type { AboutDialog } from '../AboutDialog';
 import { Dialog } from '../Dialog';
 import { DialogLayerContext } from '../dialog-layer';
@@ -26,19 +27,23 @@ import { DialogBoundary } from './DialogBoundary';
 const CatalogDetail = lazy(loadCatalogDetail);
 // The 100's game detail ships in the catalog detail's chunk (CatalogDetail.tsx). A page warms it when it is idle, when
 // a game link is pointed at, focused or pressed, and when a linked game opens (DialogHost).
-const LazyGameDetail = lazy(() => catalogDetailModule.load().then((module) => ({ default: module.GameDetail })));
+const LazyGameDetail = lazy(
+  createMemoizedModule(() =>
+    import('../personal/CatalogDetail').then((module) => ({ default: module.GameDetail })),
+  ).load,
+);
 const DETAIL_INTENT_EVENTS = ['pointerover', 'focusin', 'pointerdown'] as const;
 function warmGameDetail(event?: Event) {
   if (event && !(event.target instanceof Element && event.target.closest('a[href*="game="]'))) return;
   // A failed load is reported where the detail renders (DetailLoadFailure).
-  void catalogDetailModule.load().catch(() => undefined);
+  void loadCatalogDetail().catch(() => undefined);
 }
 // Opening a game is the likeliest next step on any page, so constrained devices load the details at idle too, unless the
 // reader saves data or is on 2G (the connection hints isConstrainedDevice reads).
 function loadDetailAtIdle(): Promise<unknown> {
   const connection = (navigator as DeviceHints).connection;
   if (connection?.saveData || ['slow-2g', '2g'].includes(connection?.effectiveType ?? '')) return Promise.resolve();
-  return catalogDetailModule.load();
+  return loadCatalogDetail();
 }
 type KeyedProps<T> = { key: string; props: T };
 type GameDialogInput = KeyedProps<Omit<ComponentProps<typeof GameDetail>, 'previous' | 'next' | 'position'>> & {
@@ -53,7 +58,7 @@ type GameDialogInput = KeyedProps<Omit<ComponentProps<typeof GameDetail>, 'previ
 
 function GameDialog({ input }: { input: GameDialogInput }) {
   // Settled once per dialog: one that opened before its module loaded stays on the lazy path, so it never remounts.
-  const [Ready] = useState(() => catalogDetailModule.peek()?.GameDetail);
+  const [Ready] = useState(() => peekCatalogDetail()?.GameDetail);
   const { navigation, props } = input;
   const { scoped, filters, games, state, ownership } = navigation;
   const records = useExtendedSearchResults(filters.q, scoped);

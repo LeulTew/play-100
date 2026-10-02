@@ -3,7 +3,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { parseCollection } from '../../lib/collection';
-import { catalogDetailModule } from '../../lib/catalog-detail-preload';
+import { loadCatalogDetail, peekCatalogDetail } from '../../lib/catalog-detail-preload';
 import { emptyPersonalLibrary } from '../../lib/personal-library';
 import { defaultFilters } from '../../lib/url';
 import { DialogHost } from './DialogHost';
@@ -54,9 +54,9 @@ function host(): DialogHostProps {
 // The 100's game detail ships in the catalog detail's chunk, not the eager bundle (DialogHost.tsx).
 describe('a game detail outside the eager bundle', () => {
   it('waits for its module, then renders in its first commit once the module has loaded', async () => {
-    expect(catalogDetailModule.peek()).toBeNull();
+    expect(peekCatalogDetail()).toBeNull();
     expect(renderToStaticMarkup(createElement(DialogHost, host()))).not.toContain(game.title);
-    await catalogDetailModule.load();
+    await loadCatalogDetail();
     expect(renderToStaticMarkup(createElement(DialogHost, host()))).toContain(game.title);
   });
 });
