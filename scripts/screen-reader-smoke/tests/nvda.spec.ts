@@ -52,6 +52,10 @@ function context(nvda: NVDAPlaywright, page: Page, journal: SpeechJournal): Jour
         await nvda.spokenPhraseLog(),
       );
     },
+    reportFocus: async () => {
+      await nvda.perform(nvda.keyboardCommands.reportCurrentFocus, FULL);
+      return { keys: ['NVDA+Tab'], label: 'report focus (NVDA+Tab)' };
+    },
     command: async (name: NvdaCommand, options = FULL) => {
       await nvda.perform(nvda.keyboardCommands[name], options);
     },
