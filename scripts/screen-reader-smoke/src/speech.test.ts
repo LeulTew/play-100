@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   PRODUCTION_ORIGIN,
+  controlLimits,
   RESULT_COUNT,
   SpeechJournal,
   TRAY_STATE,
@@ -151,5 +152,19 @@ describe('SpeechJournal', () => {
     journal.error = 'timed out';
     expect(journal.passed).toBe(false);
     expect(summaryLines('NVDA', [journal]).at(-1)).toBe('| b | FAIL | error: timed out |');
+  });
+});
+
+describe('controlLimits', () => {
+  it('counts the native control announcement words', () => {
+    const phrases = [
+      'Control Game, dialog, Number 01 in the collection.. Control Game, heading, level 2. Control Game, dialog, Number 01 in the collection.. heading, level 2, Control Game',
+    ];
+    expect(controlLimits(phrases)).toEqual({ dialog: 2, heading: 2 });
+  });
+
+  it('yields zero for a silent control so the comparison fails', () => {
+    expect(controlLimits([])).toEqual({ dialog: 0, heading: 0 });
+    expect(expectAtMost('x', ['Game, dialog'], 'dialog', controlLimits([]).dialog).pass).toBe(false);
   });
 });

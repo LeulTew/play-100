@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import {
+  controlLimits,
   RESULT_COUNT,
   TRAY_STATE,
   bodyTail,
@@ -11,8 +12,8 @@ import {
   pinConfirmation,
   spoke,
 } from '../src/speech.ts';
-import type { SpeechJournal } from '../src/speech.ts';
-import { CONTROL_OPENER, CONTROL_TITLE, controlPage, controlPath } from '../src/control-page.ts';
+import type { AnnouncementLimits, SpeechJournal } from '../src/speech.ts';
+import { CONTROL_OPENER, CONTROL_TITLE, CONTROL_VARIANTS, controlPage, controlPath } from '../src/control-page.ts';
 import type { ControlVariant } from '../src/control-page.ts';
 import { FULL, delay, describeFocus, escapeUntilClosed, focusIsOn, key, origin, tabTo } from './support.ts';
 import type { Reader } from './support.ts';
@@ -84,69 +85,108 @@ async function closeDetailAndCheckReturn(context: JourneyContext, slug: string, 
   journal.check(expectSpoken('the returned card name is spoken', returned, title));
 }
 
-/** (a) Tab to a card in The 100, open it with Enter, hear it once, and return to it with Escape. */
+/**
+ * (a) Tab to a card in The 100, open it with Enter, hear it, and return to it with Escape. In NVDA, a native modal
+ * dialog's own announcement repeats (see docs/release-operations.md), so "dialog" and "heading" are capped at the
+ * counts measured on the native-dialog control in the same job rather than at one.
+ */
 export async function journeyDialog(context: JourneyContext): Promise<void> {
   const { page, reader, journal, kind } = context;
+  const limits = kind === 'nvda' ? await measureNativeControl(context) : ONCE;
   await open(context, COLLECTION, page.locator('li.game-card'));
   const card = firstCard(page);
   const { slug, title } = await cardFacts(card);
   await tabTo(reader, journal, page, `Tab to the ${title} card`, card.locator('a.game-link'), { max: 120 });
   const dialog = detailDialog(page, title);
-  await openAndCheckOpeningSpeech(context, title, dialog, { headingSpoken: kind === 'nvda' });
+  const opening = await openAndSettle(context, dialog);
+  await checkOpeningSpeech(context, title, dialog, opening, { headingSpoken: kind === 'nvda', limits });
   await closeDetailAndCheckReturn(context, slug, title, dialog);
 }
 
 const OPENING_SETTLE_MS = 4_000;
+const BASELINE = CONTROL_VARIANTS.find((variant) => variant.id === 'control-heading-describedby')!;
+const ONCE: AnnouncementLimits = { dialog: 1, heading: 1, source: 'once' };
 
 /**
- * Presses Enter on the focused opener, waits for the dialog and a settle window, and checks the opening speech: name
- * and role spoken; in NVDA the heading spoken (when expected) and "dialog" and "heading" each at most once; and the
- * rationale's closing words not read automatically. Shared by journey (a) and the native-dialog controls.
+ * Opens the native-dialog control that matches the app's dialog (short description, autofocused heading), records its
+ * announcement counts, and closes it. Fails the journey if the control cannot be measured, rather than loosening it.
  */
-async function openAndCheckOpeningSpeech(
-  context: JourneyContext,
-  title: string,
-  dialog: Locator,
-  { headingSpoken }: { headingSpoken: boolean },
-): Promise<void> {
-  const { page, reader, journal, kind } = context;
+async function measureNativeControl(context: JourneyContext): Promise<AnnouncementLimits> {
+  const { page, journal } = context;
+  const dialog = await openControlPage(context, BASELINE);
+  const opening = await openAndSettle(context, dialog);
+  const limits = { ...controlLimits(opening), source: `native control ${BASELINE.id}` };
+  journal.step(`native control counts: dialog ${limits.dialog}, heading ${limits.heading}`, [], []);
+  journal.check(expectSpoken('the native control is announced', opening, CONTROL_TITLE));
+  await escapeUntilClosed(context.reader, journal, page, 'close the native control', dialog);
+  return limits;
+}
+
+/** Serves a control page at the target origin, opens it, and tabs to its opener. Returns the control's dialog. */
+async function openControlPage(context: JourneyContext, variant: ControlVariant): Promise<Locator> {
+  const { page, reader, journal } = context;
+  const path = controlPath(variant);
+  await page.route(new URL(path, origin).href, (route) =>
+    route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: controlPage(variant) }),
+  );
+  journal.step(`control ${variant.id}: ${JSON.stringify(variant)}`, [], []);
+  const opener = page.locator('#opener');
+  await open(context, path, opener);
+  await tabTo(reader, journal, page, `Tab to ${CONTROL_OPENER}`, opener, { max: 20 });
+  return page.getByRole('dialog', { name: CONTROL_TITLE });
+}
+
+/** Presses Enter on the focused opener, waits for the dialog and a settle window, and returns the opening speech. */
+async function openAndSettle(context: JourneyContext, dialog: Locator): Promise<string[]> {
+  const { page, reader, journal } = context;
   const opened = await key(reader, journal, page, 'open with Enter', 'Enter');
   await waitForDialog(dialog, 'open with Enter');
   // Opening can load the detail after the key press's capture ends; give the reader time to finish announcing it.
   await delay(OPENING_SETTLE_MS);
-  const opening = [
+  return [
     ...opened,
     ...journal.step('opening speech settles', [], await reader.spokenPhraseLog(), await describeFocus(page)),
   ];
+}
+
+/**
+ * Checks the opening speech: name and role spoken; nothing announced as clickable; the rationale's closing words not
+ * read automatically; and in NVDA the heading spoken (when expected) with "dialog" and "heading" within the limits.
+ */
+async function checkOpeningSpeech(
+  context: JourneyContext,
+  title: string,
+  dialog: Locator,
+  opening: readonly string[],
+  { headingSpoken, limits }: { headingSpoken: boolean; limits: AnnouncementLimits },
+): Promise<void> {
+  const { journal, kind } = context;
   const tail = bodyTail((await dialog.locator('.rationale').first().textContent()) ?? '');
   journal.check(expectSpoken('the dialog name is spoken', opening, title));
   journal.check(expectSpoken('the dialog role is spoken', opening, 'dialog'));
+  journal.check(expectNotSpoken('nothing is announced as clickable', opening, 'clickable'));
   if (kind === 'nvda') {
     if (headingSpoken) journal.check(expectSpoken('the heading is spoken', opening, /heading/));
-    journal.check(expectAtMost('the dialog is announced once', opening, 'dialog', 1));
-    journal.check(expectAtMost('the heading is announced once', opening, 'heading', 1));
+    const within = limits.source === 'once' ? 'once' : `no more than the ${limits.source}`;
+    journal.check(expectAtMost(`the dialog is announced ${within}`, opening, 'dialog', limits.dialog));
+    journal.check(expectAtMost(`the heading is announced ${within}`, opening, 'heading', limits.heading));
   }
   journal.check(expectNotSpoken('the full body is not read automatically on open', opening, tail));
 }
 
 /**
- * Native-dialog control: the same keyboard path and opening-speech checks as (a), on a minimal page served by request
- * interception at the target origin, so it needs no build. Escape must return focus to the opener, whose name is spoken.
+ * Native-dialog control: the same keyboard path and strict opening-speech checks as (a), with "dialog" and "heading"
+ * each at most once, on a minimal page served by request interception at the target origin, so it needs no build.
+ * Escape must return focus to the opener, whose name is spoken.
  */
 export function journeyControl(variant: ControlVariant) {
   return async (context: JourneyContext): Promise<void> => {
     const { page, reader, journal } = context;
-    const path = controlPath(variant);
-    await page.route(new URL(path, origin).href, (route) =>
-      route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: controlPage(variant) }),
-    );
-    journal.step(`control ${variant.id}: ${JSON.stringify(variant)}`, [], []);
-    const opener = page.locator('#opener');
-    await open(context, path, opener);
-    await tabTo(reader, journal, page, `Tab to ${CONTROL_OPENER}`, opener, { max: 20 });
-    const dialog = page.getByRole('dialog', { name: CONTROL_TITLE });
-    await openAndCheckOpeningSpeech(context, CONTROL_TITLE, dialog, {
+    const dialog = await openControlPage(context, variant);
+    const opening = await openAndSettle(context, dialog);
+    await checkOpeningSpeech(context, CONTROL_TITLE, dialog, opening, {
       headingSpoken: variant.autofocus === 'heading',
+      limits: ONCE,
     });
     const closing = await escapeUntilClosed(reader, journal, page, 'close the dialog', dialog);
     const focus = await describeFocus(page);
