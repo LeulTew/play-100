@@ -81,6 +81,18 @@ for (const viewport of [
             if (entry.duration >= 250)
               console.info('Resize visit long task', { at: entry.startTime, durationMs: entry.duration });
         }).observe({ type: 'longtask', buffered: true });
+      const scenePhases = new Set<string>();
+      const mark = performance.mark;
+      performance.mark = (name, options) => {
+        const result = mark.call(performance, name, options);
+        const phase = /^p100:scene:(module|context|renderer|first-render)-(start|end)$/.exec(name);
+        if (phase) {
+          if (phase[2] === 'start') scenePhases.add(phase[1]!);
+          else scenePhases.delete(phase[1]!);
+          console.info('Resize visit scene mark', { name, at: result.startTime, visibility: document.visibilityState });
+        }
+        return result;
+      };
       const getContext = HTMLCanvasElement.prototype.getContext;
       Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
         configurable: true,
@@ -94,8 +106,18 @@ for (const viewport of [
           return result;
         },
       });
+      const synchronousQueries = [
+        'getProgramParameter',
+        'getShaderParameter',
+        'getProgramInfoLog',
+        'getShaderInfoLog',
+        'getActiveUniform',
+        'getUniformLocation',
+        'getError',
+        'readPixels',
+      ];
       for (const prototype of [WebGLRenderingContext.prototype, WebGL2RenderingContext.prototype]) {
-        for (const method of ['compileShader', 'linkProgram', 'drawArrays', 'drawElements']) {
+        for (const method of ['compileShader', 'linkProgram', 'drawArrays', 'drawElements', ...synchronousQueries]) {
           const original: unknown = Reflect.get(prototype, method);
           if (typeof original !== 'function') continue;
           const observed = new WeakSet<object>();
@@ -105,10 +127,19 @@ for (const viewport of [
             value(this: WebGLRenderingContext, ...args: unknown[]) {
               const first = !observed.has(this);
               observed.add(this);
-              if (first) console.info(`Resize visit WebGL first ${method} start`, { at: performance.now() });
-              const result: unknown = Reflect.apply(original, this, args);
-              if (first) console.info(`Resize visit WebGL first ${method} end`, { at: performance.now() });
-              return result;
+              const sampled = first || (scenePhases.size > 0 && synchronousQueries.includes(method));
+              const started = performance.now();
+              if (sampled) console.info(`Resize visit WebGL ${method} start`, { at: started, first });
+              let returned = false;
+              try {
+                const result: unknown = Reflect.apply(original, this, args);
+                returned = true;
+                return result;
+              } finally {
+                const durationMs = performance.now() - started;
+                if (sampled || durationMs >= 250)
+                  console.info(`Resize visit WebGL ${method} end`, { at: performance.now(), durationMs, returned });
+              }
             },
           });
         }
@@ -118,7 +149,10 @@ for (const viewport of [
     const timing: string[] = [];
     diagnostics.set(page, timing);
     page.on('console', (message) => {
-      if (message.text().startsWith('Resize visit') && timing.length < 200) timing.push(message.text());
+      if (message.text().startsWith('Resize visit')) {
+        timing.push(message.text());
+        if (timing.length > 600) timing.shift();
+      }
       if (message.type() === 'error' && /ResizeObserver/.test(message.text())) reported.push(message.text());
     });
     await emptyCatalogs(page);
