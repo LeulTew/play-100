@@ -686,6 +686,7 @@ describe('explicit update preserves edits and other tabs', () => {
       await requested;
       await vi.advanceTimersByTimeAsync(5001);
       expect(await operation).toBe(false);
+      expect(current.controller.getSnapshot().error).toBe('Offline access did not respond. Try again.');
       expect(current.location.reload).not.toHaveBeenCalled();
       expect(report).toHaveBeenCalledOnce();
 
