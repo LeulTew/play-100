@@ -52,12 +52,16 @@ risk for each waiver; an earlier client-first exception is not standing approval
 | WAF `api-per-ip` | Review seven days of Log hits; switch Log to 429 **no earlier than 2026-10-02**. Record review, decision and switch time. Log mode records matches and blocks nothing, so the rule is not an active control before that switch. Do not invent a completed switch or modify the log-only OWASP rules. |
 | Device and assistive technology | Physical low-end/mobile and iOS Safari, keyboard and screen-reader journeys, OS installation/launch/uninstall, real multi-window/two-version updates. Record devices and results or explicit waivers. Chromium emulation is not physical-device evidence. |
 
+See [iPhone Safari smoke](ios-safari.md) for the Mobile Safari simulator workflow,
+its retained results and the remaining physical-device boundary.
+
 For consented Windows OS evidence, run
 `npm run release:pwa-os -- --url https://play-100-collection.vercel.app`
 and retain its redacted receipt and SHA-256. See
 [Windows OS installation companion](pwa.md#windows-os-installation-companion)
 for the actual CDP installation/shortcut/removal checks and offline-emulation
-boundary. The command requires no Mizan lock and at least 6 GiB free RAM;
+boundary. The command honors the optional `PLAY100_HOST_LOCK` file and requires
+at least 6 GiB free RAM by default;
 each foreground PWA or screen-reader burst must remain under fifteen minutes.
 Do not replace screen-reader evidence with an accessibility-tree snapshot:
 record NVDA/Narrator version, Windows/Chrome versions, exact speech output,
@@ -163,7 +167,7 @@ redacted JSON report and command log, not only a summary of its result.
 
 ## 2. Candidate-bound local gate
 
-The committed runner is the default entry point. It follows the integrator's
+The committed runner is the default entry point. It follows the release operator's
 ordered local partitions, pins **Node 24.21.0**, refuses occupied suite ports
 (including IPv6), and stops on the first failure without retries or cleanup of
 evidence. The old, disabled hosted workflow was removed rather than kept as a
@@ -175,7 +179,7 @@ never installs dependencies or creates worktrees. Both checkouts must have no
 `.env` files; load only the reviewed public Production configuration into the
 calling environment. Java 21 and the installed browsers must already be available.
 Use the pinned runtime's bundled npm. Do not invoke this full gate during another
-lane's bounded-check or quiet window.
+job's bounded-check or quiet window.
 
 Download the matching Gitleaks 8.30.1 release archive separately from
 `https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1` and set
@@ -450,6 +454,8 @@ app document; warm second-navigation deltas cannot replace it. Hint-on/off
 populations retain P0–P3 read-only observations and require complete matching
 eight-run cohorts before reporting a delta. These rules and the local v3 fixture
 amendment must survive any future committed port.
+
+### Gate evidence and diagnostic commands
 
 Every command log starts with the full candidate commit and tree; emulator
 debug logs receive the same header when that partition stops, even on failure.

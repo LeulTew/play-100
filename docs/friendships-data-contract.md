@@ -264,7 +264,7 @@ missing authority, stale source, live revocation and quota/ACK failures.
 | Export and cleanup remain complete | Controller/export/deletion integrations | Actual export, reversible copy deletion, fresh-Auth gate, full deletion and interrupted-cleanup retry on desktop and mobile |
 | All source formats stay strict | Shared validators plus v2 mutation guards | Maximum-size collection/Wikidata/Steam/FreeToGame/manual records pass both paths; extra/private/oversized fields fail |
 
-The parent-owned independent cross-lane review found four controller/read-cost
+The independent integration review found four controller/read-cost
 corners; each was repaired and covered above. The release receipt separately
 records exact source/rule/index hashes, the scoped baseline lint limits, candidate
 and production gates, and disposable fixture cleanup. No existing production

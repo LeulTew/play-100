@@ -269,6 +269,9 @@ described:
   timers.
 - **Abort checks** use `signal.aborted`, not `throwIfAborted()` (Chrome 100+); cancellation preserves
   the signal's reason when available, or throws an `AbortError` on older browsers.
+- **Offline access** needs module service workers (Firefox 147+). Browsing remains
+  supported at the stated floor; a browser that ignores or rejects module-worker
+  registration gets "Offline access needs a newer version of this browser."
 
 [DESIGN.md](DESIGN.md) takes this policy as given: a new feature above the floor needs a fallback, or
 an entry here saying what the older browsers get.
@@ -293,6 +296,9 @@ The preview is at `http://127.0.0.1:4187`. A strict port avoids accidentally
 replacing another project's server. Ordinary `npm run dev` prints its own URL.
 
 ## Quality checks
+
+See [iPhone Safari smoke](docs/ios-safari.md) for real Mobile Safari simulator
+coverage, retained candidate/production results, and physical-device limitations.
 
 For the ordered operator procedure, candidate verification, promotion and
 rollback/readback, use [Local release operations](docs/release-operations.md).

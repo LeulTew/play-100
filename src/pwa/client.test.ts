@@ -83,7 +83,10 @@ function fixture(pathname = '/') {
   const serviceWorker = Object.assign(new EventTarget(), {
     controller: registration.active,
     getRegistration: vi.fn(async () => registration),
-    register: vi.fn(async () => registration),
+    register: vi.fn(async (_url: string, options?: RegistrationOptions) => {
+      expect(options?.type).toBe('module');
+      return registration;
+    }),
   });
   const media = Object.assign(new EventTarget(), { matches: false });
   const window = Object.assign(new EventTarget(), {
@@ -120,6 +123,101 @@ afterEach(() => {
 });
 
 describe('truthful installation and page startup', () => {
+  it.each(['ignored', 'unsupported'] as const)(
+    'explains %s module-worker support without blaming storage',
+    async (mode) => {
+      const current = fixture();
+      const report = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        await vi.waitFor(() => expect(current.controller.getSnapshot().updateState).toBe('waiting'));
+        current.serviceWorker.register.mockImplementationOnce(async (_url, options) => {
+          if (mode === 'unsupported') {
+            expect(options?.type).toBe('module');
+            throw new DOMException('Module service workers are unsupported', 'NotSupportedError');
+          }
+          throw new TypeError('ServiceWorker script evaluation failed');
+        });
+        expect(await current.controller.prepareOffline()).toBe(false);
+        expect(current.controller.getSnapshot()).toMatchObject({
+          offlineState: 'error',
+          message: '',
+          error: 'Offline access needs a newer version of this browser.',
+        });
+        expect(current.serviceWorker.register).toHaveBeenCalledOnce();
+        expect(current.location.reload).not.toHaveBeenCalled();
+        expect(report).toHaveBeenCalled();
+        expect(await current.controller.prepareOffline()).toBe(true);
+      } finally {
+        report.mockRestore();
+        current.stop();
+      }
+    },
+  );
+
+  it('keeps supported-browser network failures distinct from missing module-worker support', async () => {
+    const current = fixture();
+    const report = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      current.serviceWorker.register.mockImplementationOnce(async (_url, options) => {
+        expect(options?.type).toBe('module');
+        throw new TypeError('Network request failed');
+      });
+
+      expect(await current.controller.prepareOffline()).toBe(false);
+      expect(current.controller.getSnapshot().error).toBe(
+        'Offline preparation could not start. Check the connection or available storage, then retry.',
+      );
+      expect(report).toHaveBeenCalled();
+    } finally {
+      report.mockRestore();
+      current.stop();
+    }
+  });
+
+  it('does not report offline readiness if registration succeeds while ignoring the module option', async () => {
+    const current = fixture();
+    const report = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      current.serviceWorker.register.mockImplementationOnce(async () => current.registration);
+      expect(await current.controller.prepareOffline()).toBe(false);
+      expect(current.controller.getSnapshot().error).toBe('Offline access needs a newer version of this browser.');
+      expect(report).toHaveBeenCalled();
+    } finally {
+      report.mockRestore();
+      current.stop();
+    }
+  });
+
+  it('does not publish a stale unsupported-browser failure into a reconnected controller', async () => {
+    const current = fixture();
+    const report = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let fail: (error: Error) => void = () => {
+      throw new Error('Registration has not started');
+    };
+    let stop = current.stop;
+    try {
+      current.serviceWorker.register.mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            fail = reject;
+          }),
+      );
+      const pending = current.controller.prepareOffline();
+      await vi.waitFor(() => expect(current.serviceWorker.register).toHaveBeenCalledOnce());
+      current.stop();
+      stop = current.controller.connect();
+      await vi.waitFor(() => expect(current.controller.getSnapshot().updateState).toBe('waiting'));
+      const snapshot = current.controller.getSnapshot();
+      fail(new TypeError('Classic script evaluation failed'));
+      expect(await pending).toBe(false);
+      expect(current.controller.getSnapshot()).toBe(snapshot);
+      expect(report).not.toHaveBeenCalled();
+    } finally {
+      report.mockRestore();
+      stop();
+    }
+  });
+
   it('announces an explicit check and its up-to-date result without reloading', async () => {
     const current = fixture();
     let finish!: () => void;

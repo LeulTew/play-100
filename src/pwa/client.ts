@@ -11,6 +11,28 @@ const updateModule = createMemoizedModule(() => import('./apply-update'));
 
 const channel = 'play100-pwa-v1';
 const versionPattern = /^[a-f0-9]{64}$/;
+class UnsupportedOfflineBrowserError extends Error {}
+
+async function registerOfflineWorker(serviceWorker: Pick<ServiceWorkerContainer, 'register'>) {
+  let moduleOptionRead = false;
+  try {
+    const registration = await serviceWorker.register('/sw.js', {
+      scope: '/',
+      get type() {
+        moduleOptionRead = true;
+        return 'module' as const;
+      },
+      updateViaCache: 'none',
+    });
+    if (!moduleOptionRead) throw new UnsupportedOfflineBrowserError();
+    return registration;
+  } catch (cause) {
+    // Older engines ignore RegistrationOptions.type and parse the module as a classic script.
+    if (!moduleOptionRead || (cause instanceof DOMException && cause.name === 'NotSupportedError'))
+      throw new UnsupportedOfflineBrowserError('Offline access needs a newer version of this browser.', { cause });
+    throw cause;
+  }
+}
 
 export const PWA_IOS_INSTRUCTIONS =
   'In Safari, open Share, then Add to Home Screen. Turn on Open as Web App if offered, then choose Add. This website cannot open that system dialog for you.';
@@ -375,19 +397,22 @@ export function createPwaController(): PwaController {
           const existing = await navigator.serviceWorker.getRegistration('/');
           if (existing) checkRegistration(existing);
           if (!current(start)) return false;
-          const value = await navigator.serviceWorker.register('/sw.js', {
-            scope: '/',
-            type: 'module',
-            updateViaCache: 'none',
-          });
+          const value = await registerOfflineWorker(navigator.serviceWorker);
           if (!current(start)) return false;
           checkRegistration(value);
           observe(value, start);
           if (value.active) await refresh(start);
           return true;
         } catch (cause) {
-          if (current(start)) publish({ offlineState: 'error' });
-          report('Offline preparation could not start. Check the connection or available storage, then retry.', cause);
+          if (current(start)) {
+            publish({ offlineState: 'error', message: '' });
+            report(
+              cause instanceof UnsupportedOfflineBrowserError
+                ? 'Offline access needs a newer version of this browser.'
+                : 'Offline preparation could not start. Check the connection or available storage, then retry.',
+              cause,
+            );
+          }
           return false;
         }
       })();

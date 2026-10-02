@@ -397,7 +397,7 @@ These three units are static dependencies only of the already-lazy online graph.
 They add no eager entry import, new route root, stylesheet, storage format or
 server rule. Their new deterministic unit suites supplement the unchanged
 identity, Google redirect, private-deletion and cloud-UI regressions; the refactor
-does not claim a new runtime pass until the integrator runs them.
+does not claim a new runtime pass until the release operator runs them.
 
 Online page bodies are separate dynamic imports, not static dependencies of that
 identity/sync bridge. Remembering an account on The 100 may load the bridge and
@@ -572,15 +572,15 @@ Measure the production build with `npm run check:budgets -- --json budget-report
 after running the guarded-loading regressions. The largest remaining lazy chunk
 may be a shared Firebase/sync dependency rather than a page; report that filename
 and both raw and per-file gzip9 maxima, not just `OnlineController`'s own bytes.
-For R9, the integrator tightens `budgets.json` only after measuring that build:
+For R9, the release operator tightens `budgets.json` only after measuring that build:
 `largestLazyRawBytes = min(1115037, ceil(measuredLargestLazyRawBytes * 1.02))` and
 `largestLazyGzipBytes = min(286846, ceil(measuredLargestLazyGzipBytes * 1.02))`.
 Both should be strictly smaller than the prior caps; otherwise investigate the
 emitted graph instead of raising a limit or claiming the reduction. Keep the
 historical baseline and all eager/CSS/PWA caps unchanged, and record the measured
 source/tree with the tightened caps. These formulas are an integration instruction,
-not a fabricated size receipt; lane implementation and new tests are **UNRUN**
-until the integrator executes them.
+not a fabricated size receipt; implementation and new tests are **not yet run**
+until the release operator executes them.
 
 ### Route costs
 

@@ -1,7 +1,7 @@
 # Security release, rollback and ledger repair
 
-This is an operator runbook, not executable Admin tooling. The parent and the
-signed-in project owner perform production operations. The source lane adds no
+This is an operator runbook, not executable Admin tooling. The release operator and the
+signed-in project owner perform production operations. The source change adds no
 Admin SDK, credentials, dependencies, scheduled cleanup or production writes.
 At need, the operator writes and reviews repair tooling against the deployed SDK
 and actual inventory; an example query below is not a command to run blindly.
@@ -39,7 +39,7 @@ candidate), so the candidate client's matching pre-write check only adds a clear
 error under either rules. New client under old rules is exercised by the
 `live-270f` runs of `tests-cloud/security-migration.test.ts`; old client under new
 rules is the [270f client matrix](#270f-client-under-current-rules) and the
-compatibility table in `security.md`. The parent executes every step in the
+compatibility table in `security.md`. The release operator executes every step in the
 Firebase and Vercel consoles; each names its readback.
 
 1. **Receipts.** Firebase console > Firestore > Rules: copy the published text to
@@ -54,7 +54,7 @@ Firebase and Vercel consoles; each names its readback.
    confirm both fields. Never infer an owner UID from an email match. This must
    precede UID-based creator rules (step 6). If the UID is missing, the rules
    withhold creator powers until it is added; ordinary publishing is unaffected.
-2. Run the integrator's exact candidate types, lint, units, full demo rules,
+2. Run the release operator's exact candidate types, lint, units, full demo rules,
    migration and UI suites. Keep failures, selector-filtered runs and source-only
    tests distinct. Record synthetic serializer size outputs; do not call them
    real-user averages.
@@ -146,18 +146,18 @@ query smoke are recorded in
 [security](security.md#storage-02-accounting-deployed-2026-10-01). Rollback
 (step 6) still applies.
 
-This is not part of the accepted H5 baseline until the parent/I explicitly
-accept it into the queue after q3 before freeze; otherwise it is post-release.
+This is not part of the accepted H5 baseline until the release operator explicitly
+accepts it into the queue after q3 before freeze; otherwise it is post-release.
 The source branch adds only the 13 exact paths listed in `security.md`. All ten
 accepted composites and five prior overrides are preserved. In particular,
 selected chunk ordering keeps `chunks.index ASC`, and public generation cleanup
 keeps `generations.createdAt ASC`. No rules, grants, caps or schemas change.
 
-1. **Before:** the parent reads back the actual index definitions and
+1. **Before:** the release operator reads back the actual index definitions and
    `fieldOverrides`, states and timestamps, retaining the exact before artifact.
    Compare it with source and account for any additional production indexes;
    abort on unexplained differences rather than overwriting them.
-2. **Source gate:** I runs the static query/index audit, types/lint and existing
+2. **Source gate:** The release operator runs the static query/index audit, types/lint and existing
    focused suites. The audit covers every current query constructor, the pinned
    270f source modules and the formal operator inventory below. It checks aliases,
    conditional fields, query-array builders, ASC/DESC/CONTAINS, map descendants,
@@ -166,20 +166,20 @@ keeps `generations.createdAt ASC`. No rules, grants, caps or schemas change.
    pair; Admin chains, `runQuery`/`structuredQuery` bodies and REST `orderBy` fail
    closed until a reviewed extractor exists, while emulator-only test REST reads
    stay outside these roots.
-3. **Deploy:** only the parent deploys the reviewed candidate. No `--force`, no
+3. **Deploy:** only the release operator deploys the reviewed candidate. No `--force`, no
    composite/override deletion, and no accepting deletion prompts. If the tool
    proposes deleting any existing definition, abort and review. Approved
    exemptions intentionally stop automatic single-field indexing on those
    fields; that is disclosed, not described as “no physical index entries change.”
-4. **After:** collect parent-owned before/after readbacks, exact override list,
+4. **After:** collect operator-retained before/after readbacks, exact override list,
    operation completion, READY state for required indexes and backfill/removal
    evidence. The emulator does not model that work. Keep projected reserve
    reductions separate from observed storage; do not call a calculation measured.
 5. **Smoke:** once READY, verify the current and supported rollback query shapes,
    both selected chunk families, public cleanup, All pages, at-cap pair cleanup
    and operator recount predicates. Merely receiving an HTTP response does not
-   verify UI/runtime behavior; I owns the ordinary browser gate.
-6. **Rollback:** the parent restores the captured prior single-field settings for
+   verify UI/runtime behavior; the release operator runs the ordinary browser gate.
+6. **Rollback:** the release operator restores the captured prior single-field settings for
    these same 13 paths, preserving composites and unrelated overrides. Never
    force or auto-accept a deletion prompt; if restoration is represented as a
    destructive CLI change, stop for explicit operator review instead of guessing.
@@ -201,7 +201,7 @@ Use these in order of preference:
    client is preferable to 270f once new formats exist.
 3. **Write-frozen emergency rules:** keep authorization on reads and disable
    every positive write grant. Adding a separate `allow write: if false` does
-   not override another allow. The parent must review the emergency artifact;
+   not override another allow. The release operator must review the emergency artifact;
    the app is read-only and pending local edits must remain intact.
 4. **Old rules `971b0fe6...`, last resort:** H5 bounds are suspended from this
    rollback until exact repair and verification finish. Preserve the full
@@ -242,7 +242,7 @@ and their hashes are unchanged. The
 [list-cost bounds](security.md#cursor-only-list-cost-bounds-pre-g2-h6) apply to
 all 19 positive list grants, including owner and creator branches.
 `tests-cloud/query-offsets.test.ts` is the targeted REST/cursor gate; execution
-and the existing migration suite remain I-owned and UNRUN in the source lane.
+and the existing migration suite still require execution by the release operator.
 
 ### Why an old-rules rollback needs repair
 
@@ -272,7 +272,7 @@ After such a rollback:
 
 Use full projected queries, not the app's 20/100-row limit as a recount.
 Transactions must remain within the platform's size, time and write limits. If
-one exact transaction cannot fit, stop and have the parent approve a contained
+one exact transaction cannot fit, stop and have the release operator approve a contained
 repair strategy; a sequence of unlocked partial totals is not an equivalent
 repair. Tooling is written at the time of need and is not shipped in this repo.
 
@@ -338,7 +338,7 @@ repair, but actual byte inventory must not trust a client-declared `bytes` field
 | `friendAllJobs/{uid}/views/games` and `/ranking`, 10,000 physical format3 rows each | Job3 count equals ALL format3 rows for that UID/kind, across every epoch; every format3 row is active and valid. A job can be absent only if no format3 rows remain | Full `friendAllGames/{uid}/entries` or `friendAllRankings/{uid}/entries`, projecting format/epoch/active/token/step, plus job/head/policy | Job2/absent job with surviving row3 is a real mismatch. Do not reset to zero or resume automatic publishing. Contain/pulse heads unready, reconcile marker+physical count and valid progress/source, then verify before ready publication |
 | `accountQuotas/{uid}/limits/groups`, 50 new IDs | Registry IDs exactly identify enrolled live groups; unenrolled legacy group IDs are recorded separately and may still be edited | Full `friendGroups/{uid}/items` ID set plus registry | Repair set difference for missing IDs. Do not enroll every legacy group. New full-deletion cleanup self-heals up to 20 missing IDs/pass; real retained items block completion |
 | `accountQuotas/{uid}/limits/blocks`, 1,000 new IDs | Same registered/live set invariant; legacy unenrolled blocks remain separate | Full `friendBlocks/{uid}/items` IDs plus registry | Same set-difference repair. Creation can remain blocked by rollback orphans until cleanup releases them |
-| `accountQuotas/{uid}/limits/reports`, 100 new counted reports | Counter equals counted markers; after an exact rollback repair every open report is counted and no resolved report is counted | Full `reports` query `reporterUid == uid`, project document ID/status/counted, plus counter | In ONE repair transaction reconcile markers AND count: enroll supported open records; unmark resolved counted records, or purge them only with separate approval. Count open records exactly. Unsupported legacy report-ID shapes or over-cap sets require an explicit parent decision before a bound claim |
+| `accountQuotas/{uid}/limits/reports`, 100 new counted reports | Counter equals counted markers; after an exact rollback repair every open report is counted and no resolved report is counted | Full `reports` query `reporterUid == uid`, project document ID/status/counted, plus counter | In ONE repair transaction reconcile markers AND count: enroll supported open records; unmark resolved counted records, or purge them only with separate approval. Count open records exactly. Unsupported legacy report-ID shapes or over-cap sets require an explicit operator decision before a bound claim |
 | `accountQuotas/{uid}/limits/pairs`, 1,000 creator-attributed documents | Counter equals ALL format2 pairs with `creatorUid == uid`, in pending/accepted/declined/cancelled/removed states. Legacy format1 never counts or releases | Full `friendPairs` query `creatorUid == uid`, verify format and all five states, plus counter; separately inventory participant-scoped format1 | Never infer creator from `from` (invite creator is accepter), never count only accepted/pending, and never convert legacy pairs. Reconcile exact count; malformed attribution needs review. A zero ledger can be removed after proof |
 
 For reports, setting a counter from only open rows without fixing `counted`
@@ -388,7 +388,7 @@ Release does not bump revision, so that receipt does not reveal a revision
 counter too. A zero-leak receipt inbox is backlog, not an implemented guarantee.
 
 `cleanupEpoch` is a bounded **client-attested completion marker**, not a quota
-ledger or an operator deletion proof. The parent must not trust it in inventory.
+ledger or an operator deletion proof. The release operator must not trust it in inventory.
 A matching deleted epoch drives the complete notice with no probe; an old marker
 must not survive re-enable/re-delete as a completed current epoch.
 
@@ -448,9 +448,9 @@ maximum legitimate/adversarial use. App Check/reCAPTCHA adoption remains a user
 decision and follow-up, with the separate CSP/Data Use work described in
 `security.md`; it is not silently enabled here.
 
-## Parent-only platform controls (SEC-HARDEN-01)
+## Operator-only platform controls (SEC-HARDEN-01)
 
-These are console/platform steps; no lane or integrator session applies them.
+These are console/platform steps; source changes alone do not apply them.
 
 ### Vercel WAF rate limit for `/api/*` and the auth helper
 
@@ -487,7 +487,7 @@ already get 405 from the functions. Record the rule ID and switch time.
 
 **Status (2026-09-25).** The rule exists as `rule_api_per_ip_xpgBNf`
 ("api-per-ip"), created through the Vercel API (config updated 09:49:22Z) and
-active in **Log** mode since then (parent ruling WAF-01). Its conditions are
+active in **Log** mode since then (operator ruling WAF-01). Its conditions are
 (path starts with `/api/` AND method GET) OR (path starts with `/__/auth/` AND
 method GET or HEAD), fixed window 60 s, 60 requests, key IP. Creating the
 project's first firewall config also enabled Vercel's default OWASP rule set
@@ -531,7 +531,7 @@ Spark-compatible with the reCAPTCHA v3 provider (no Firebase billing).
 4. Set Vercel Production `VITE_APP_CHECK_ENABLED=true` and
    `VITE_APP_CHECK_SITE_KEY=<site key>`, redeploy, and watch App Check metrics
    for Firestore and Authentication for at least 7 days.
-5. Enforcement is a separate owner/parent decision once verified traffic is
+5. Enforcement is a separate owner/operator decision once verified traffic is
    near 100%. Old cached clients without tokens will be rejected after it.
 
 ### Firebase browser-key readback
@@ -614,7 +614,7 @@ UTC times, complete versus sampled query scope, per-UID ledger and legacy
 envelope counts, orphan counts, dry-run/purge approvals, and verification recount.
 Do not put credentials or private content in those receipts. A mismatch means
 the affected bound is **not established**; contain the writes, retain data and
-escalate to the parent rather than calling a partial result success.
+escalate to the release operator rather than calling a partial result success.
 
 ## Deletion recovery copy inventory
 
@@ -666,7 +666,7 @@ visible.
 The unit and emulator assertions retain the same predicates and now check the
 new strings. The real UI source checks that the interrupted-deletion instruction
 matches the visible Finish deleting action after closing its confirmation.
-All changed-source execution remains the integrator's UNRUN work item.
+All changed-source execution remains pending for the release operator.
 
 After an interrupted account deletion, **Finish deleting** completes the online
 copy only, and **Delete account** then removes the sign-in (two steps).

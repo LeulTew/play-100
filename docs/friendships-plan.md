@@ -411,7 +411,7 @@ requests, invitations, identity and reciprocal relationship projections using
 bounded resumable work. Partial cleanup or an old tab cannot revive access.
 Retain only intentionally documented, content-free revocation markers.
 
-## 13. Pragmatic gauntlet and proof
+## 13. Release checks and proof
 
 Run focused checks as implementation proceeds, not a full CI chain. One bounded
 independent review follows the integrated candidate; fix real findings and
@@ -454,7 +454,7 @@ Respect existing transient backoff and quota cooldown. Free limits and closed
 browsers remain real limitations, not reasons to promise always-on processing.
 
 Implement in this order: session/icon continuity; authorized friend lifecycle;
-friends-only sharing; comparison/group integration; functional gauntlet;
+friends-only sharing; comparison/group integration; functional release checks;
 UX/UI refinements; final code-quality pass and release. Pure comparison work
 may proceed independently after its input contract is agreed.
 

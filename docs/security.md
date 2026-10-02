@@ -56,7 +56,7 @@ Endpoint code and the cron definition are
 pending the ordinary release/deployment gate; their presence is not evidence
 that production reporting or a scheduled run has occurred.
 
-These rules and client changes are a prototype pending the integrator's actual
+These rules and client changes are a prototype pending the release operator's actual
 emulator, type, browser and rollout checks. Source assertions are not proof of
 production protection or a numerical security score.
 
@@ -77,7 +77,7 @@ Existing report access still checks its stored reporter field, not an inferred
 suffix. Global UID validators and hyphenated demo identities are unchanged.
 Introducing custom UIDs requires revisiting the report ID format first.
 
-The parent reviewed the supported sign-in source paths: Firebase assigns IDs for
+The release operator reviewed the supported sign-in source paths: Firebase assigns IDs for
 email/password and Google redirect, and the app has no custom-token, user-import,
 Admin or anonymous-sign-in path. Custom/imported/Admin-created users would be
 operator-only additions, not a supported app flow today. No existing-user export
@@ -171,7 +171,7 @@ passed in `npm run test:cloud` at Release 1 (`2f727389`); receipts are in the
 
 ## Dated H14 black-box evidence and accepted risks
 
-The parent performed read-only public-API probes on **2026-09-23**, using the
+The release operator performed read-only public-API probes on **2026-09-23**, using the
 public web key from live 270f (redacted in the receipt). The console canvas was
 signed out; no credentials were entered and no writes were made. This is
 **black-box readback, not console readback**. Operator-held receipt:
@@ -284,7 +284,7 @@ responses must be `application/json`. The Vercel WAF rule in the runbook is the
 intended global control, but it runs in Log mode, which records matches and
 blocks nothing, until its scheduled switch to 429; until then only these
 per-instance limiters bound requests. The rule and its deployment evidence
-remain with the parent/integrator.
+remain with the release operator.
 
 ### Preview referrers and production smoke
 
@@ -307,7 +307,7 @@ promotion and with operator approval. Local demo-emulator tests use synthetic
 configuration and remain the pre-promotion validation path.
 
 **Promotion-time option, not performed:** after verifying the proxied
-`/__/auth/*` sign-in, linking and reauthentication flows on production, the parent
+`/__/auth/*` sign-in, linking and reauthentication flows on production, the release operator
 may remove firebaseapp.com from the key's referrer allowlist if no legitimate
 request still requires that origin. Recheck those production flows and retain
 the prior allowlist for rollback. This option does not remove the proxy
@@ -349,8 +349,8 @@ UI suite; never point these actors at production.
 
 ## Storage caps and legacy compatibility
 
-**H5 remains a release gate until the integrator verifies the complete candidate
-and the parent reviews its receipts.** The original metadata-only deletion loop
+**H5 remains a release gate until the release operator verifies the complete candidate
+and the release operator reviews its receipts.** The original metadata-only deletion loop
 is retained in history as a reproduced counterexample, not an accepted risk.
 Candidate rules now keep the generation/slot until its payload has been released:
 
@@ -404,7 +404,7 @@ registry-only deletion.
 
 ### Conditional per-account storage ceiling
 
-The table below retains the accepted H5 index baseline from `67555a5`.
+The table below retains the accepted H5 index baseline recorded with the account-only deletion recovery action.
 STORAGE-02 is a separate candidate, described afterward; its configuration must
 not be treated as deployed merely because this branch contains it.
 
@@ -463,7 +463,7 @@ but that much looser bound is not a useful promise about Spark capacity.
 
 ### STORAGE-02 accounting (deployed 2026-10-01)
 
-**Deployed** 2026-10-01 between 20:53 and 20:55Z: the parent added the 13
+**Deployed** 2026-10-01 between 20:53 and 20:55Z: the release operator added the 13
 overrides below one by one with `gcloud firestore indexes fields update
 --disable-indexes`, changing no composite and no other override. All 18 field
 operations finished SUCCESSFUL by 21:03Z. Readback: the ten composites are
@@ -510,13 +510,13 @@ the same storage-size formulas give 31,360,000 bytes for All token/step indexes,
 manifest-map indexes: **35,396,779 bytes, about 33.76 MiB** in that example.
 These calculated example deltas are not the loose ceiling deltas, real-user
 averages, measured billing savings or evidence of production index state.
-Only the parent's before/after readback after READY/backfill may establish the
-deployed result. Follow the runbook; all runtime commands remain with I.
+Only the release operator's before/after readback after READY/backfill may establish the
+deployed result. Follow the runbook; all runtime commands remain with the release operator.
 
 `ranking-envelope.test.ts` emits exact serialized and base64 sizes for a
 deterministic 100-record fixture, a 1,000-record fixture and the maximum escaping
 fixture. These are synthetic examples, not observed user averages. Their current
-execution receipts must be recorded by I; the source lane does not invent
+execution receipts must be recorded by the release operator; source changes do not establish
 measured sizes.
 
 For the representative fixture's literal ASCII fields, source arithmetic predicts
@@ -862,13 +862,13 @@ Account like the localStorage case, and its Try again repeats the whole
 removal: the copy's database row and journals as well as its localStorage keys.
 The password entry accepts up to Firebase's 4096-character policy maximum.
 
-## Ordered parent-only rollout
+## Ordered operator-only rollout
 
 The only authoritative promotion sequence is the runbook's
 [Promotion order](security-release-runbook.md#promotion-order); this section
 keeps no second numbered list. Its constraints, in brief: preserve the published
 rules and verify the owner UID first; the compatible client ships before the
-candidate rules; only the parent publishes rules and records the full SHA;
+candidate rules; only the release operator publishes rules and records the full SHA;
 production smoke follows promotion; and rollback prefers roll-forward or a
 client-only rollback, with the retained `971b0fe6...` rules as a last resort
 that suspends H5 bounds. The table below explains why each change is client-first.
@@ -945,7 +945,7 @@ CORP `cross-origin` overrides apply only to `/social-card.png`,
 `/social-card.svg`, `/favicon.svg`, `/pwa/icon-192.png`, `/pwa/icon-512.png`,
 `/pwa/icon-maskable-192.png`, `/pwa/icon-maskable-512.png` and
 `/pwa/apple-touch-icon.png`. These are public social/launcher assets, not account
-or API resources. The integrator must verify actual header override behavior,
+or API resources. The release operator must verify actual header override behavior,
 scraper image access and redirect sign-in on the intended origin.
 
 **Client env exposure (R8-ENV-01).** Only the named public Firebase fields
@@ -990,7 +990,7 @@ it repeats the failure's 502 or 504 until then, without asking upstream again.
 It also repeats an upstream redirect for those 15 s. Only a refresh takes an
 admission slot, so page loads, however many or from whom, never meet the limit.
 
-Evidence: the parent's read-only capture recorded the handler (462 B) and
+Evidence: the release operator's read-only capture recorded the handler (462 B) and
 iframe (364 B). Each was byte-identical across query strings, with one nonce
 attribute, one literal and one inline script, no style or `on*` handler, and
 upstream `Cache-Control: max-age=1800` with no CSP or Set-Cookie. Tests use
@@ -1171,7 +1171,7 @@ in the bounded offline core, in the same retained change. These styles work unde
 the current policy and do not depend on removing `unsafe-inline`.
 
 Only the final main-style policy change and its specific test are droppable.
-I must retain that strict candidate only after an owned real browser records
+The release operator must retain that strict candidate only after an owned real browser records
 **zero CSP violations** with the intended headers present. If it fails, omit
 only that final candidate; keep security-header retention and fallback styling.
 The Google-template helper policy is not included in main-style tightening.
@@ -1216,6 +1216,6 @@ outside the gate ([release-operations.md](release-operations.md)).
 | H8 nonce and five helper routes | SEC-01 fresh per-response nonce via `api/auth-helper.ts`, GET/HEAD only; production auth smoke required |
 | H9 COOP/CORP and main auth-origin reduction | Redirect-only source compatible; verify final public headers and share-image override |
 | Main strict style candidate | Not approved by source alone; retain only with exact-header browser proof |
-| H10 instance limiter + WAF | Per-instance limits cannot stop distributed-instance abuse; the per-IP WAF rule runs in Log mode until its 429 switch, so parent/I enforcement evidence is required |
+| H10 instance limiter + WAF | Per-instance limits cannot stop distributed-instance abuse; the per-IP WAF rule runs in Log mode until its 429 switch, so operator enforcement evidence is required |
 | H12 npm ci/signatures | Local install/build gate only; no runtime account change |
 | H14 controls | Parent's dated black-box evidence above; App Check/reCAPTCHA accepted risks, not enforced. Authenticated console still required for UID setup and rules publication. |

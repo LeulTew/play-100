@@ -111,5 +111,5 @@ frame stability, and `sizes` against actual slots across 320-1920px.
 no-MP4-before-Watch scenarios. `src/components/CollectionFilms.test.ts` checks
 listing/player source separation, generated provenance and image decoding;
 `scripts/pwa-build.test.ts` proves optional thumbnails do not expand the core.
-These checks and the overall `npm run check:budgets` are run by the integrator,
-not by the source-only lane.
+These checks and the overall `npm run check:budgets` are run by the release operator,
+not inferred from source changes alone.

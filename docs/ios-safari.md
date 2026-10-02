@@ -36,7 +36,7 @@ supports those entry types; unsupported metrics are `null`, not zero.
 
 [Run 36933031367, attempt 2](https://github.com/LeulTew/play-100/actions/runs/36933031367)
 is green across the inventory job and all four simulator jobs. It tested
-harness commit `60231f583bedee01c5184048b46644d3714fd7e0` against
+the manual candidate-origin harness revision recorded by that run against
 `https://mixing-copyright-conceptual-gamma.trycloudflare.com`, not production.
 The three other devices passed on attempt 1; the SE on iOS 26.2 passed on its
 rerun. These are candidate-build results, not evidence of a production deployment.
@@ -79,7 +79,7 @@ The rerun passed without changing the tested harness.
 ## Historical production evidence: blocked
 
 [The 2026-10-01 production run](https://github.com/LeulTew/play-100/actions/runs/36927938078)
-tested commit `a5d03ae4de76a264ccb2830463b1e335657626db` with Xcode 26.3
+used the tab-icon and Safari-zoom diagnostic harness revision recorded by that run with Xcode 26.3
 (17C529). All four devices passed cold home, Discover navigation and Portal
 search using trusted native touches. All four then failed returning to
 The 100 because its tab icon did not intersect the recorded visible viewport.
