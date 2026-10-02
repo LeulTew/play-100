@@ -24,6 +24,8 @@ on:
           - cloud-rules
           - cloud-ui
           - lighthouse
+          - checks
+          - csp-refresh
       specs:
         description: Space-separated spec paths (empty runs the suite's whole config)
         type: string
@@ -131,7 +133,7 @@ jobs:
         run: npm ci --prefix "$CI_TOOLS/lighthouse" --no-audit --no-fund
 
       - name: Install the Playwright browser
-        if: inputs.suite != 'cloud-rules'
+        if: inputs.suite != 'cloud-rules' && inputs.suite != 'csp-refresh'
         working-directory: candidate
         run: npx --no-install playwright install --with-deps chromium
 
