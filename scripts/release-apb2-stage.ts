@@ -155,6 +155,7 @@ const load = async <T>(root: string, ...parts: string[]) =>
 export const RUNNER_FILES = [
   'release-apb2.ts',
   'release-apb2-contract.ts',
+  'release-apb2-gate.ts',
   'release-apb2-records.ts',
   'release-apb2-stage.ts',
   'release-apb2-stats.ts',

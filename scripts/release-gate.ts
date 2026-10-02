@@ -36,6 +36,23 @@ export function checkApb2GateReceipt(input: unknown, candidate: { sha: string; t
     throw new Error('APB2 needs a passing receipt bound to the exact candidate commit and tree.');
   return { schemaVersion: 1, source: candidate, status: 'passed' };
 }
+/**
+ * The APB2 step's own environment: the exact candidate identity, plus the operator's pinned-set folder, quiet-host
+ * attestation and bound Chrome version, which the configured profile would otherwise strip with every PLAY100_ variable.
+ */
+export const APB2_OPERATOR_ENV = [
+  'PLAY100_APB2_PROTOCOL',
+  'PLAY100_APB2_QUIET_ATTESTED',
+  'PLAY100_APB2_BROWSER_VERSION',
+] as const;
+export function apb2StepEnvironment(input: NodeJS.ProcessEnv, candidate: { sha: string; tree: string }) {
+  const env: NodeJS.ProcessEnv = {
+    PLAY100_APB2_SOURCE_COMMIT: candidate.sha,
+    PLAY100_APB2_SOURCE_TREE: candidate.tree,
+  };
+  for (const name of APB2_OPERATOR_ENV) if (input[name]) env[name] = input[name];
+  return env;
+}
 const ports = [4187, 9199, 8188, 4417, 4517, 9150];
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 type Profile = 'configured' | 'offline' | 'emulator';
@@ -578,10 +595,7 @@ export async function releaseGate(evidence: string, offline: string) {
     const cwd = step.profile === 'offline' ? offline : root;
     const env = gateEnvironment(process.env, step.profile);
     if (step.name === 'floor-smoke') env.PLAY100_FLOOR_CHROMIUM = process.env.PLAY100_FLOOR_CHROMIUM;
-    if (step.name === 'apb2') {
-      env.PLAY100_APB2_SOURCE_COMMIT = sha;
-      env.PLAY100_APB2_SOURCE_TREE = tree;
-    }
+    if (step.name === 'apb2') Object.assign(env, apb2StepEnvironment(process.env, { sha, tree }));
     env.PLAYWRIGHT_JSON_OUTPUT_FILE = path.join(evidence, `${step.name}.json`);
     if (step.tool === 'playwright') env.PLAY100_TEST_BUILD = step.name === 'development' ? 'development' : 'production';
     const args = [...step.args];

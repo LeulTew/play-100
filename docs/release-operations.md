@@ -569,16 +569,28 @@ the first contexts: it shows the runner works end to end, needs no attestation a
 makes no timing claim. `collect` re-collects a capture of the same HEAD, including
 one taken by another harness of the same pinned protocol.
 
-The hook calls `npm run release:apb2 -- --evidence NEW_DIRECTORY` with
+The gate's `apb2` step calls the runner's gate form,
+`npm run release:apb2 -- --evidence NEW_DIRECTORY`, with
 `PLAY100_APB2_SOURCE_COMMIT` and `PLAY100_APB2_SOURCE_TREE` set to the full
-candidate identities. The port must write `NEW_DIRECTORY/receipt.json`
+candidate identities. It also passes the operator's `PLAY100_APB2_PROTOCOL`,
+`PLAY100_APB2_QUIET_ATTESTED=1` and `PLAY100_APB2_BROWSER_VERSION` through, which
+the configured profile would otherwise strip. The gate form checks both
+identities against HEAD, verifies the pinned set, captures `fine1440cpu1` and then
+`coarse393cpu4` (with the fine runtime as its previous runtime) from the
+configured `dist`, and collects both. It then writes `NEW_DIRECTORY/receipt.json`
 conforming to `Apb2GateReceipt` in `scripts/release-gate.ts`: `schemaVersion: 1`,
-`source: { sha, tree }`, and `status: "passed"` only after its complete campaign
-passes. Retain and bind the native artifacts in that receipt; do not merely
-echo the environment as proof. The gate verifies the exit and exact source
-identity and hashes the receipt in its final configured manifest. Missing
-runner, receipt, wrong identity or failed status blocks the gate; there is no
-skip, fabricated pass, or fallback to a smaller benchmark.
+`source: { sha, tree }`, and `status: "passed"` only when both profiles are
+complete, their recomputed tables equal the pinned aggregation and every gated
+row passes; otherwise `failed`, with its reasons. The receipt binds each
+profile's stage receipt, `table.json`, record index and capture `run.json` by
+SHA-256, with the runner's file digests and the pinned set's verification; it
+never merely echoes the environment as proof. An operator who must admit the host
+between the profiles runs the same sequence as `gate --step fine1440cpu1`,
+`--step coarse393cpu4` and `--step receipt` against one evidence folder. The gate
+verifies the exit and exact source identity and hashes the receipt in its final
+configured manifest. Missing runner, receipt, wrong identity or failed status
+blocks the gate; there is no skip, fabricated pass, or fallback to a smaller
+benchmark.
 
 The v3.2 amendment changes only fixture IndexedDB opens to the source-bound
 `DB_VERSION` (3 for R22), read lazily through validated

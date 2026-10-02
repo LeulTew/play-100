@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { APB2_PROFILE_IDS, protocolRoot, verifyProtocol, type Apb2ProfileId } from './release-apb2-contract';
+import { APB2_GATE_ENV, APB2_GATE_STEPS, runGate, type Apb2GateStep } from './release-apb2-gate';
 import { GATE_NODE } from './release-gate';
 
 /**
@@ -10,9 +11,13 @@ import { GATE_NODE } from './release-gate';
  *
  *   npm run release:apb2 -- verify [--protocol <dir>]
  *   npm run release:apb2 -- stage --profile <fine1440cpu1|coarse393cpu4> --dist <dir> --evidence <dir> --stage-id <name>
- *       --browser-version <x.y.z.w> --quiet-attested [--smoke] [--previous-runtime <runtime.json>] [--protocol <dir>]
+ *       --browser-version <x.y.z.w> (--quiet-attested | --smoke) [--previous-runtime <runtime.json>] [--protocol <dir>]
  *   npm run release:apb2 -- collect --profile <id> --capture <dir> --dist <dir> --evidence <dir> --name <name> [--protocol <dir>]
+ *   npm run release:apb2 -- [gate] --evidence <new dir> [--dist dist] [--browser-version <x.y.z.w>]
+ *       [--step all|fine1440cpu1|coarse393cpu4|receipt] [--protocol <dir>]
  *
+ * The gate form is what release:gate calls (`release:apb2 -- --evidence <dir>`, PLAY100_APB2_SOURCE_COMMIT and _TREE set);
+ * the operator supplies PLAY100_APB2_PROTOCOL, PLAY100_APB2_QUIET_ATTESTED=1 and PLAY100_APB2_BROWSER_VERSION.
  * Exit codes: 0 complete with every gated row passing (or a passing functional smoke), 2 complete with a gated row not
  * passing, 1 anything else (the receipts are kept either way).
  */
@@ -38,7 +43,8 @@ export type Apb2Command =
       dist: string;
       evidence: string;
       name: string;
-    };
+    }
+  | { command: 'gate'; protocol?: string; evidence: string; dist: string; browserVersion: string; step: Apb2GateStep };
 
 const FLAGS = new Set(['--quiet-attested', '--smoke']);
 const VALUES = new Set([
@@ -51,10 +57,12 @@ const VALUES = new Set([
   '--previous-runtime',
   '--capture',
   '--name',
+  '--step',
 ]);
 
-export function parseApb2Arguments(argv: readonly string[]): Apb2Command {
-  const [command, ...rest] = argv;
+export function parseApb2Arguments(argv: readonly string[], env: NodeJS.ProcessEnv = process.env): Apb2Command {
+  // The release:gate hook calls `release:apb2 -- --evidence <dir>` with no command: that is the gate form.
+  const [command, ...rest] = argv[0]?.startsWith('--') ? ['gate', ...argv] : argv;
   const values = new Map<string, string>();
   const flags = new Set<string>();
   for (let index = 0; index < rest.length; index += 1) {
@@ -131,7 +139,20 @@ export function parseApb2Arguments(argv: readonly string[]): Apb2Command {
       name: required('--name'),
     };
   }
-  throw new Error('Usage: release:apb2 <verify|stage|collect> [options]');
+  if (command === 'gate') {
+    allow('--protocol', '--evidence', '--dist', '--browser-version', '--step');
+    const step = values.get('--step') ?? 'all';
+    assert.ok((APB2_GATE_STEPS as readonly string[]).includes(step), `Unknown gate step ${step}.`);
+    return {
+      command,
+      protocol,
+      evidence: required('--evidence'),
+      dist: values.get('--dist') ?? 'dist',
+      browserVersion: values.get('--browser-version') ?? env[APB2_GATE_ENV.browser] ?? '',
+      step: step as Apb2GateStep,
+    };
+  }
+  throw new Error('Usage: release:apb2 <verify|stage|collect|gate> [options]');
 }
 
 /** The exit code of a finished run (see the usage above). */
@@ -150,6 +171,18 @@ export async function releaseApb2(argv: readonly string[]) {
     return verification.ok ? 0 : 1;
   }
   assert.equal(process.version, GATE_NODE, `Use the gate runtime ${GATE_NODE}.`);
+  if (options.command === 'gate') {
+    const { receipt, exitCode: code } = await runGate({ ...options, protocol: root });
+    if (receipt)
+      console.log(
+        JSON.stringify(
+          { status: receipt.status, complete: receipt.complete, source: receipt.source, reasons: receipt.reasons },
+          null,
+          2,
+        ),
+      );
+    return code;
+  }
   const { collectCapture, runApb2Stage } = await import('./release-apb2-stage');
   if (options.command === 'collect') {
     const collection = await collectCapture({ ...options, protocol: root });

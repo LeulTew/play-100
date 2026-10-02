@@ -5,6 +5,17 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { exitCode, parseApb2Arguments } from './release-apb2';
 import {
+  gateExitCode,
+  gateProfile,
+  gateReceipt,
+  gateSource,
+  gateStageId,
+  quietAttested,
+  stageExitCode,
+  type Apb2GateProfile,
+} from './release-apb2-gate';
+import { apb2StepEnvironment, checkApb2GateReceipt } from './release-gate';
+import {
   APB2_BUDGETS,
   APB2_JOURNEYS_IN_ORDER,
   APB2_PROFILES,
@@ -392,5 +403,167 @@ describe('APB2 runner inputs', () => {
     expect(() => moduleEntry('<script src="/assets/index-a.js"></script>')).toThrow(/exactly one module entry/);
     expect(fixtureDbVersion("export const DB_NAME = 'x';\nexport const DB_VERSION = 3;\n")).toBe(3);
     expect(() => fixtureDbVersion('export const DB_VERSION = VERSION;\n')).toThrow(/integer literal/);
+  });
+});
+
+const SHA = 'a'.repeat(40);
+const TREE = 'b'.repeat(40);
+const bound = (name: string) => ({ path: `evidence/${name}`, sha256: 'c'.repeat(64) });
+const files = (): Apb2GateProfile['files'] => ({
+  stage: bound('stage.json'),
+  table: bound('table.json'),
+  records: bound('index.json'),
+  captureRun: bound('run.json'),
+});
+const complete = (passed = 29) => ({
+  result: 'CAPTURE_COMPLETE_TABLE_RECOMPUTED',
+  collection: { equal: true, gated: 29, passed, allGatedPass: passed === 29 },
+});
+const verified = { ok: true, files: 145, freezeSha256: 'd'.repeat(64) };
+const receiptFor = (profiles: Apb2GateProfile[], verification: typeof verified | null = verified) =>
+  gateReceipt({
+    source: { sha: SHA, tree: TREE },
+    profiles,
+    verification,
+    browserVersion: '154.0.8037.93',
+    runner: {},
+  });
+
+describe('APB2 gate receipt', () => {
+  it('accepts the hook form and each gate step, with the operator Chrome from the environment', () => {
+    expect(parseApb2Arguments(['--evidence', 'out/apb2'], { PLAY100_APB2_BROWSER_VERSION: '154.0.8037.93' })).toEqual({
+      command: 'gate',
+      protocol: undefined,
+      evidence: 'out/apb2',
+      dist: 'dist',
+      browserVersion: '154.0.8037.93',
+      step: 'all',
+    });
+    expect(
+      parseApb2Arguments(
+        ['gate', '--evidence', 'd', '--step', 'receipt', '--browser-version', '154.0.8037.93', '--dist', 'x'],
+        {},
+      ),
+    ).toMatchObject({ command: 'gate', step: 'receipt', dist: 'x', browserVersion: '154.0.8037.93' });
+    expect(() => parseApb2Arguments(['gate', '--evidence', 'd', '--step', 'tablet'], {})).toThrow(/Unknown gate step/);
+    expect(() => parseApb2Arguments(['--evidence', 'd', '--smoke'], {})).toThrow(/does not apply to gate/);
+  });
+
+  it('binds the source the gate names to HEAD and requires the operator quiet attestation', () => {
+    const env = { PLAY100_APB2_SOURCE_COMMIT: SHA, PLAY100_APB2_SOURCE_TREE: TREE };
+    expect(gateSource(env, SHA, TREE)).toEqual({ sha: SHA, tree: TREE });
+    expect(() => gateSource(env, 'e'.repeat(40), TREE)).toThrow(/not this checkout's HEAD/);
+    expect(() => gateSource(env, SHA, 'e'.repeat(40))).toThrow(/not this checkout's tree/);
+    expect(() => gateSource({}, SHA, TREE)).toThrow(/must name the full candidate commit/);
+    expect([
+      quietAttested({ PLAY100_APB2_QUIET_ATTESTED: '1' }),
+      quietAttested({ PLAY100_APB2_QUIET_ATTESTED: 'yes' }),
+      quietAttested({}),
+    ]).toEqual([true, false, false]);
+    const id = gateStageId(SHA, '20261002201500', 'coarse393cpu4');
+    expect(id).toBe('gaaaaaaaa-20261002201500-coarse393cpu4');
+    expect(id).toMatch(/^[a-z0-9][a-z0-9-]{2,60}$/);
+  });
+
+  it('passes only when both profiles are complete, recomputed equal and every gated row passes', () => {
+    const passing = receiptFor([
+      gateProfile('fine1440cpu1', 'f', complete(), files()),
+      gateProfile('coarse393cpu4', 'c', complete(), files()),
+    ]);
+    expect(passing).toMatchObject({
+      schemaVersion: 1,
+      source: { sha: SHA, tree: TREE },
+      status: 'passed',
+      complete: true,
+      reasons: [],
+    });
+    expect(checkApb2GateReceipt(passing, { sha: SHA, tree: TREE })).toEqual({
+      schemaVersion: 1,
+      source: { sha: SHA, tree: TREE },
+      status: 'passed',
+    });
+    expect(gateExitCode(passing)).toBe(0);
+
+    const budgetMiss = receiptFor([
+      gateProfile('fine1440cpu1', 'f', complete(), files()),
+      gateProfile('coarse393cpu4', 'c', complete(28), files()),
+    ]);
+    expect(budgetMiss).toMatchObject({
+      status: 'failed',
+      complete: true,
+      reasons: ['coarse393cpu4: 1 of 29 gated rows did not pass.'],
+    });
+    expect(() => checkApb2GateReceipt(budgetMiss, { sha: SHA, tree: TREE })).toThrow('exact candidate');
+    expect(gateExitCode(budgetMiss)).toBe(2);
+
+    const partial = receiptFor([gateProfile('fine1440cpu1', 'f', { result: 'HOLD' }, files())]);
+    expect(partial).toMatchObject({ status: 'failed', complete: false });
+    expect(partial.reasons).toEqual(['fine1440cpu1: incomplete (HOLD).', 'coarse393cpu4: not run.']);
+    expect(gateExitCode(partial)).toBe(1);
+
+    const unequal = receiptFor([
+      gateProfile(
+        'fine1440cpu1',
+        'f',
+        { ...complete(), collection: { ...complete().collection, equal: false } },
+        files(),
+      ),
+      gateProfile('coarse393cpu4', 'c', complete(), { ...files(), table: null }),
+    ]);
+    expect(unequal.reasons).toEqual([
+      'fine1440cpu1: the recomputed table differs from the pinned aggregation.',
+      'coarse393cpu4: a bound file is missing.',
+    ]);
+    expect(gateExitCode(unequal)).toBe(1);
+    const unverified = receiptFor(
+      [gateProfile('fine1440cpu1', 'f', complete(28), files()), gateProfile('coarse393cpu4', 'c', complete(), files())],
+      null,
+    );
+    expect(unverified).toMatchObject({ status: 'failed', complete: false, pinnedSet: null });
+    expect(unverified.reasons).toEqual([
+      'The pinned set did not verify.',
+      'fine1440cpu1: 1 of 29 gated rows did not pass.',
+    ]);
+    expect(gateExitCode(unverified)).toBe(1);
+    expect(
+      gateReceipt({
+        source: { sha: SHA, tree: TREE },
+        profiles: passing.profiles.filter((row) => row !== null),
+        verification: verified,
+        browserVersion: '154.0.8037.93',
+        runner: {},
+        failure: 'Port 4199 is busy.',
+      }),
+    ).toMatchObject({ status: 'failed', complete: false, reasons: ['Port 4199 is busy.'] });
+    expect([
+      stageExitCode('CAPTURE_COMPLETE_TABLE_RECOMPUTED', true),
+      stageExitCode('CAPTURE_COMPLETE_TABLE_RECOMPUTED', false),
+      stageExitCode('HOLD', true),
+      stageExitCode(undefined, false),
+    ]).toEqual([0, 2, 1, 1]);
+  });
+
+  it('passes the operator APB2 settings through the configured profile that strips PLAY100_ variables', () => {
+    expect(
+      apb2StepEnvironment(
+        {
+          PLAY100_APB2_PROTOCOL: 'pinned',
+          PLAY100_APB2_QUIET_ATTESTED: '1',
+          PLAY100_APB2_BROWSER_VERSION: '154.0.8037.93',
+          PLAY100_OTHER: 'x',
+        },
+        { sha: SHA, tree: TREE },
+      ),
+    ).toEqual({
+      PLAY100_APB2_SOURCE_COMMIT: SHA,
+      PLAY100_APB2_SOURCE_TREE: TREE,
+      PLAY100_APB2_PROTOCOL: 'pinned',
+      PLAY100_APB2_QUIET_ATTESTED: '1',
+      PLAY100_APB2_BROWSER_VERSION: '154.0.8037.93',
+    });
+    expect(apb2StepEnvironment({}, { sha: SHA, tree: TREE })).toEqual({
+      PLAY100_APB2_SOURCE_COMMIT: SHA,
+      PLAY100_APB2_SOURCE_TREE: TREE,
+    });
   });
 });
