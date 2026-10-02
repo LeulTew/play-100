@@ -13,16 +13,25 @@ on:
         type: string
         required: false
         default: ''
+      suite:
+        description: product runs journeys a-e; control runs the minimal native-dialog controls against the opening-speech checks
+        type: choice
+        required: false
+        default: product
+        options:
+          - product
+          - control
 
 permissions:
   contents: read
 
 concurrency:
-  group: screen-reader-smoke-${{ github.ref }}-${{ inputs.sha || inputs.target_origin }}
+  group: screen-reader-smoke-${{ github.ref }}-${{ inputs.suite }}-${{ inputs.sha || inputs.target_origin }}
   cancel-in-progress: false
 
 env:
   CANDIDATE_SHA: ${{ inputs.sha }}
+  SR_SUITE: ${{ inputs.suite || 'product' }}
   TARGET_ORIGIN: ${{ inputs.sha != '' && 'http://127.0.0.1:4173' || inputs.target_origin || 'https://play-100-collection.vercel.app' }}
 
 jobs:

@@ -74,6 +74,13 @@ build with the repository's public `VITE_FIREBASE_*` variables, and serves
 `dist` on `http://127.0.0.1:4173` through the commit's own
 `scripts/vercel-static-server.ts` and `vercel.json`, so no tunnel is needed.
 `receipt.json` then records `servedCommit` and the served `index.html` SHA-256.
+
+`-f suite=control` runs, instead of journeys a–e, three minimal native-dialog
+pages served by request interception on the target origin: a `showModal`
+dialog with a short `aria-describedby` and autofocused heading, the same
+without `aria-describedby`, and one autofocusing its Close button. They use
+journey a's opening-speech checks unchanged. This separates app markup from
+generic browser and screen-reader announcement behaviour.
 Each journal step also records the DOM `focusin`/`focusout` events since the
 previous step, to tell DOM focus apart from the reader's virtual focus.
 
