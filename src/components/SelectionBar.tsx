@@ -96,7 +96,7 @@ export function SelectionBar({
               aria-disabled={!count || busy || undefined}
               onClick={() => act('uncomplete')}
             >
-              Unmark completed
+              Mark not completed
             </button>
             {onRemove && (
               <button

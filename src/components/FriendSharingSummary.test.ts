@@ -34,7 +34,7 @@ describe('friend sharing summary', () => {
     expect(html).not.toContain(FRIEND_ALL_QUOTA_MESSAGE);
   });
   it('keeps a quota cooldown storage failure as one alert with Refresh and no quota promise', () => {
-    const message = 'The retry cooldown could not be saved. Your device library could not be opened or saved.';
+    const message = 'The next sharing retry time could not be saved. Your device library could not be opened or saved.';
     const html = render('error', message);
     expect(html).toContain('<strong>Needs attention</strong>');
     expect(html.split('role="alert"')).toHaveLength(2);

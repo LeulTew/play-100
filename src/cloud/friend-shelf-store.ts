@@ -231,7 +231,7 @@ export class FriendShelfStore {
         throw new FriendStoreError('unavailable', 'The shared shelf is incomplete. Refresh it.');
       chunks.docs.forEach((chunk, index) => {
         if (chunk.id !== String(index))
-          throw new FriendStoreError('invalid', 'Shared games have inconsistent chunk identities.');
+          throw new FriendStoreError('invalid', 'Parts of these shared games do not match. Refresh them.');
         entries.push(...parseFriendShelfChunk(chunk.data(), index, manifest.count));
       });
     }

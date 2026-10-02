@@ -300,7 +300,7 @@ export function useOnlineAccount({
       !account.snapshot ||
       user.uid !== identityRef.current?.uid
     )
-      throw new Error('Verify this account and wait for its local cache before continuing.');
+      throw new Error('Verify this account and wait for its device copy to open before continuing.');
     return { user, scope, store: sync.store, local: account.snapshot };
   };
 

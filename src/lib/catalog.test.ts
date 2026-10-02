@@ -118,7 +118,9 @@ describe('typed, bounded public catalog lookup', () => {
   });
   it.each([429, 503])('surfaces source HTTP %s rather than claiming no results', async (status) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({}, status)));
-    await expect(getCatalogPage('wikidata', 'Hades', 0, signal())).rejects.toThrow(/rate-limiting|unavailable/);
+    await expect(getCatalogPage('wikidata', 'Hades', 0, signal())).rejects.toThrow(
+      /receiving too many requests|unavailable/,
+    );
   });
   it('surfaces source JSON errors even on HTTP 200', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json({ error: { code: 'maxlag', info: 'Busy' } })));

@@ -396,7 +396,7 @@ test('catalog results are explicitly imported and upstream errors remain recover
   await card.getByText('More actions', { exact: true }).click();
   await card.getByRole('button', { name: `Play later: ${item.title}`, exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder).toEqual([item.id]);
-  await card.getByRole('button', { name: 'Add to ranking', exact: true }).click();
+  await card.getByRole('button', { name: 'Add to my ranking', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.length).toBe(1);
   await expect(card.getByRole('button', { name: 'In your ranking', exact: true })).toBeDisabled();
   await page.goto('/my-library?list=later');

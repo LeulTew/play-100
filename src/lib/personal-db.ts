@@ -128,7 +128,7 @@ function openDatabase(): Promise<IDBDatabase> {
       if (typeof indexedDB === 'undefined') {
         throw namedError(
           'PersonalLibraryStorageError',
-          'IndexedDB is unavailable. This browser cannot durably save your library. Enable device storage or use a supported browser.',
+          'Device storage is unavailable. Enable storage for this site or use a supported browser to save your library.',
         );
       }
       request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -270,7 +270,7 @@ function removeLegacy(expectedRaw?: string): string | null {
     globalThis.localStorage.removeItem(STORAGE_KEY);
     return null;
   } catch {
-    return 'Your library is safely saved in IndexedDB, but the previous device data could not be removed. Allow device storage to finish cleanup; the old copy has been retained.';
+    return 'Your library is saved on this device, but the previous device data could not be removed. Allow device storage to finish cleanup; the old copy has been retained.';
   }
 }
 

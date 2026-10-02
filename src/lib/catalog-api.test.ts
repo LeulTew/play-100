@@ -153,7 +153,7 @@ describe('same-origin catalog API boundary', () => {
       expect(response.status).toBe(status);
       expect(response.headers.get('cache-control')).toBe('no-store');
       expect(await response.json()).toMatchObject({
-        error: expect.stringMatching(status === 429 ? /rate-limiting requests/ : /unavailable \(503\)/),
+        error: expect.stringMatching(status === 429 ? /receiving too many requests/ : /unavailable \(503\)/),
         code: status === 429 ? 'rate-limited' : 'unavailable',
       });
       if (status === 429) expect(response.headers.get('retry-after')).toBe('3');

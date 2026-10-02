@@ -449,7 +449,7 @@ test('removing a filtered origin closes coherently instead of returning to stale
   await expect(page.locator(firstCard)).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Your next great game goes here.', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Play later is empty', exact: true })).toBeVisible();
   expect(new URL(page.url()).searchParams.get('list')).toBe('later');
 });
 

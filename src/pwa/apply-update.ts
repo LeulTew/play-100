@@ -93,7 +93,7 @@ export async function executePwaUpdate(
       throw new Error('This page could not verify the app update. Your page was not reloaded. Try again.');
     const activated = await sendPwaRequest(active, 'STATUS');
     if (activated.version !== status.version || !activated.ready)
-      throw new Error('The active update version did not match.');
+      throw new Error('This page received a different app update. Your page was not reloaded. Try again.');
     if (!access.isCurrent() || !guard.isCurrent() || !guard.canReload()) {
       access.publish({
         updateState: 'reload-required',

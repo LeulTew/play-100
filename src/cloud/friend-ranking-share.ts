@@ -68,7 +68,7 @@ export async function ranking(store: FriendStore, ownerUid: string): Promise<Fri
       throw new FriendStoreError('unavailable', 'This shared ranking is incomplete. Reload it.');
     chunks.docs.forEach((snap, index) => {
       if (snap.id !== String(index))
-        throw new FriendStoreError('invalid', 'This shared ranking has inconsistent chunk positions.');
+        throw new FriendStoreError('invalid', 'Parts of this shared ranking are out of order. Reload it.');
       entries.push(...parseFriendChunk(snap.data(), index, current.count));
     });
   }
@@ -96,7 +96,7 @@ export async function publishRanking(
   const source = parseFriendSource(sourceInput);
   const guard = () => {
     online();
-    if (isCurrent && !isCurrent()) conflict('This account scope changed. The sharing update was cancelled.');
+    if (isCurrent && !isCurrent()) conflict('The active account changed. The sharing update was cancelled.');
   };
   const checkSource = (data: DocumentData | undefined) => {
     const sync = data ? parseHead(data) : null;

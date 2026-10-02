@@ -172,10 +172,10 @@ function PublishDraft({
       )}
       {!rows.length ? (
         <div className="empty-state">
-          <h2>A ranking comes first.</h2>
-          <p>Add games and your optional scores on My rankings. Nothing has been published.</p>
+          <h2>No ranked games yet</h2>
+          <p>Add games and optional ratings in My games, under Ranking. Nothing has been published.</p>
           <a className="button button-dark" href="/my-rankings">
-            Open My rankings
+            Open my ranking
           </a>
         </div>
       ) : (

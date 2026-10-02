@@ -231,7 +231,7 @@ export function DiscoveryCard({
               }}
             >
               <Icon name="rank" width="16" height="16" />
-              {ranking ? 'In your ranking' : 'Add to ranking'}
+              {ranking ? 'In your ranking' : 'Add to my ranking'}
             </button>
             <PersonalRatingInput
               key={`rating:${actionRecord.id}`}

@@ -98,7 +98,7 @@ export async function publicBytes(
             : 30;
       const retryAfter = Math.min(60, Math.max(1, Number.isFinite(seconds) ? seconds : 30));
       throw new CatalogError(
-        'This catalog is rate-limiting requests. Please wait a moment and try again.',
+        'This catalog is receiving too many requests. Wait a moment and try again.',
         429,
         'rate-limited',
         retryAfter,
