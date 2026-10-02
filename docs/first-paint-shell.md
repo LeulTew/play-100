@@ -124,7 +124,11 @@ their ranges). Its line boxes keep the overridden heights, so a heading only
 changes width by those few pixels, as it does for Arial on other systems. A
 desktop without Liberation, whose display text falls to a generic face such as
 DejaVu Sans Bold, fails the probes and takes the web-font path below, as the
-phones do. The bold probe measures "GOOD THINGS, COLLECTED.",
+phones do. The same whole-pixel rounding means the later web-font swap can nudge
+a header row sideways there by a few pixels (6 px at most in CI, with a layout
+shift near 1e-5, with or without the shell): `first-paint-shell.spec.ts` detects
+whole-pixel layout and allows 8 px of sideways drift and a shift under 0.001
+there, but no vertical move, height change or wrap. The bold probe measures "GOOD THINGS, COLLECTED.",
 which a variable Roboto rendered at its default weight draws too narrow, so that
 case, which would reflow, keeps the shell hidden. Then it sets `data-boot="landing"` and
 `data-boot-art` on `<html>`. Anything unexpected leaves the shell hidden.
