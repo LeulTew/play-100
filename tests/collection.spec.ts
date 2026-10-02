@@ -479,6 +479,22 @@ test('collection request failure is recoverable, not a success-shaped empty list
   await expect(page.locator('.game-card')).toHaveCount(24);
 });
 
+// A constrained device renders the films and workbook in the landing's second pass, which follows a failed load's
+// notice as it follows the first cards (landing-passes.ts).
+test('a failed collection load on a constrained device still shows the films and workbook', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 2 });
+  });
+  await page.route('**/data/collection.json', (route) => route.fulfill({ status: 503, body: 'Unavailable' }));
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: "The collection couldn't load." })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-constrained', '');
+  await expect(page.locator('.workbook-section')).toBeAttached();
+  await expect(page.locator('#collection-films')).toBeAttached();
+  await expect(page.locator('.first-paint-reserve')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Download the workbook, XLSX', exact: true })).toBeAttached();
+});
+
 test('Lite and live system reduced-motion settings always retain functional browsing', async ({ page }) => {
   await page.addInitScript((storageKey) => {
     localStorage.setItem(storageKey, JSON.stringify({ version: 1, motion: 'lite', progress: {} }));
