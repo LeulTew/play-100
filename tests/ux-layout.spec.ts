@@ -105,7 +105,7 @@ test('The 100 offers genre families and preserves old exact-genre URLs', async (
   await page.reload();
   await openBrowsingFilters(page);
   await expect(page.getByLabel('Genre', { exact: true })).toHaveValue('role-playing');
-  await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+  await page.getByRole('button', { name: 'Reset filters', exact: true }).click();
   await expect(page.locator('.result-summary strong')).toHaveText('100');
 });
 

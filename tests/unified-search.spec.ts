@@ -477,7 +477,7 @@ test('native selects have aligned labels, values and chevrons across viewports w
       return { fields, noOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth };
     });
     expect(geometry.noOverflow).toBe(true);
-    expect(geometry.fields).toHaveLength(5);
+    expect(geometry.fields).toHaveLength(6);
     for (const field of geometry.fields) {
       expect(field.native).toBe('SELECT');
       expect(field.height).toBeGreaterThanOrEqual(44);
