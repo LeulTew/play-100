@@ -45,7 +45,15 @@ export interface IdentityFacts {
   browser: BrowserFact;
   floorBrowsers: BrowserFact[];
   fonts: { system: Record<string, string | null>; cells: FontCell[] };
+  files: EvidenceFile[];
   recordedAt: string;
+}
+
+/** One uploaded report or log: its path relative to the artifact root, its size and its SHA-256. */
+export interface EvidenceFile {
+  path: string;
+  bytes: number;
+  sha256: string;
 }
 
 const orNull = (value: string | undefined) => (value ? value : null);
@@ -78,6 +86,7 @@ export function buildIdentity(facts: IdentityFacts, env: NodeJS.ProcessEnv) {
     browser: facts.browser,
     floorBrowsers: facts.floorBrowsers,
     fonts: facts.fonts,
+    files: facts.files,
     workflow: {
       run:
         env.GITHUB_SERVER_URL && env.GITHUB_REPOSITORY && env.GITHUB_RUN_ID
@@ -156,6 +165,28 @@ async function floorBrowsers(env: NodeJS.ProcessEnv): Promise<BrowserFact[]> {
   return [await browserFact('firefox'), await browserFact('webkit'), floorChromium];
 }
 
+/**
+ * Digests every file under the artifact root except `skip` (identity.json itself, which is written after this list),
+ * sorted by POSIX path, so a detached report can be checked against the run that made it.
+ */
+export function evidenceFiles(root: string, skip: string): EvidenceFile[] {
+  if (!existsSync(root)) return [];
+  const skipPath = path.resolve(skip);
+  return readdirSync(root, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => path.join(entry.parentPath, entry.name))
+    .filter((file) => path.resolve(file) !== skipPath)
+    .map((file) => {
+      const content = readFileSync(file);
+      return {
+        path: path.relative(root, file).split(path.sep).join('/'),
+        bytes: content.length,
+        sha256: createHash('sha256').update(content).digest('hex'),
+      };
+    })
+    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+}
+
 function fontCells(dir: string | undefined): FontCell[] {
   if (!dir || !existsSync(dir)) return [];
   return readdirSync(dir)
@@ -187,6 +218,7 @@ export async function main(out: string, env: NodeJS.ProcessEnv = process.env) {
       system: { 'sans-serif': tryRun('fc-match', 'sans-serif'), serif: tryRun('fc-match', 'serif') },
       cells: fontCells(env.FONT_CELLS_DIR),
     },
+    files: evidenceFiles(path.dirname(out), out),
     recordedAt: new Date().toISOString(),
   };
   const identity = buildIdentity(facts, env);

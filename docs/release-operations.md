@@ -1051,7 +1051,11 @@ failures. It also holds the emulator debug logs and `identity.json`, which recor
 - the `package-lock.json` and built `dist/index.html` SHA-256;
 - the runner image (`ImageOS`, `ImageVersion`), kernel, Node, npm, Java (cloud
   suites), Playwright, Vitest, firebase-tools, Lighthouse and Chromium versions;
-- the run URL and the workflow commit.
+- the run URL and the workflow commit;
+- `fonts`: `fc-match sans-serif` and `serif`, and each Lighthouse font cell;
+- `files`: the POSIX path (relative to the artifact root), bytes and SHA-256 of
+  every other uploaded file. It is written last, so a detached report can be
+  matched to its run.
 
 **What it does not prove.** A run is not a gate receipt. It does not replace
 `npm run release:gate`, §3, the manifest or any manual gate. It runs one suite

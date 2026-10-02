@@ -226,10 +226,11 @@ jobs:
           set -euo pipefail
           mkdir -p "$OUT"
           if [[ "$SUITE" == cloud-* ]] && command -v java >/dev/null; then export JAVA_VERSION_LINE="$(java -version 2>&1 | head -n 1)"; fi
-          npx --no-install tsx "$CI_SCRIPTS/identity.ts" "$OUT/identity.json"
           for log in firebase-debug.log firestore-debug.log; do
             if [[ -f "$log" ]]; then cp "$log" "$OUT/"; fi
           done
+          # Written last: its `files` array digests every other file in the artifact.
+          npx --no-install tsx "$CI_SCRIPTS/identity.ts" "$OUT/identity.json"
 
       - name: Upload evidence
         if: always()

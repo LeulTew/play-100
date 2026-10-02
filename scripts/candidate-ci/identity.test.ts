@@ -1,5 +1,8 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildIdentity, parseFontCell, type IdentityFacts } from './identity.ts';
+import { buildIdentity, evidenceFiles, parseFontCell, type IdentityFacts } from './identity.ts';
 
 const facts: IdentityFacts = {
   commit: 'a'.repeat(40),
@@ -14,6 +17,7 @@ const facts: IdentityFacts = {
   browser: { name: 'chromium', version: '153.0.8010.12', executable: '/ms-playwright/chrome' },
   floorBrowsers: [{ name: 'floor-chromium', version: 'Chromium 106.0.5249.0', executable: '/tmp/chrome' }],
   fonts: { system: { 'sans-serif': 'DejaVuSans.ttf: "DejaVu Sans" "Book"', serif: null }, cells: [] },
+  files: [{ path: 'playwright.json', bytes: 2, sha256: 'e'.repeat(64) }],
   recordedAt: '2026-10-02T02:00:00.000Z',
 };
 
@@ -53,6 +57,7 @@ describe('buildIdentity', () => {
       playwright: '1.63.0',
       lighthouse: null,
       fonts: facts.fonts,
+      files: facts.files,
       workflow: { run: 'https://github.com/LeulTew/play-100/actions/runs/42', workflowSha: 'd'.repeat(40) },
     });
   });
@@ -89,5 +94,35 @@ describe('parseFontCell', () => {
       },
       families: ['DejaVu Sans', 'DejaVu Serif'],
     });
+  });
+});
+
+describe('evidenceFiles', () => {
+  it('digests every file but the identity file, by POSIX path relative to the artifact root', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'candidate-ci-'));
+    try {
+      mkdirSync(path.join(root, 'test-results', 'case'), { recursive: true });
+      writeFileSync(path.join(root, 'playwright.json'), '{}');
+      writeFileSync(path.join(root, 'test-results', 'case', 'error-context.md'), 'abc');
+      writeFileSync(path.join(root, 'identity.json'), 'old');
+      expect(evidenceFiles(root, path.join(root, 'identity.json'))).toEqual([
+        {
+          path: 'playwright.json',
+          bytes: 2,
+          sha256: '44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a',
+        },
+        {
+          path: 'test-results/case/error-context.md',
+          bytes: 3,
+          sha256: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+        },
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('returns no files when the artifact root does not exist', () => {
+    expect(evidenceFiles(path.join(tmpdir(), 'candidate-ci-missing-root'), 'identity.json')).toEqual([]);
   });
 });
