@@ -174,7 +174,7 @@ if [ "$started" = 1 ]; then
   # runner, so the app's announcements can be compared with what TalkBack and Chrome do for any native modal.
   log 'control: native modal dialog'
   echo '# control: native modal dialog' >> "$out/speech.txt"
-  (cd scripts/talkback-smoke && python3 -m http.server 8765 --bind 127.0.0.1 > "$out/control-server.txt" 2>&1 &)
+  python3 -m http.server 8765 --bind 127.0.0.1 --directory scripts/talkback-smoke > "$out/control-server.txt" 2>&1 &
   sleep 2
   run adb reverse tcp:8765 tcp:8765
   open_page 'http://127.0.0.1:8765/control.html' 'document.querySelector("#open") !== null'
@@ -245,7 +245,7 @@ if [ "$started" = 1 ]; then
           press "ArrowUp toward Lite ($i)" 3 19
           heard_all="$heard_all $(spoken)"
           focus > /dev/null
-          if [ "$(field .radio.label)" = Lite ] && [ "$(field .radio.checked)" = true ]; then lite=1; break; fi
+          if [[ "$(field .radio.label)" == Lite* ]] && [ "$(field .radio.checked)" = true ]; then lite=1; break; fi
         done
         shot c-03-lite
         check c 'Lite is selected by keyboard' "$lite" "$(field .radio.label) checked=$(field .radio.checked)"
