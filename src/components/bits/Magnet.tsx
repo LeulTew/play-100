@@ -1,8 +1,11 @@
 // Adapted from React Bits Magnet, (c) 2026 David Haz. See third-party/react-bits/LICENSE.md.
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { StaticShellContext } from '../../first-paint/static-shell';
 
 export default function Magnet({ children, disabled = false }: { children: ReactNode; disabled?: boolean }) {
+  // The static shell carries no style attributes; at the first commit this one is only an idle transition.
+  const staticShell = useContext(StaticShellContext);
   const ref = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   useEffect(() => {
@@ -29,10 +32,14 @@ export default function Magnet({ children, disabled = false }: { children: React
   return (
     <div ref={ref} className="magnet">
       <div
-        style={{
-          transform: disabled ? undefined : `translate3d(${position.x}px, ${position.y}px, 0)`,
-          transition: 'transform 180ms cubic-bezier(.16,1,.3,1)',
-        }}
+        style={
+          staticShell
+            ? undefined
+            : {
+                transform: disabled ? undefined : `translate3d(${position.x}px, ${position.y}px, 0)`,
+                transition: 'transform 180ms cubic-bezier(.16,1,.3,1)',
+              }
+        }
       >
         {children}
       </div>

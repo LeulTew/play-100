@@ -1,5 +1,6 @@
-import { memo, useEffect, useState } from 'react';
+import { memo, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { StaticShellContext } from '../first-paint/static-shell';
 import type { useCollection } from '../hooks/useCollection';
 import { PAGE_SIZE, useCollectionView } from '../hooks/useCollectionView';
 import type { Filters, MotionPreference } from '../lib/types';
@@ -117,6 +118,8 @@ function CollectionPage({
     return scheduleSecondPass(() => setSecondPass(true));
   }, [secondPass, settled]);
   const showcaseReserve = <div className="first-paint-reserve" aria-hidden="true" />;
+  // The static first-paint shell holds no reserve: its own main keeps the page viewport-tall (src/first-paint/shell.css).
+  const staticShell = useContext(StaticShellContext);
   return (
     <>
       {filters.view !== 'table' && (
@@ -397,7 +400,7 @@ function CollectionPage({
       </section>
       {/* The films and workbook start below the fold of every window (landing-loading-shift.spec.ts), so they wait for the
           first paint, and on a constrained device for the second pass, while the page keeps its scroll height. */}
-      <AfterFirstPaint now={filmsLinked} reserve={showcaseReserve}>
+      <AfterFirstPaint now={filmsLinked} reserve={staticShell ? null : showcaseReserve}>
         {secondPass ? (
           <>
             <DeferredCollection
