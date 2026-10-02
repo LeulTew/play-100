@@ -6,6 +6,15 @@
 
 export type HarnessEnvironment = Readonly<Record<string, string | undefined>>;
 
+export function sourceMetadata(environment: HarnessEnvironment): { commit?: string; tree?: string } {
+  const commit = environment.PLAY100_SOURCE_COMMIT;
+  const tree = environment.PLAY100_SOURCE_TREE;
+  if (commit === undefined && tree === undefined) return {};
+  if (!commit || !tree || !/^[a-f0-9]{40}$/.test(commit) || !/^[a-f0-9]{40}$/.test(tree))
+    throw new Error('Playwright evidence requires both full PLAY100_SOURCE_COMMIT and PLAY100_SOURCE_TREE.');
+  return { commit, tree };
+}
+
 export const REUSE_SERVER_VARIABLE = 'PLAY100_REUSE_SERVER';
 export const ALLOW_ONLY_VARIABLE = 'PLAY100_ALLOW_ONLY';
 export const RELEASE_GATE_VARIABLE = 'PLAY100_RELEASE_GATE';

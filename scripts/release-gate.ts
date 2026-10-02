@@ -9,6 +9,12 @@ import { createServer } from 'vite';
 import { requireObject } from '../src/lib/guards.js';
 import { summarizeNpmAudit, summarizePlaywright, summarizeVitest } from './release-manifest';
 import { prepareGitleaks, gitleaksSummary } from './release-gitleaks';
+import {
+  evidenceEnvironment,
+  evidenceFileExists,
+  reserveEvidenceNames,
+  writeEvidenceIdentity,
+} from './release-evidence';
 
 export const GATE_NODE = 'v24.21.0';
 export const FILM_DOWNLOAD_TEST =
@@ -247,8 +253,14 @@ export async function bindFilmAttempts(evidence: string, attempts: { name: strin
   return bound;
 }
 
-async function json(file: string, value: unknown) {
+async function json(file: string, value: unknown, command = ['release:gate', 'write', path.basename(file)]) {
   await writeFile(file, `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx' });
+  const plan = path.join(path.dirname(file), 'plan.json');
+  if (file !== plan && (await evidenceFileExists(plan))) {
+    const { sha, tree } = requireObject(JSON.parse(await readFile(plan, 'utf8')));
+    if (typeof sha !== 'string' || typeof tree !== 'string') throw new Error('Invalid gate source identity.');
+    await writeEvidenceIdentity(file, { commit: sha, tree }, command);
+  }
 }
 export function commandReceipt(name: string, exitCode: number | null, log: Buffer, error?: string) {
   return { name, exitCode, logSha256: hash(log), logBytes: log.length, ...(error ? { error } : {}) };
@@ -309,10 +321,16 @@ export async function runCommand(
   args: string[],
   env: NodeJS.ProcessEnv,
   auditLockfileSha256?: string,
+  reports: string[] = [],
 ) {
   const logPath = path.join(evidence, `${name}.log`);
+  const plan = requireObject(JSON.parse(await readFile(path.join(evidence, 'plan.json'), 'utf8')));
+  if (typeof plan.sha !== 'string' || typeof plan.tree !== 'string') throw new Error('Invalid gate source identity.');
+  const source = { commit: plan.sha, tree: plan.tree };
+  env = { ...env, ...evidenceEnvironment(source) };
+  await reserveEvidenceNames(reports);
   // Reserve before spawning; each attempt has its own immutable evidence paths.
-  await writeFile(logPath, evidenceLogHeader(JSON.parse(await readFile(path.join(evidence, 'plan.json'), 'utf8'))), {
+  await writeFile(logPath, evidenceLogHeader(plan), {
     flag: 'wx',
   });
   const output = createWriteStream(logPath, { flags: 'a' });
@@ -354,24 +372,38 @@ export async function runCommand(
       output.end((error?: Error | null) => (error ? reject(error) : resolve())),
     );
     finishedAt = new Date().toISOString();
-    await json(path.join(evidence, `${name}-exit.json`), {
-      ...commandReceipt(name, exitCode, await readFile(logPath), failure),
-      command: [executable, ...args],
-      startedAt,
-      finishedAt,
-    });
+    const produced = [];
+    for (const report of reports) {
+      if (await evidenceFileExists(report)) produced.push(report);
+      else if (exitCode === 0) failure ??= `Successful command did not create ${report}`;
+    }
+    await json(
+      path.join(evidence, `${name}-exit.json`),
+      {
+        ...commandReceipt(name, exitCode, await readFile(logPath), failure),
+        command: [executable, ...args],
+        startedAt,
+        finishedAt,
+      },
+      [executable, ...args],
+    );
+    for (const report of produced) await writeEvidenceIdentity(report, source, [executable, ...args]);
   }
   if (auditLockfileSha256 && !failure) {
     const report: unknown = JSON.parse(Buffer.concat(auditChunks).toString('utf8'));
     const summary = summarizeNpmAudit(report, exitCode);
-    await json(path.join(evidence, `${name}.json`), {
-      ...summary,
-      startedAt,
-      finishedAt,
-      lockfileSha256: auditLockfileSha256,
-      report,
-      commandReceiptSha256: hash(await readFile(path.join(evidence, `${name}-exit.json`))),
-    });
+    await json(
+      path.join(evidence, `${name}.json`),
+      {
+        ...summary,
+        startedAt,
+        finishedAt,
+        lockfileSha256: auditLockfileSha256,
+        report,
+        commandReceiptSha256: hash(await readFile(path.join(evidence, `${name}-exit.json`))),
+      },
+      [executable, ...args],
+    );
     if (summary.reviewRequired)
       console.warn(`${name}: dependency advisories recorded for owner review; not a clean audit.`);
     return;
@@ -456,6 +488,8 @@ async function runInner(step: GateStep, evidence: string) {
       process.execPath,
       [cli(root, 'vitest'), ...args, ...reporterArgs(step, evidence)],
       env,
+      undefined,
+      [path.join(evidence, `${step.name}.json`)],
     );
     return;
   }
@@ -495,6 +529,8 @@ async function runInner(step: GateStep, evidence: string) {
           `--output=${path.join(evidence, 'compare-fixture-results')}`,
         ],
         { ...env, PLAYWRIGHT_JSON_OUTPUT_FILE: path.join(evidence, 'compare-fixture-report.json') },
+        undefined,
+        [path.join(evidence, 'compare-fixture-report.json'), env.PLAY100_COMPARE_FIXTURE],
       );
       const fixture = requireObject(JSON.parse(await readFile(env.PLAY100_COMPARE_FIXTURE, 'utf8')));
       if (fixture.status !== 'READY') throw new Error('Comparison fixture is not READY.');
@@ -510,6 +546,8 @@ async function runInner(step: GateStep, evidence: string) {
       process.execPath,
       [cli(root, 'playwright'), ...args, ...reporterArgs(step, evidence)],
       env,
+      undefined,
+      [path.join(evidence, `${step.name}.json`)],
     );
   } finally {
     await server.close();
@@ -594,6 +632,7 @@ export async function releaseGate(evidence: string, offline: string) {
       throw new Error('Candidate rules changed.');
     const cwd = step.profile === 'offline' ? offline : root;
     const env = gateEnvironment(process.env, step.profile);
+    Object.assign(env, evidenceEnvironment({ commit: sha, tree }));
     if (step.name === 'floor-smoke') env.PLAY100_FLOOR_CHROMIUM = process.env.PLAY100_FLOOR_CHROMIUM;
     if (step.name === 'apb2') Object.assign(env, apb2StepEnvironment(process.env, { sha, tree }));
     env.PLAYWRIGHT_JSON_OUTPUT_FILE = path.join(evidence, `${step.name}.json`);
@@ -655,6 +694,8 @@ export async function releaseGate(evidence: string, offline: string) {
           GITLEAKS_CONFIG_TOML: undefined,
           GITLEAKS_ENABLE_COMMENTS: undefined,
         },
+        undefined,
+        [path.join(evidence, `${step.name}.json`)],
       );
       await json(path.join(evidence, `${step.name}-summary.json`), {
         ...prepared.receipt,
@@ -675,6 +716,8 @@ export async function releaseGate(evidence: string, offline: string) {
           process.execPath,
           [cli(cwd, 'playwright'), ...attempt.args, ...reporterArgs(attempt, evidence)],
           { ...env, PLAYWRIGHT_JSON_OUTPUT_FILE: path.join(evidence, `${attempt.name}.json`) },
+          undefined,
+          [path.join(evidence, `${attempt.name}.json`)],
         );
         checkGateReport(attempt, JSON.parse(await readFile(path.join(evidence, `${attempt.name}.json`), 'utf8')));
       });
@@ -684,6 +727,10 @@ export async function releaseGate(evidence: string, offline: string) {
         attempts: await bindFilmAttempts(evidence, attempts),
       });
       await copyFile(path.join(evidence, `${attempts.at(-1)!.name}.json`), path.join(evidence, `${step.name}.json`));
+      await copyFile(
+        path.join(evidence, `${attempts.at(-1)!.name}.json.identity.json`),
+        path.join(evidence, `${step.name}.json.identity.json`),
+      );
     } else {
       if (step.report) args.push(...reporterArgs(step, evidence));
       if (step.name === 'apb2') args.push('--', '--evidence', path.join(evidence, 'apb2'));
@@ -696,6 +743,7 @@ export async function releaseGate(evidence: string, offline: string) {
         [cli(cwd, step.tool), ...args],
         env,
         step.audit ? hash(await readFile(path.join(cwd, 'package-lock.json'))) : undefined,
+        step.report || step.name.endsWith('check-budgets') ? [path.join(evidence, `${step.name}.json`)] : [],
       );
     }
     if (step.report) {
@@ -747,6 +795,8 @@ export async function releaseGate(evidence: string, offline: string) {
         );
       else if (step.report)
         args.push(step.report === 'vitest' ? '--vitest' : '--playwright', path.join(evidence, `${step.name}.json`));
+      if (step.report || step.tool === 'gitleaks' || step.name.endsWith('check-budgets'))
+        args.push('--receipt', `${step.name}-identity=${path.join(evidence, `${step.name}.json.identity.json`)}`);
       if (step.audit) args.push('--audit', path.join(evidence, `${step.name}.json`));
       else args.push('--receipt', `${step.name}=${path.join(evidence, `${step.name}-exit.json`)}`);
       if (step.name === 'apb2') args.push('--receipt', `apb2-result=${path.join(evidence, 'apb2', 'receipt.json')}`);

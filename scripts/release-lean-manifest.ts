@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { lstat, readFile, realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { requireObject, requireText } from '../src/lib/guards.js';
+import { evidenceFileExists, fullGitId, type EvidenceSource } from './release-evidence';
 
 export const LEAN_CHECKS = [
   'static',
@@ -41,6 +42,7 @@ interface Evidence {
   recordedAt: string;
   result: 'passed' | 'failed' | 'review-required';
   attempt?: number;
+  identity?: string;
 }
 const hash = (content: Buffer) => createHash('sha256').update(content).digest('hex');
 const fullTree = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
@@ -88,6 +90,7 @@ export function parseLeanEvidence(input: unknown, tree: string): Evidence[] {
       bytes: row.bytes,
       recordedAt,
       result: row.result,
+      ...(row.identity === undefined ? {} : { identity: requireText(row.identity) }),
       ...(row.attempt === 1 || row.attempt === 2 ? { attempt: row.attempt } : {}),
     };
   });
@@ -113,23 +116,106 @@ async function regularFile(file: string): Promise<Buffer> {
   if (!(await lstat(file)).isFile()) throw new Error('Evidence must be a regular file, not a symlink or directory.');
   return readFile(file);
 }
-function verifyEmbeddedTree(content: Buffer, file: string, tree: string) {
-  const declared: unknown[] = [];
+function verifyIdentity(input: unknown, source: EvidenceSource) {
+  const value = requireObject(input);
+  const commit = value.commit ?? value.sha;
+  if (
+    !fullGitId(commit) ||
+    !fullGitId(value.tree) ||
+    commit !== source.commit ||
+    value.tree !== source.tree ||
+    (value.sha !== undefined && value.sha !== source.commit)
+  )
+    throw new Error('Evidence declares another or incomplete commit/tree; the index cannot override its provenance.');
+}
+function verifyEmbeddedIdentity(content: Buffer, file: string, source: EvidenceSource) {
+  let found = false;
+  const check = (input: unknown) => {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return;
+    const value = requireObject(input);
+    if (value.tree !== undefined || value.commit !== undefined || value.sha !== undefined) {
+      verifyIdentity(value, source);
+      found = true;
+    }
+  };
   if (path.extname(file).toLowerCase() === '.json') {
     const value = parseJson(content);
     if (value && typeof value === 'object' && !Array.isArray(value)) {
       const report = requireObject(value);
-      if (report.tree !== undefined) declared.push(report.tree);
-      if (report.source && typeof report.source === 'object' && !Array.isArray(report.source)) {
-        const source = requireObject(report.source);
-        if (source.tree !== undefined) declared.push(source.tree);
-      }
+      check(report);
+      check(report.source);
+      check(report.metadata);
+      if (report.config && typeof report.config === 'object' && !Array.isArray(report.config))
+        check(requireObject(report.config).metadata);
     }
   } else if (/\.(?:txt|log)$/i.test(file)) {
-    for (const match of content.toString('utf8').matchAll(/^tree:\s*(\S+)\s*$/gm)) declared.push(match[1]);
+    const text = content.toString('utf8');
+    const commits = [...text.matchAll(/^commit:[ \t]*(\S+)[ \t]*\r?$/gm)].map((match) => match[1]);
+    const trees = [...text.matchAll(/^tree:[ \t]*(\S+)[ \t]*\r?$/gm)].map((match) => match[1]);
+    if (commits.length || trees.length) {
+      if (!commits.length || commits.length !== trees.length)
+        throw new Error('Incomplete log identity; the index cannot override its provenance.');
+      for (let i = 0; i < commits.length; i++) verifyIdentity({ commit: commits[i], tree: trees[i] }, source);
+      found = true;
+    }
   }
-  if (declared.some((value) => value !== tree))
-    throw new Error('Evidence file declares another tree; the index cannot override its provenance.');
+  return found;
+}
+
+async function verifyReportProvenance(
+  content: Buffer,
+  file: string,
+  explicitIdentity: string | undefined,
+  checkout: string,
+  source: EvidenceSource,
+) {
+  const embedded = verifyEmbeddedIdentity(content, file, source);
+  const adjacent = `${file}.identity.json`;
+  const ciIdentity = explicitIdentity ?? path.join(path.dirname(file), 'identity.json');
+  const candidates = [...new Set([adjacent, ciIdentity])];
+  const identities = [];
+  for (const identity of candidates) {
+    if (!(await evidenceFileExists(identity))) {
+      if (identity === explicitIdentity) throw new Error('Missing explicit evidence identity.');
+      continue;
+    }
+    outside(checkout, await realpath(identity));
+    const bytes = await regularFile(identity);
+    const receipt = requireObject(parseJson(bytes));
+    verifyIdentity(receipt, source);
+    if (identity === adjacent || receipt.schemaVersion === 1) {
+      if (
+        receipt.schemaVersion !== 1 ||
+        receipt.sha256 !== hash(content) ||
+        !Array.isArray(receipt.command) ||
+        !receipt.command.length ||
+        receipt.command.some((arg) => typeof arg !== 'string') ||
+        !receipt.command[0]
+      )
+        throw new Error('Report identity must bind the exact report SHA-256 and creation command.');
+    } else {
+      // Legacy Candidate CI bundles have one creation-time identity, not per-report digests.
+      const workflow = requireObject(receipt.workflow);
+      const relative = path.relative(await realpath(path.dirname(identity)), await realpath(file));
+      if (
+        path.basename(identity) !== 'identity.json' ||
+        receipt.requestedSha !== source.commit ||
+        typeof receipt.suite !== 'string' ||
+        !receipt.suite ||
+        typeof workflow.run !== 'string' ||
+        !/^https:\/\/github\.com\/LeulTew\/play-100\/actions\/runs\/\d+$/.test(workflow.run) ||
+        relative.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relative)
+      )
+        throw new Error('CI identity must belong to the original Candidate CI artifact containing this report.');
+    }
+    identities.push({ file: identity, sha256: hash(bytes), bytes: bytes.length });
+  }
+  if (!embedded && !identities.length)
+    throw new Error(
+      'Evidence needs creation-time embedded identity or a matching report/CI sidecar; the index alone is insufficient.',
+    );
+  return identities;
 }
 function git(root: string, ...args: string[]) {
   return execFileSync('git', ['--no-optional-locks', '-c', 'gc.auto=0', ...args], {
@@ -171,8 +257,19 @@ export async function collectLeanManifest(root: string, output: string, input: s
     const bytes = await regularFile(file);
     if (bytes.length !== row.bytes || hash(bytes) !== row.sha256)
       throw new Error(`${row.check}: evidence bytes changed since they were recorded.`);
-    verifyEmbeddedTree(bytes, file, source.tree);
-    evidence.push({ ...row, file: portable(file) });
+    const identities = await verifyReportProvenance(
+      bytes,
+      file,
+      row.identity ? path.resolve(path.dirname(indexPath), row.identity) : undefined,
+      checkout,
+      { commit: source.sha, tree: source.tree },
+    );
+    evidence.push({
+      ...row,
+      file: portable(file),
+      ...(row.identity ? { identity: portable(path.resolve(path.dirname(indexPath), row.identity)) } : {}),
+      identities: identities.map((identity) => ({ ...identity, file: portable(identity.file) })),
+    });
   }
   const fingerprints = [];
   for (const file of ['package-lock.json', 'docs/intermittents.md']) {
