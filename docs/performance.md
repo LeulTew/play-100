@@ -71,6 +71,47 @@ HEAD. The test needs the full history, not a shallow clone.
   opens before its module has loaded shows the catalog detail's pending dialog after 300 ms; one that opens after renders
   in its first commit, as before. The rating input both details share with Discover and the ranking stays in
   `app-shared` ([`app-shared-chunk.ts`](../scripts/app-shared-chunk.ts)).
+
+## Eager JavaScript plan
+
+Every page loads React 19 and React DOM, about 69 KB gzip9, and the app's eager closure from
+[`src/main.tsx`](../src/main.tsx) before its first paint. In R24, before the cuts above, that came to 157,799 bytes of
+JavaScript and 175,359 with CSS, over the 174,803 cap; R22 shipped 155,764 and 173,072. Splitting out lazy-only code and
+indexing the cover sizes took about 1.9 KB back, and The 100's game detail about 1.7 KB more: 154,208 and 171,768 in a
+configured build, 1,556 and 1,304 under R22. The steps below continue in order. Estimates are each module's own
+minified gzip9 size; the bundle saves somewhat less, and a configured build's `npm run check:budgets` confirms each step.
+
+| Order | Step | Out of the eager bundle | Estimate |
+| ---: | --- | --- | ---: |
+| 1 | The Menu loads with the credits | `MenuDialog` | 2.0 KB |
+| 2 | Compare's drag controller loads before a drag can start | `compare-drag-controller.ts` | 4.1 KB |
+| 3 | Online-only code moves to the online chunks | parts of `cloud-types.ts` and `personal-db.ts`, invite continuation, `authPanelPurposes` | 1.2 KB |
+| 4 | The 100's catalog identities travel with the collection data | `collection-identities.ts` | 1.5 KB |
+| 5 | One-time library migrations load only when old data exists | `migrateLegacyLibrary` | 0.3 KB |
+
+1. **The Menu.** It opens only from the Menu buttons, which already warm the credits and Settings
+   ([`secondary-dialogs.ts`](../src/lib/secondary-dialogs.ts)). Loaded in the credits' chunk, it adds no file to the
+   offline core, but the panel's loading and failure notices then need wording of their own for the Menu, and a Menu
+   that opens before its chunk has loaded waits one request.
+2. **Compare's drag controller.** Every page builds it with the tray binding, but it runs only once a drag or a Pin
+   starts. A mouse drag must be prepared on its pointer down (`draggable`), so the module has to load before that: on a
+   pointer over or focus on a drag source, at idle, and when the tray first holds a game, with Pin falling back to the
+   store until then. It needs a chunk, so a file of the offline core, and the drag tests in
+   [`compare-drag.spec.ts`](../tests/compare-drag.spec.ts) to verify it.
+3. **Online-only code.** Account and friend storage, sync labels, snapshot limits, invite continuation and the sign-in
+   panel's purposes are used only by the online pages. Moving them adds about 1 KB to every online route, the largest of
+   which is within 200 bytes of `largestRouteGzipBytes`, so it pairs with a trim there or a recorded raise.
+4. **Catalog identities.** The map from public catalog IDs to The 100's games could travel with the collection data,
+   but the compare tray and extended search read it before the collection loads and would then wait for it.
+5. **Migrations.** `migrateLegacyLibrary` converts a pre-IndexedDB library once per device. Reading the legacy key
+   before the write transaction would let the migration load only when one exists.
+
+React 19 and React DOM stay: the startup work relies on transitions and external stores, and React ships no smaller
+build. The five steps estimate 9.1 KB on their own, about 7.5 KB in the bundle, which would take the eager JavaScript to
+about 147 KB. Two small files stay eager whatever the order: Rolldown's runtime helpers, a 428-byte chunk that the
+`app-shared` group cannot capture, and the entry's facade, its import and Vite's module preload polyfill in about 415
+bytes, which Rolldown has no option to fold into `app-shared`.
+
 ## Low-end phones
 
 Firebase Test Lab ran Release 7 on a Galaxy A03s (2 GB, WebView Chrome 106, 412×785 at DPR 1.75, `deviceMemory` 2)
