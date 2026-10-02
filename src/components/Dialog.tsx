@@ -171,6 +171,7 @@ export function Dialog({
       className={`dialog ${className}`}
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
+      aria-modal={open}
       data-motion-owned={motion !== undefined ? 'true' : undefined}
       onKeyDown={(event) => {
         if (

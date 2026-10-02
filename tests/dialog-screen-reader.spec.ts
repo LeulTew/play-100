@@ -80,9 +80,7 @@ for (const view of ['grid', 'list', 'table']) {
   });
 }
 
-test('game detail has one native initial focus, no click action and a short explicit description', async ({
-  page,
-}) => {
+test('game detail enters once with a short description and no click action', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/?catalogs=off');
   const opener = page.locator(`[data-game="${game.slug}"] .game-link`);
@@ -92,6 +90,7 @@ test('game detail has one native initial focus, no click action and a short expl
   await expect(dialog.locator('#game-title')).toBeFocused();
   expect(await page.evaluate(() => window.detailFocusEvents)).toEqual(['game-title']);
   const summary = `#${String(game.rank).padStart(2, '0')} in the collection`;
+  await expect(dialog).toHaveAttribute('aria-modal', 'true');
   await expect(dialog).toHaveAccessibleDescription(summary);
   expect(await dialog.evaluate((element) => element.onclick)).toBeNull();
   await expect(dialog.locator('.rationale')).toHaveCount(1);
@@ -119,10 +118,7 @@ test('game detail has one native initial focus, no click action and a short expl
   }
 });
 
-test('the dialog has no synthetic click action but genuine backdrop gestures still close it', async ({
-  page,
-  isMobile,
-}) => {
+test('only a complete backdrop gesture closes the dialog', async ({ page, isMobile }) => {
   await page.goto('/?catalogs=off');
   const opener = page.locator(`[data-game="${game.slug}"] .game-link`);
   const before = await activateWithoutFocus(page, opener);
