@@ -8,16 +8,48 @@ declare global {
   }
 }
 
+const diagnostics = new WeakMap<Page, string[]>();
+test.afterEach(async ({ page }, info) => {
+  await info.attach('resize-visit-diagnostics', {
+    body: JSON.stringify(diagnostics.get(page) ?? []),
+    contentType: 'application/json',
+  });
+});
+
 /** Scrolls the whole page a half screen at a time, so every contained card renders, then back to the top. */
 async function scrollThrough(page: Page) {
-  await page.evaluate(async () => {
-    const frame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    for (let top = 0; top < document.documentElement.scrollHeight; top += innerHeight / 2) {
-      scrollTo(0, top);
+  const measurement = await test.step('Scroll the entire page using two animation frames per step', () =>
+    page.evaluate(async () => {
+      const started = performance.now();
+      const frame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      let steps = 0;
+      let longestFrameWait = 0;
+      const report = () => ({
+        path: location.pathname,
+        elapsedMs: performance.now() - started,
+        steps,
+        top: scrollY,
+        height: document.documentElement.scrollHeight,
+        viewportHeight: innerHeight,
+        visibility: document.visibilityState,
+        longestFrameWaitMs: longestFrameWait,
+      });
+      console.info('Resize visit scroll start', report());
+      for (let top = 0; top < document.documentElement.scrollHeight; top += innerHeight / 2) {
+        scrollTo(0, top);
+        const waiting = performance.now();
+        await frame();
+        longestFrameWait = Math.max(longestFrameWait, performance.now() - waiting);
+        if (++steps % 10 === 0) console.info('Resize visit scroll progress', report());
+      }
+      scrollTo(0, 0);
       await frame();
-    }
-    scrollTo(0, 0);
-    await frame();
+      return report();
+    }));
+  console.info('Resize visit scroll complete', measurement);
+  await test.info().attach('scroll-through-timing', {
+    body: JSON.stringify(measurement),
+    contentType: 'application/json',
   });
 }
 
@@ -40,9 +72,53 @@ for (const viewport of [
       addEventListener('error', (event) => {
         if (/ResizeObserver/.test(event.message)) errors.push(event.message);
       });
+      document.addEventListener('visibilitychange', () =>
+        console.info('Resize visit visibility', { at: performance.now(), visibility: document.visibilityState }),
+      );
+      if (PerformanceObserver.supportedEntryTypes.includes('longtask'))
+        new PerformanceObserver((entries) => {
+          for (const entry of entries.getEntries())
+            if (entry.duration >= 250)
+              console.info('Resize visit long task', { at: entry.startTime, durationMs: entry.duration });
+        }).observe({ type: 'longtask', buffered: true });
+      const getContext = HTMLCanvasElement.prototype.getContext;
+      Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+        configurable: true,
+        writable: true,
+        value(this: HTMLCanvasElement, kind: string, options?: unknown) {
+          const measured = kind === 'webgl' || kind === 'webgl2';
+          if (measured) console.info('Resize visit WebGL context start', { at: performance.now(), kind });
+          const result = getContext.call(this, kind, options);
+          if (measured)
+            console.info('Resize visit WebGL context end', { at: performance.now(), kind, available: Boolean(result) });
+          return result;
+        },
+      });
+      for (const prototype of [WebGLRenderingContext.prototype, WebGL2RenderingContext.prototype]) {
+        for (const method of ['compileShader', 'linkProgram', 'drawArrays', 'drawElements']) {
+          const original: unknown = Reflect.get(prototype, method);
+          if (typeof original !== 'function') continue;
+          const observed = new WeakSet<object>();
+          Object.defineProperty(prototype, method, {
+            configurable: true,
+            writable: true,
+            value(this: WebGLRenderingContext, ...args: unknown[]) {
+              const first = !observed.has(this);
+              observed.add(this);
+              if (first) console.info(`Resize visit WebGL first ${method} start`, { at: performance.now() });
+              const result: unknown = Reflect.apply(original, this, args);
+              if (first) console.info(`Resize visit WebGL first ${method} end`, { at: performance.now() });
+              return result;
+            },
+          });
+        }
+      }
     });
     const reported: string[] = [];
+    const timing: string[] = [];
+    diagnostics.set(page, timing);
     page.on('console', (message) => {
+      if (message.text().startsWith('Resize visit') && timing.length < 200) timing.push(message.text());
       if (message.type() === 'error' && /ResizeObserver/.test(message.text())) reported.push(message.text());
     });
     await emptyCatalogs(page);
