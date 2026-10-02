@@ -190,9 +190,7 @@ for (const mobile of [false, true]) {
     it('typing and local search publication do not render the header, footer or navigation again', async () => {
       await withPage(async (page) => {
         await browserExpect(page.locator('.game-card')).toHaveCount(24);
-        await browserExpect(
-          page.locator('.game-card').first().getByRole('button', { name: /^Pin for comparison:/ }),
-        ).toBeEnabled();
+        await browserExpect(page.getByRole('button', { name: /^Pin for comparison:/ }).first()).toBeEnabled();
         await page.evaluate(() => document.fonts.ready);
         const account = page.locator('.account-nav');
         if (await account.count()) await browserExpect(account).toHaveAccessibleName('Account Device only');
