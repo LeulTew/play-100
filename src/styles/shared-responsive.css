@@ -225,8 +225,22 @@
   }
 }
 @media (max-width: 380px) {
+  .selection-actions .button > svg {
+    display: none;
+  }
   .site-header .wordmark {
     font-size: 26px;
+  }
+  @media (max-width: 480px) {
+    .selection-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 100%;
+    }
+    .selection-actions .button {
+      overflow-wrap: normal;
+      padding-inline: 8px;
+    }
   }
   .page-heading h1 {
     font-size: 37px;

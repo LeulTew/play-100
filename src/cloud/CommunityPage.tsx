@@ -88,6 +88,7 @@ export function CommunityPage({
           <h1 id="community-title" data-page-heading tabIndex={-1}>
             Community
           </h1>
+          <p>Browse rankings people chose to list publicly.</p>
         </div>
         <button className="button button-outline" onClick={onPublish}>
           Publish ranking
@@ -191,19 +192,17 @@ export function CommunityPage({
           <Icon name="rank" width="40" height="40" />
           <h2>{term ? 'No matching handles' : 'No listed rankings'}</h2>
           {term && <p>Try a shorter prefix.</p>}
-          <button
-            className="button button-dark"
-            onClick={
-              term
-                ? () => {
-                    setQuery('');
-                    search('');
-                  }
-                : onPublish
-            }
-          >
-            {term ? 'Show listed profiles' : 'Publish a ranking'}
-          </button>
+          {term && (
+            <button
+              className="button button-dark"
+              onClick={() => {
+                setQuery('');
+                search('');
+              }}
+            >
+              Show listed profiles
+            </button>
+          )}
         </div>
       )}
       {cursor && (

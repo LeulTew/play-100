@@ -451,7 +451,8 @@ test('native selects have aligned labels, values and chevrons across viewports w
   await page.goto('/?q=Mass%20Atlas&view=table');
   await expect(row(page, a)).toBeVisible();
   await openBrowsingFilters(page);
-  await page.getByLabel('Genre', { exact: true }).selectOption('Action RPG');
+  await page.getByText('Exact source genre', { exact: true }).click();
+  await page.getByLabel('Exact genre label', { exact: true }).selectOption('Action RPG');
   for (const width of [1440, 800, 393, 320]) {
     await page.setViewportSize({ width, height: 1000 });
     await openBrowsingFilters(page);

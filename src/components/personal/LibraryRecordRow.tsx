@@ -16,7 +16,7 @@ export function LibraryRecordRow({
   active,
   selecting,
   selected,
-  ranked,
+  rankingPosition,
   tab,
   onSelect,
   onOpen,
@@ -24,15 +24,19 @@ export function LibraryRecordRow({
   onUnpin,
   pinnedIds,
   onAction,
+  onPresentationChange,
   requestRemoval,
   removeFromQueue,
-}: Pick<LibraryPageProps, 'state' | 'busy' | 'onOpen' | 'onPin' | 'onUnpin' | 'pinnedIds' | 'onAction'> & {
+}: Pick<
+  LibraryPageProps,
+  'state' | 'busy' | 'onOpen' | 'onPin' | 'onUnpin' | 'pinnedIds' | 'onAction' | 'onPresentationChange'
+> & {
   record: LibraryRecord;
   artwork?: CatalogArtwork;
   active: boolean;
   selecting: boolean;
   selected: boolean;
-  ranked: boolean;
+  rankingPosition?: number;
   tab: 'later' | 'completed' | 'all';
   onSelect: (id: string) => void;
   requestRemoval: (records: LibraryRecord[], trigger: HTMLElement) => void;
@@ -103,17 +107,38 @@ export function LibraryRecordRow({
               </button>
             )}
             <span className="record-tail">
-              <button
-                className="text-button"
-                aria-disabled={busy || ranked || undefined}
-                aria-label={`Add ${record.title} to my ranking`}
-                onClick={() => {
-                  if (!busy && !ranked) void onAction({ type: 'add-ranking', records: [record] });
-                }}
-              >
-                <Icon name="rank" width="20" height="20" />
-                Rank
-              </button>
+              {rankingPosition ? (
+                <a
+                  className="text-button"
+                  href={`/my-games?tab=ranking#${new URLSearchParams({ rank: record.id })}`}
+                  aria-label={`Ranked #${rankingPosition}: ${record.title}. Open in Ranking`}
+                  aria-disabled={busy || undefined}
+                  onClick={(event) => {
+                    if (busy) {
+                      event.preventDefault();
+                      return;
+                    }
+                    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
+                    event.preventDefault();
+                    const destination = event.currentTarget.href;
+                    void onPresentationChange(() => location.assign(destination));
+                  }}
+                >
+                  Ranked #{rankingPosition}
+                </a>
+              ) : (
+                <button
+                  className="text-button"
+                  aria-disabled={busy || undefined}
+                  aria-label={`Add ${record.title} to my ranking`}
+                  onClick={() => {
+                    if (!busy) void onAction({ type: 'add-ranking', records: [record] });
+                  }}
+                >
+                  <Icon name="rank" width="20" height="20" />
+                  Rank
+                </button>
+              )}
               <button
                 className="icon-button remove-library-action"
                 aria-disabled={busy || undefined}

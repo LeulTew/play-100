@@ -276,8 +276,11 @@
 .record-actions > .compare-pin {
   margin-inline-end: 16px;
 }
+.record-tail > .text-button {
+  flex: 0 0 112px;
+}
 .play-state {
-  min-width: 108px;
+  flex: 0 0 130px;
   font-size: 12px;
   line-height: 1.5;
   color: var(--muted);

@@ -238,6 +238,10 @@
 .ratings-explainer .check-control {
   font-size: 12px;
 }
+.ratings-explainer .text-button {
+  display: inline;
+  padding-block: 13px;
+}
 .ratings-scroll {
   position: relative;
   overflow: auto;

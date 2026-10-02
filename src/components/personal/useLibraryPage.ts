@@ -106,7 +106,10 @@ export function useLibraryPage({
     () => new Map(state.queueOrder.map((id, index) => [id, index + 1])),
     [state.queueOrder],
   );
-  const rankedIds = useMemo(() => new Set(state.ranking.map((entry) => entry.id)), [state.ranking]);
+  const rankingPositions = useMemo(
+    () => new Map(state.ranking.map((entry, index) => [entry.id, index + 1])),
+    [state.ranking],
+  );
   const progressView = progressFilter ?? (completedOnly ? 'completed' : effectiveProgressFilter(filters));
   const records = useMemo(() => {
     const ordered =
@@ -417,7 +420,7 @@ export function useLibraryPage({
     moving,
     moveError,
     queuePositions,
-    rankedIds,
+    rankingPositions,
     pageBoundary,
     resultsHeading,
     queueResults,

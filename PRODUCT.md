@@ -76,7 +76,7 @@ until one explicit, inline **Share all with friends** action.
 ## Capabilities and Constraints
 
 - Exactly 100 canonical games: core ranks 1-50, essential ranks 51-100.
-- Search, original-genre/year/tier filters, sortable native-scale ratings table,
+- Search, shared genre families plus exact original-genre/year/tier filters, sortable native-scale ratings table,
   card/list views, selection mode and atomic bulk list/ranking actions.
 - Discover's known local results use 24-item pages with direct page choice and
   truthful first/last ranges; the 845-result catalog has 36 pages and five games

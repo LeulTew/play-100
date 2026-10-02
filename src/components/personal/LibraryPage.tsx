@@ -68,7 +68,7 @@ export default function LibraryPage(props: LibraryPageProps) {
     moving,
     moveError,
     queuePositions,
-    rankedIds,
+    rankingPositions,
     pageBoundary,
     resultsHeading,
     queueResults,
@@ -94,7 +94,7 @@ export default function LibraryPage(props: LibraryPageProps) {
       active={active}
       selecting={selecting}
       selected={selected.has(record.id)}
-      ranked={rankedIds.has(record.id)}
+      rankingPosition={rankingPositions.get(record.id)}
       tab={tab}
       onSelect={toggleSelected}
       requestRemoval={requestRemoval}

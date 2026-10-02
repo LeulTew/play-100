@@ -81,6 +81,21 @@ describe('browsing without rewriting rank', () => {
     expect(results.map((game) => game.rank)).toEqual([1]);
     expect(filterGames(data.games, { ...defaultFilters, genre: 'not a real genre' }, {})).toEqual([]);
   });
+  it('groups explicit RPG genres without changing legacy exact-genre URLs or source labels', () => {
+    const before = JSON.stringify(data.games);
+    const family = filterGames(data.games, { ...defaultFilters, genreFamily: 'role-playing' }, {});
+    const exact = filterGames(data.games, parseUrl('?genre=RPG').filters, {});
+    expect(exact).toHaveLength(1);
+    expect(family.length).toBeGreaterThan(exact.length);
+    expect(family.some((game) => game.slug === 'mass-effect-2')).toBe(true);
+    expect(family.some((game) => game.slug === 'red-dead-redemption-2')).toBe(false);
+    expect(family).toEqual(expect.arrayContaining(exact));
+    expect(JSON.stringify(data.games)).toBe(before);
+    expect(parseUrl(createSearch({ ...defaultFilters, genreFamily: 'role-playing' })).filters.genreFamily).toBe(
+      'role-playing',
+    );
+    expect(parseUrl('?genreFamily=unknown&genre=RPG').filters).toEqual({ ...defaultFilters, genre: 'RPG' });
+  });
   it('never assumes completion and keeps saved and completed independent', () => {
     expect(filterGames(data.games, { ...defaultFilters, list: 'completed' }, {})).toHaveLength(0);
     expect(filterGames(data.games, { ...defaultFilters, list: 'unplayed' }, {})).toHaveLength(100);

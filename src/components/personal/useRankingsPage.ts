@@ -27,6 +27,9 @@ export function useRankingsPage({
   onViewStateChange,
 }: RankingsPageProps) {
   const mode = useLibraryMode();
+  const [arrivalId, setArrivalId] = useState(() =>
+    typeof location === 'undefined' ? null : new URLSearchParams(location.hash.slice(1)).get('rank'),
+  );
   const [localView, setLocalView] = useState<RankingViewState>({ searchInput: '', query: '', offset: 0 });
   const view = viewState ?? localView;
   const { searchInput, query } = view;
@@ -132,7 +135,12 @@ export function useRankingsPage({
       return [record];
     });
   }, [state, query, progressView]);
-  const page = getLocalPage(records.length, RANKING_PAGE_SIZE, view.offset);
+  const arrivalIndex = arrivalId ? records.findIndex((record) => record.id === arrivalId) : -1;
+  const page = getLocalPage(
+    records.length,
+    RANKING_PAGE_SIZE,
+    arrivalIndex < 0 ? view.offset : Math.floor(arrivalIndex / RANKING_PAGE_SIZE) * RANKING_PAGE_SIZE,
+  );
   const priorProgress = useRef(progressView);
   const pageRecords = useMemo(
     () => records.slice(page.offset, page.offset + RANKING_PAGE_SIZE),
@@ -140,6 +148,22 @@ export function useRankingsPage({
   );
   const visibleRecords = useRetainedRecords(pageRecords, pendingEdits);
   const artwork = useDiscoveryArtwork(visibleRecords, active);
+  useEffect(() => {
+    if (!active || busy || pendingEdits || !arrivalId || arrivalIndex < 0) return;
+    const isCurrent = captureFocusGuard();
+    const frame = requestAnimationFrame(() => {
+      if (!isCurrent()) return;
+      const title = results.current?.querySelector<HTMLElement>(
+        `[data-record-id="${CSS.escape(arrivalId)}"] .record-title`,
+      );
+      if (!title) return;
+      title.focus({ preventScroll: true });
+      title.scrollIntoView({ block: 'center', behavior: 'instant' });
+      updateView({ offset: page.offset });
+      setArrivalId(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [active, busy, pendingEdits, arrivalId, arrivalIndex, page.offset, captureFocusGuard, updateView]);
   useEffect(() => {
     if (!active || pendingEdits) return;
     const offset = priorProgress.current !== progressView ? 0 : page.offset;

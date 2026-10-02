@@ -382,6 +382,25 @@ html[data-motion] .compare-tray-sheet[open] .dialog-inner {
     min-width: 44px;
     overflow-wrap: normal;
   }
+  @media (max-width: 380px) {
+    body:has(.compare-tray-reserve) .mobile-nav {
+      display: flex;
+    }
+    body:has(.compare-tray-reserve) .mobile-nav > * {
+      flex: 1;
+    }
+    body:has(.compare-tray-reserve) .mobile-nav > [aria-current='page'] {
+      flex: 1.6;
+    }
+    body:has(.compare-tray-reserve) .mobile-nav > :not([aria-current='page']) > span {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
   .site-header[data-compare-chip] {
     z-index: 36;
   }
