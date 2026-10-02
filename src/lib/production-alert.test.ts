@@ -58,6 +58,7 @@ interface FakePost {
   createdAt?: string;
   body: string;
 }
+type FakeIssue = FakePost & { number: number; pullRequest?: boolean };
 const iso = (time: number) => new Date(time).toISOString();
 const spikePost = (createdAt: string, login?: string): FakePost => ({
   login,
@@ -71,7 +72,7 @@ const spikePost = (createdAt: string, login?: string): FakePost => ({
  */
 function fakeGitHub(
   options: {
-    issues?: Array<FakePost & { number: number; pullRequest?: boolean }>;
+    issues?: FakeIssue[];
     comments?: FakePost[];
     fail?: number | 'network';
     lockStatus?: number;
@@ -85,6 +86,11 @@ function fakeGitHub(
     user: { login, type: login.endsWith('[bot]') ? 'Bot' : 'User' },
     created_at: createdAt,
     body,
+  });
+  const issueJson = (issue: FakeIssue) => ({
+    number: issue.number,
+    ...json(issue),
+    ...(issue.pullRequest ? { pull_request: {} } : {}),
   });
   const request = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
@@ -100,13 +106,11 @@ function fakeGitHub(
     if (options.fail) return new Response('{}', { status: options.fail });
     const now = iso(options.now?.() ?? T0);
     const text = (body as { body: string } | undefined)?.body ?? '';
-    if (method === 'GET' && url.pathname === `${repo}/issues`)
-      return Response.json(
-        // Newest first, as GitHub lists them.
-        [...issues]
-          .sort((a, b) => b.number - a.number)
-          .map((issue) => ({ number: issue.number, ...json(issue), ...(issue.pullRequest ? { pull_request: {} } : {}) })),
-      );
+    if (method === 'GET' && url.pathname === `${repo}/issues`) {
+      // Newest first, as GitHub lists them.
+      const newest = [...issues].sort((a, b) => b.number - a.number);
+      return Response.json(newest.map(issueJson));
+    }
     if (method === 'GET' && url.pathname.endsWith('/comments')) return Response.json(comments.map(json));
     if (method === 'POST' && url.pathname === `${repo}/issues`) {
       issues.push({ number: 7, createdAt: now, body: text });
@@ -116,14 +120,14 @@ function fakeGitHub(
       comments.push({ createdAt: now, body: text });
       return Response.json({ id: comments.length }, { status: 201 });
     }
-    if (method === 'PUT' && url.pathname.endsWith('/lock')) return new Response(null, { status: options.lockStatus ?? 204 });
+    if (method === 'PUT' && url.pathname.endsWith('/lock'))
+      return new Response(null, { status: options.lockStatus ?? 204 });
     return new Response('{}', { status: 404 });
   });
   return {
     fetch: request as typeof fetch,
     requests,
     posts: () => requests.filter(({ method }) => method === 'POST'),
-    locks: () => requests.filter(({ method }) => method === 'PUT').map(({ path }) => path),
   };
 }
 
