@@ -19,6 +19,28 @@ reports "Offline access needs a newer version of this browser." Network and
 storage failures retain their separate retry guidance. This does not unregister
 an existing worker or erase its cache, and does not change the emitted worker.
 
+The G12 tech review's REL-12 has a dedicated
+[`floor-offline.spec.ts`](../tests/floor-offline.spec.ts) smoke with service
+workers allowed, separate from the browsing-floor smoke that blocks them.
+It prepares through Settings, checks the visible **Offline files ready** state,
+then reloads the collection with the browser context offline. A second case
+simulates Firefox 98–146 ignoring `options.type` and rejecting the module as a
+classic script; it checks the exact upgrade message and absence of a registration.
+Engine versions are printed and attached to each test report.
+
+In [Linux Candidate CI run 36984599664](https://github.com/LeulTew/play-100/actions/runs/36984599664)
+on `8c23ecdf`, **Firefox 155.0** and **Chromium 106.0.5249.0** passed both cases.
+**WebKit 26.6** passed the simulated-old-engine case and reached the real ready
+state with an activated worker, but its offline `page.reload()` failed with
+**"WebKit encountered an internal error"**. This is not a passing WebKit offline
+receipt or a real Safari/iOS test. The full floor run was **20 passed, 1 failed,
+0 skipped, 0 retries**; the WebKit reload remains an open validation gap, with
+its screenshot and trace retained in the run artifact. The original attempt,
+[run 36983931439](https://github.com/LeulTew/play-100/actions/runs/36983931439),
+incorrectly required the newly prepared worker to control the already-open
+document. The corrected smoke waits for activation and checks control after
+navigation instead; it does not change the worker or force it to claim clients.
+
 User-facing instructions describe public files and storage limits, not workers
 or an app shell. They still exclude private/account data, online-only pages,
 sign-in details, online game search results, films and workbooks from offline preparation.
