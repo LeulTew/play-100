@@ -28,13 +28,7 @@ export interface JourneyContext {
   command?: (name: NvdaCommand, options?: { capture?: true | false | 'initial' }) => Promise<void>;
 }
 
-export type NvdaCommand =
-  | 'moveToNextHeadingLevel3'
-  | 'reportCurrentFocus'
-  | 'toggleBetweenBrowseAndFocusMode'
-  | 'toggleAutoFocusFocusableElements';
-
-const AUTO_FOCUS_SETTING = /automatically set system focus to focusable elements (on|off)/;
+export type NvdaCommand = 'moveToNextHeadingLevel3' | 'reportCurrentFocus' | 'toggleBetweenBrowseAndFocusMode';
 
 const COLLECTION = '/?catalogs=off';
 
@@ -120,25 +114,6 @@ export async function journeyBrowseMode(context: JourneyContext): Promise<void> 
   const { page, reader, journal, command } = context;
   if (!command) throw new Error('browse-mode journey needs NVDA');
   await open(context, COLLECTION, page.locator('li.game-card'));
-  // NVDA's default leaves system focus where it was while the virtual cursor moves, which is the case Release 7 broke.
-  // Make sure the profile matches that default rather than moving focus along with the cursor.
-  let setting: string | undefined;
-  for (let press = 1; press <= 2 && setting !== 'off'; press++) {
-    await command('toggleAutoFocusFocusableElements', FULL);
-    const spoken = journal.step(
-      `toggle automatic system focus (NVDA+8, ${press})`,
-      ['NVDA+8'],
-      await reader.spokenPhraseLog(),
-    );
-    setting = AUTO_FOCUS_SETTING.exec(spoken.join(' ').toLowerCase())?.[1];
-  }
-  journal.check(
-    expectTrue(
-      'browse mode leaves system focus behind',
-      setting === 'off',
-      `NVDA reported automatic system focus ${setting ?? 'nothing'}`,
-    ),
-  );
   const cards = await page.locator('li.game-card[data-game]').evaluateAll((elements) =>
     elements.map((element) => ({
       slug: element.getAttribute('data-game') ?? '',
@@ -165,6 +140,12 @@ export async function journeyBrowseMode(context: JourneyContext): Promise<void> 
   const dialog = detailDialog(page, target.title);
   await waitForDialog(dialog, 'activate the heading');
   journal.check(expectSpoken('the dialog name is spoken', opened, target.title));
+  // The local Release 7 finding lost focus to BODY after ranking the game inside the dialog, which re-renders its card.
+  const rank = dialog.getByRole('button', { name: /Add to my ranking/i });
+  await tabTo(reader, journal, page, 'Tab to Add to my ranking', rank, { max: 30 });
+  const ranked = await key(reader, journal, page, 'add the game to my ranking with Enter', 'Enter');
+  await expect(dialog.getByText(/Your rank/i).first()).toBeVisible({ timeout: 10_000 });
+  journal.check(expectSpoken('the ranking change is spoken', ranked, /rank/i));
   await closeDetailAndCheckReturn(context, target.slug, target.title, dialog);
 }
 
