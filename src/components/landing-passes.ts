@@ -32,3 +32,11 @@ export function rendersAtOnce({
 export function scheduleSecondPass(run: () => void, schedule: (run: () => void) => () => void = afterNextPaint) {
   return schedule(() => startTransition(run));
 }
+
+/**
+ * Whether the first pass has its final content, so the second may follow it: the first cards, or the notice of a failed
+ * load in their place. The showcase waits for the second pass, so a load that failed must release it too.
+ */
+export function firstPassSettled(status: 'loading' | 'ready' | 'error'): boolean {
+  return status !== 'loading';
+}

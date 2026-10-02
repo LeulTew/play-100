@@ -6,15 +6,17 @@ import { parseCollection } from '../lib/collection';
 import { emptyPersonalLibrary } from '../lib/personal-library';
 import { defaultFilters } from '../lib/url';
 import CollectionPage from './CollectionPage';
-import { FIRST_PASS_CARDS, rendersAtOnce, scheduleSecondPass } from './landing-passes';
+import { FIRST_PASS_CARDS, firstPassSettled, rendersAtOnce, scheduleSecondPass } from './landing-passes';
 
 const data = parseCollection(JSON.parse(readFileSync(new URL('../../data/collection.json', import.meta.url), 'utf8')));
 
 /** The landing's first commit, as a static render shows it: no effect, so no second pass, has run. */
-function firstCommit(constrained: boolean) {
+function firstCommit(constrained: boolean, failed = false) {
   return renderToStaticMarkup(
     createElement(CollectionPage, {
-      collection: { status: 'ready', data, error: null, retry: vi.fn() },
+      collection: failed
+        ? { status: 'error', data: null, error: 'The collection request failed (503).', retry: vi.fn() }
+        : { status: 'ready', data, error: null, retry: vi.fn() },
       state: emptyPersonalLibrary(),
       filters: defaultFilters,
       busy: false,
@@ -81,5 +83,17 @@ describe('landing passes', () => {
     expect(run).not.toHaveBeenCalled();
     scheduled?.();
     expect(run).toHaveBeenCalledOnce();
+  });
+
+  // A failed load's first pass is its notice. The showcase, with the workbook downloads, must still follow it, not stay
+  // a screen-high reserve.
+  it('starts the second pass once the cards or a failed load’s notice have rendered', () => {
+    expect(firstPassSettled('loading')).toBe(false);
+    expect(firstPassSettled('ready')).toBe(true);
+    expect(firstPassSettled('error')).toBe(true);
+    const html = firstCommit(true, true);
+    expect(html).toContain('The collection couldn&#x27;t load.');
+    expect(html).toContain('<div class="first-paint-reserve" aria-hidden="true"></div>');
+    expect(firstCommit(false, true)).toContain('workbook-section');
   });
 });
