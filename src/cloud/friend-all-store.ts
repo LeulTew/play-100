@@ -10,11 +10,18 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  snapshotEqual,
   startAfter,
   where,
   writeBatch,
 } from 'firebase/firestore';
-import type { DocumentData, DocumentReference, Firestore, QueryDocumentSnapshot } from 'firebase/firestore';
+import type {
+  DocumentData,
+  DocumentReference,
+  DocumentSnapshot,
+  Firestore,
+  QueryDocumentSnapshot,
+} from 'firebase/firestore';
 import type { FriendAllEntry, FriendAllKind, FriendAllPolicy } from '../lib/friend-all';
 import {
   FRIEND_ALL_EXACT_LIMIT,
@@ -41,6 +48,7 @@ import { parseFriendShelfConfig, parseFriendShelfHead, sameShelfSource } from '.
 import type { FriendShelfConfig } from '../lib/friend-shelf-types';
 import { parseHead } from './cloud-store';
 import { ensureAccountActivity } from './account-lifecycle';
+import { contendedWrite } from './friend-store-core';
 
 export interface FriendAllControls {
   policy: FriendAllPolicy | null;
@@ -870,12 +878,32 @@ export class FriendAllStore {
       await this.releaseRows(uid, kind, rows.docs);
       return { deleted: rows.size, done: false };
     }
+    const jobRef = this.jobRef(uid, kind);
+    const headRef = this.headRef(uid, kind);
+    let seen: [DocumentSnapshot<DocumentData>, DocumentSnapshot<DocumentData>] | null = null;
     // The counted-job delete rule reads the stored job, so an unpublished or already removed view must not be deleted again.
-    await runTransaction(this.db, async (tx) => {
-      const [job, head] = await Promise.all([tx.get(this.jobRef(uid, kind)), tx.get(this.headRef(uid, kind))]);
-      if (job.exists()) tx.delete(job.ref);
-      if (head.exists()) tx.delete(head.ref);
-    });
+    const finish = () =>
+      runTransaction(this.db, async (tx) => {
+        const read = await Promise.all([tx.get(jobRef), tx.get(headRef)]);
+        seen = read;
+        const [job, head] = read;
+        if (job.exists()) tx.delete(job.ref);
+        if (head.exists()) tx.delete(head.ref);
+      });
+    // A refused deletion reads the view again (docs/intermittents.md, REL-12). The emulator judges a commit's rules
+    // before its read preconditions, so a view another tab's cleanup removed first comes back as a refusal rather than
+    // a retry; that view being gone finishes this cleanup too. A view that changed is a conflict, and an unchanged one
+    // gets one retry.
+    const settle = async (): Promise<true | null> => {
+      const [job, head] = await runTransaction(this.db, (tx) => Promise.all([tx.get(jobRef), tx.get(headRef)]), {
+        maxAttempts: 3,
+      });
+      if (!job.exists() && !head.exists()) return true;
+      if (!seen || !snapshotEqual(seen[0], job) || !snapshotEqual(seen[1], head))
+        conflict('This shared view changed while it was being deleted. Refresh sharing status to continue.');
+      return null;
+    };
+    await contendedWrite(finish, settle);
     this.cache.delete(`${uid}:${kind}`);
     return { deleted: 0, done: true };
   }
