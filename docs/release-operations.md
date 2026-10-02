@@ -150,7 +150,7 @@ Dispatch:
 gh workflow run talkback-smoke.yml --repo LeulTew/play-100 --ref <branch with this workflow> -f target_origin=<origin>
 ```
 
-Receipt from run [36975406748](https://github.com/LeulTew/play-100/actions/runs/36975406748) on production. The run concluded `failure` because (c) didn't complete. It ran the harness at commit `0e844f397478beeb082c59e686225bd82afaed48`. The following harness commit, which reuses Chrome between journeys and retries the CDP query, hasn't run yet.
+Receipt from run [36983651172](https://github.com/LeulTew/play-100/actions/runs/36983651172) on production, which concluded `success`. It ran the harness at commit `d0f4f9c824b1734b07d7532d2c4b2e25e1073292`. An earlier run, [36975406748](https://github.com/LeulTew/play-100/actions/runs/36975406748) on harness `0e844f39`, failed because (c) didn't complete. A run from the sim, [36981660993](https://github.com/LeulTew/play-100/actions/runs/36981660993), failed on two harness bugs that `d0f4f9c8` fixed: a relative log path that broke after `cd` kept the control server from starting, and the Lite radio predicate expected an exact label, though the label includes its description.
 
 - TalkBack 14.2.0.618048417, Chrome 113.0.5672.136;
 - emulator API 34 `google_apis` x86_64;
@@ -161,12 +161,10 @@ Proven for (a):
 - the card is reached by Tab, and its name is spoken;
 - Enter opens the detail dialog, and the name and "heading 2" are spoken;
 - no "clickable", and no automatic body read;
-- Escape closes it, and focus and speech return to the card.
+- Escape closes it, and focus and speech return to the card;
+- TalkBack speaks "dialog" 0 times and "heading" once, for the app and for the native `showModal` control page alike, so leaving out the dialog role is TalkBack's behaviour, not the app's.
 
-Not proven:
-
-- **The dialog role:** TalkBack doesn't speak "dialog", and the native control page didn't load in that run, so it isn't known whether the omission is TalkBack's or the app's.
-- **(c):** Shift+Tab reached the Menu button, spoken as "collapsed, Menu, dialog pop up button", but the focus predicate didn't match, so the rest of (c) didn't run.
+Proven for (c): Shift+Tab reaches Menu; Lite is selected by keyboard, and "Visual preference saved." is spoken; Escape returns focus to Menu, which is spoken.
 
 This is supporting evidence, not a release gate.
 
