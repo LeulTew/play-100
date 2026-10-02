@@ -1,5 +1,7 @@
 /* Native auto visibility retains find-in-page, focus and anchors. A skipped card
-   takes its estimated block size. The estimates are plain lengths, not "auto":
+   takes its estimated block size: the content height a rendered card measures
+   at that breakpoint, so the page's height barely moves as the cards render.
+   The estimates are plain lengths, not "auto":
    to remember sizes, Chromium observes every such card with a ResizeObserver of
    its own. Chrome 106 delivered it in the page's loop, after the page's own
    observers (later versions deliver it first), and on a Galaxy A03s's WebView
@@ -23,12 +25,12 @@
   .games-grid > .game-card:nth-child(n + 5),
   .games-grid > .game-card-reserve {
     content-visibility: auto;
-    contain-intrinsic-block-size: 430px;
+    contain-intrinsic-block-size: 402px;
   }
   .games-list > .game-card:nth-child(n + 5),
   .games-list > .game-card-reserve {
     content-visibility: auto;
-    contain-intrinsic-block-size: 170px;
+    contain-intrinsic-block-size: 179px;
   }
   .discovery-cards-grid > .discovery-card:nth-child(n + 6) {
     content-visibility: auto;
@@ -49,17 +51,17 @@
 @media screen and (min-width: 761px) and (max-width: 1150px) {
   .games-grid > .game-card:nth-child(n + 5),
   .games-grid > .game-card-reserve {
-    contain-intrinsic-block-size: 400px;
+    contain-intrinsic-block-size: 382px;
   }
 }
 @media screen and (max-width: 760px) {
   .games-grid > .game-card:nth-child(n + 5),
   .games-grid > .game-card-reserve {
-    contain-intrinsic-block-size: 370px;
+    contain-intrinsic-block-size: 426px;
   }
   .games-list > .game-card:nth-child(n + 5),
   .games-list > .game-card-reserve {
-    contain-intrinsic-block-size: 240px;
+    contain-intrinsic-block-size: 194px;
   }
   .discovery-cards-grid > .discovery-card:nth-child(n + 6) {
     contain-intrinsic-block-size: 420px;
