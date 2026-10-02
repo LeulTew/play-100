@@ -96,6 +96,8 @@ jobs:
         with:
           ref: ${{ inputs.sha }}
           path: candidate
+          # The checks suite's budget-policy unit test reads the released commits named in docs/releases.md.
+          fetch-depth: ${{ inputs.suite == 'checks' && '0' || '1' }}
           persist-credentials: false
 
       - name: Check out the CI tooling
