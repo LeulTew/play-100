@@ -8,7 +8,9 @@ const collection = parseCollection(JSON.parse(await readFile(path.join(project, 
 const output = path.join(project, 'public', 'covers');
 await mkdir(output, { recursive: true });
 const assets: { file: string; width: number; height: number; bytes: number }[] = [];
-const metadata: Record<string, { width: number; height: number }> = {};
+// Each cover's native size by rank, [width, height] at index rank - 1: the cards set their image box before it loads.
+// Indexed by rank rather than keyed by slug, it costs every page a fifth of the bytes (docs/performance.md).
+const sizes: ([number, number] | null)[] = collection.games.map(() => null);
 for (const game of collection.games) {
   if (!game.artwork) continue;
   const original = path.join(project, 'data', game.artwork.file);
@@ -19,13 +21,13 @@ for (const game of collection.games) {
     .webp({ quality: 86, effort: 5 })
     .toFile(path.join(output, file));
   assets.push({ file, width: info.width, height: info.height, bytes: info.size });
-  metadata[game.slug] = { width: info.width, height: info.height };
+  sizes[game.rank - 1] = [info.width, info.height];
 }
 await writeFile(path.join(project, 'data', 'web-assets.json'), `${JSON.stringify(assets, null, 2)}\n`);
 await mkdir(path.join(project, 'src', 'generated'), { recursive: true });
 await writeFile(
-  path.join(project, 'src', 'generated', 'cover-metadata.json'),
-  `${JSON.stringify(metadata, null, 2)}\n`,
+  path.join(project, 'src', 'generated', 'cover-sizes.json'),
+  `[\n${sizes.map((size) => `  ${JSON.stringify(size)}`).join(',\n')}\n]\n`,
 );
 const notices = path.join(project, 'public', 'licenses');
 await mkdir(notices, { recursive: true });
