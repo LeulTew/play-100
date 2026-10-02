@@ -4,10 +4,10 @@ import type { AuthorRating } from './types';
 export { author };
 
 export const authorLinks = [
-  ['github', 'GitHub', author.githubProfileUrl],
-  ['linkedin', 'LinkedIn', author.linkedinUrl],
-  ['telegram', `Telegram, ${author.telegramHandle}`, author.telegramUrl],
-  ['email', 'Email', `mailto:${author.email}`],
+  ['github', `${author.shortName} on GitHub`, author.githubProfileUrl],
+  ['linkedin', `${author.shortName} on LinkedIn`, author.linkedinUrl],
+  ['telegram', `${author.shortName} on Telegram, ${author.telegramHandle}`, author.telegramUrl],
+  ['email', `Email ${author.shortName} at ${author.email}`, `mailto:${author.email}`],
 ] as const;
 
 export function authorRatingText(rating: AuthorRating | null): string {
