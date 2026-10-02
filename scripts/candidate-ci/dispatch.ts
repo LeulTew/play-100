@@ -69,26 +69,14 @@ if (values['dry-run']) {
 }
 
 const gh = (args: string[]) => execFileSync('gh', args, { encoding: 'utf8', timeout: 120_000 }).trim();
-const dispatchedAt = new Date().toISOString();
-for (const item of pending) {
-  console.log(`dispatch ${item.entry.id}: ${item.request}`);
-  gh(item.args);
-}
 
 interface ListedRun {
   databaseId: number;
   displayTitle: string;
   url: string;
 }
-const runs = new Map<string, RunRecord>();
-const deadline = Date.now() + Number(values['match-timeout']) * 1000;
-while (runs.size < pending.length) {
-  if (Date.now() > deadline) {
-    const missing = pending.filter((item) => !runs.has(item.request)).map((item) => item.entry.id);
-    throw new Error(`No run appeared for ${missing.join(', ')}.`);
-  }
-  await sleep(poll * 1000);
-  const listed = JSON.parse(
+const listRuns = () =>
+  JSON.parse(
     gh([
       'run',
       'list',
@@ -106,6 +94,40 @@ while (runs.size < pending.length) {
       String(Math.max(100, pending.length * 3)),
     ]),
   ) as ListedRun[];
+
+// GitHub occasionally refuses a valid dispatch (HTTP 400 "malformed request", or a dropped connection). Each entry gets
+// up to three attempts, and before a retry the run list is checked so an entry whose run did start is never dispatched
+// twice: collect matches runs by their unique names.
+const DISPATCH_ATTEMPTS = 3;
+const dispatchedAt = new Date().toISOString();
+for (const item of pending) {
+  console.log(`dispatch ${item.entry.id}: ${item.request}`);
+  for (let attempt = 1; ; attempt++) {
+    try {
+      gh(item.args);
+      break;
+    } catch (error) {
+      if (attempt === DISPATCH_ATTEMPTS) throw error;
+      const detail = error instanceof Error && 'stderr' in error ? String(error.stderr).trim() : String(error);
+      console.warn(`dispatch ${item.entry.id} attempt ${attempt} failed: ${detail}`);
+      await sleep(attempt * 30_000);
+      if (findRun(listRuns(), item.name)) {
+        console.warn(`dispatch ${item.entry.id}: its run started anyway; not dispatching it again.`);
+        break;
+      }
+    }
+  }
+}
+
+const runs = new Map<string, RunRecord>();
+const deadline = Date.now() + Number(values['match-timeout']) * 1000;
+while (runs.size < pending.length) {
+  if (Date.now() > deadline) {
+    const missing = pending.filter((item) => !runs.has(item.request)).map((item) => item.entry.id);
+    throw new Error(`No run appeared for ${missing.join(', ')}.`);
+  }
+  await sleep(poll * 1000);
+  const listed = listRuns();
   for (const item of pending) {
     if (runs.has(item.request)) continue;
     const run = findRun(listed, item.name);
