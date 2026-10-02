@@ -120,6 +120,17 @@ describe('outcome', () => {
     expect(outcome({ run: films, conclusion: 'success', counts: { ...ok, passed: 2 } })).toBe('passed');
     expect(outcome({ run: films, conclusion: 'success', counts: ok })).toBe('failed');
   });
+
+  it('tolerates the skips of a grep-filtered cloud-rules entry only', () => {
+    const skips = { passed: 1, failed: 0, skipped: 41 };
+    const filtered = runFor({ id: 'rules', suite: 'cloud-rules', grep: 'converges' });
+    const whole = runFor({ id: 'rules-all', suite: 'cloud-rules' });
+    const grepped = runFor({ id: 'prod', suite: 'e2e-prod', grep: 'x' });
+    expect(outcome({ run: filtered, conclusion: 'success', counts: skips })).toBe('passed');
+    expect(outcome({ run: filtered, conclusion: 'success', counts: { ...skips, passed: 0 } })).toBe('failed');
+    expect(outcome({ run: whole, conclusion: 'success', counts: skips })).toBe('failed');
+    expect(outcome({ run: grepped, conclusion: 'success', counts: skips })).toBe('failed');
+  });
 });
 
 describe('buildIndex', () => {

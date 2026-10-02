@@ -110,6 +110,9 @@ describe('evidenceFiles', () => {
       writeFileSync(path.join(root, 'playwright.json'), '{}');
       writeFileSync(path.join(root, 'test-results', 'case', 'error-context.md'), 'abc');
       writeFileSync(path.join(root, 'identity.json'), 'old');
+      writeFileSync(path.join(root, 'test-results', '.last-run.json'), '{}');
+      mkdirSync(path.join(root, '.hidden'));
+      writeFileSync(path.join(root, '.hidden', 'x.txt'), 'x');
       expect(evidenceFiles(root, path.join(root, 'identity.json'))).toEqual([
         {
           path: 'playwright.json',

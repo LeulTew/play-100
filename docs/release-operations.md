@@ -1145,8 +1145,11 @@ stops collection. It then writes:
 - `summary.md` and `summary.json`: entry, suite, project, spec, repeat, passed,
   failed, skipped, result and run URL. An entry passes only if its run
   succeeded, it passed at least one test, nothing failed or was skipped, and the
-  count equals `expectedPassed` when set. Playwright's `flaky` counts as failed;
-  `lighthouse` has no counts and passes on the run's conclusion.
+  count equals `expectedPassed` when set. Vitest counts the tests a `-t` filter
+  deselects as skipped, so a `cloud-rules` entry with `grep` tolerates skips.
+  Playwright's `flaky` counts as failed;
+  `lighthouse` has no counts and passes on the run's conclusion. Hidden files
+  (Playwright's `test-results/.last-run.json`) are not uploaded or digested.
 - `index.json`: a partial lean evidence index (`partial: true`) for
   `scripts/release-lean-manifest.ts`. Its rows are `e2e-production`,
   `e2e-development`, `e2e-offline`, `films-download` (attempt 1),

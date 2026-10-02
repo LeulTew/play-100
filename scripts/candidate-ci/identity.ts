@@ -168,8 +168,9 @@ async function floorBrowsers(env: NodeJS.ProcessEnv): Promise<BrowserFact[]> {
 }
 
 /**
- * Digests every file under the artifact root except `skip` (identity.json itself, which is written after this list),
- * sorted by POSIX path, so a detached report can be checked against the run that made it.
+ * Digests every file under the artifact root except `skip` (identity.json itself, which is written after this list)
+ * and hidden paths, which upload-artifact leaves out by default (Playwright's `test-results/.last-run.json`), sorted by
+ * POSIX path, so a detached report can be checked against the run that made it.
  */
 export function evidenceFiles(root: string, skip: string): EvidenceFile[] {
   if (!existsSync(root)) return [];
@@ -178,6 +179,13 @@ export function evidenceFiles(root: string, skip: string): EvidenceFile[] {
     .filter((entry) => entry.isFile())
     .map((entry) => path.join(entry.parentPath, entry.name))
     .filter((file) => path.resolve(file) !== skipPath)
+    .filter(
+      (file) =>
+        !path
+          .relative(root, file)
+          .split(path.sep)
+          .some((part) => part.startsWith('.')),
+    )
     .map((file) => {
       const content = readFileSync(file);
       return {
