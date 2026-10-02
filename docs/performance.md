@@ -46,11 +46,12 @@ HEAD. The test needs the full history, not a shallow clone.
   entry's whole static closure in one chunk, so already-eager modules are not split into small chunks of their own,
   without adding steering imports to that eager closure.
   [`scripts/app-shared-chunk.ts`](../scripts/app-shared-chunk.ts) lists the modules that anchor it; dynamic imports
-  stay separate, and the eager-module guard checks that boundary. A second group gives each idle-preloaded tool that the
-  deferred online bridge also loads statically its own chunk (`google-intent`, `comparison-game-filter` and
-  `friend-comparison-intent`), so the offline core can precache it; without it Rolldown folds them into an unnamed
-  shared chunk. [`scripts/preloaded-tool-chunks.ts`](../scripts/preloaded-tool-chunks.ts) lists them and finds their
-  facade-less manifest entries, and `online-bridge-closure.test.ts` fails when the bridge loads a preloaded tool it leaves out.
+  stay separate, and the eager-module guard checks that boundary. A second group gives the idle-preloaded tools that the
+  deferred online bridge also loads statically named chunks (`google-intent`, and `comparison-tools` for the two
+  comparison modules, which always load together), so the offline core can precache them; without it Rolldown folds
+  them into an unnamed shared chunk. [`scripts/preloaded-tool-chunks.ts`](../scripts/preloaded-tool-chunks.ts) lists
+  them and finds their facade-less manifest entries, and `online-bridge-closure.test.ts` fails when the bridge loads a
+  preloaded tool it leaves out.
 - **Lazy-only code.** A module in the entry's static closure ships in `app-shared` with every export that any chunk
   imports from it, so code that only lazily loaded pages use costs every page while it shares a module with code every
   page needs. Restoring a backup ([`backup-restore.ts`](../src/lib/backup-restore.ts)), Discover's result matching
