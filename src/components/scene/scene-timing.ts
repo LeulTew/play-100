@@ -1,5 +1,8 @@
-/** The parts of the 3D scene's startup that can hold the page: its module, WebGL context, renderer and first frame. */
-export type SceneSpan = 'module' | 'context' | 'renderer' | 'first-render';
+/**
+ * The parts of the 3D scene's startup that can hold the page: its WebGL context, renderer and first frame. Its module's
+ * load has plain marks of the same form (CollectionArtifact), so that this helper ships with the scene.
+ */
+export type SceneSpan = 'context' | 'renderer' | 'first-render';
 
 /**
  * Marks a part of the 3D scene's startup with User Timing: `p100:scene:<span>-start` now, and `-end` with a
