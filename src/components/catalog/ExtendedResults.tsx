@@ -5,7 +5,7 @@ import type { CatalogArtwork } from '../../lib/discovery-catalog-shared';
 import type { LibraryRecord, PersonalAction, PersonalLibraryState } from '../../lib/personal-types';
 import { DiscoveryCard } from './DiscoveryCard';
 import { CatalogSourceStatus } from './CatalogSourceStatus';
-import { collidingCatalogTitles, newOnlineMatchCounts } from '../../lib/catalog-identity';
+import { collidingCatalogTitles, newOnlineMatchCounts } from '../../lib/catalog-matches';
 import { ChunkRecovery } from '../ChunkRecovery';
 import { loadSavedDiscoveryArtwork } from '../../lib/saved-discovery-artwork';
 import { extendedResultCount } from '../../lib/extended-search';

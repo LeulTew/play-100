@@ -7,7 +7,7 @@ import { matchesProgress } from '../../lib/game-progress';
 import { flushPendingEdits, hasPendingEdits, usePendingEdits } from '../../hooks/useExitSave';
 import { useLibraryMode } from '../../lib/library-mode';
 import { useNavigationScope } from '../../hooks/useNavigationScope';
-import { useDiscoveryArtwork } from '../../hooks/useDiscoveryCatalog';
+import { useDiscoveryArtwork } from '../../hooks/useDiscoveryArtwork';
 import { focusPendingEditor } from '../../lib/dialog-focus';
 import { getLocalPage } from '../../lib/local-pagination';
 import { useRetainedRecords } from './useRetainedRecords';

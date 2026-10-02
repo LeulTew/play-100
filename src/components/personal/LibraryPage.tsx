@@ -8,7 +8,7 @@ import { progressFilterPatch } from '../../lib/game-progress';
 import type { ProgressFilter } from '../../lib/game-progress';
 import { RemoveGamesDialog } from './RemoveGamesDialog';
 import { LocalPager } from '../LocalPager';
-import { formatResultRange } from '../../lib/local-pagination';
+import { formatResultRange } from '../../lib/result-range';
 import { LIBRARY_PAGE_SIZE, useLibraryPage } from './useLibraryPage';
 import { LibraryRecordRow } from './LibraryRecordRow';
 import './library-pagination.css';
