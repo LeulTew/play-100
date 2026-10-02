@@ -118,7 +118,11 @@ export class SpeechJournal {
   error: string | undefined;
   #consumed = 0;
 
-  constructor(readonly journey: string) {}
+  readonly journey: string;
+
+  constructor(journey: string) {
+    this.journey = journey;
+  }
 
   /** Adds the phrases spoken since the previous step. `log` is the reader's full phrase log for this journey. */
   step(label: string, keys: string[], log: readonly string[], observed?: unknown): string[] {
