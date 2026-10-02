@@ -352,6 +352,7 @@ for (const [outcome, copy] of [
 }
 
 test('catalog results are explicitly imported and upstream errors remain recoverable', async ({ page }) => {
+  let unavailable = false;
   const item = {
     id: 'wikidata:Q100',
     title: 'Catalog game for verification',
@@ -364,6 +365,12 @@ test('catalog results are explicitly imported and upstream errors remain recover
     collectionRank: null,
   };
   await page.route('**/api/catalog?**', (route) => {
+    if (unavailable)
+      return route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'The catalog is busy. Try again later.' }),
+      });
     const url = new URL(route.request().url());
     const source = url.searchParams.get('source');
     const found = source === 'wikidata' ? [item] : [];
@@ -396,19 +403,20 @@ test('catalog results are explicitly imported and upstream errors remain recover
   await expect(page.getByRole('button', { name: item.title, exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('button', { name: item.title, exact: true })).toBeVisible();
+  // Keep request routing installed while the new document loads its deferred parser.
+  unavailable = true;
   await page.goto('/discover');
-  await page.unroute('**/api/catalog?**');
-  await page.route('**/api/catalog?**', (route) =>
-    route.fulfill({
-      status: 503,
-      contentType: 'application/json',
-      body: JSON.stringify({ error: 'The catalog is busy. Try again later.' }),
-    }),
-  );
   await page.getByRole('searchbox', { name: 'Find a game', exact: true }).fill('Catalog outage');
   const errors = page.getByRole('group', { name: 'Online catalog status', exact: true }).getByRole('alert');
   await expect(errors).toHaveCount(2);
-  for (const error of await errors.all()) await expect(error).toContainText('The catalog is busy');
+  for (const error of await errors.all()) {
+    await expect(error).toBeVisible();
+    await expect(error).toContainText('The catalog is busy');
+  }
+  const sourceHelp = page.locator('details.discovery-help').filter({
+    has: page.locator('summary').filter({ hasText: /^Search options & sources$/ }),
+  });
+  await expect(sourceHelp).not.toHaveAttribute('open');
   await expect(page.getByRole('button', { name: 'Retry Wikidata', exact: true })).toBeVisible();
   await expect(page.getByText('Add a game manually', { exact: true })).toBeVisible();
 });
