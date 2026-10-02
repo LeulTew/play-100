@@ -2,7 +2,10 @@
 
 export const PRODUCTION_ORIGIN = 'https://play-100-collection.vercel.app';
 
-/** Accepts only a bare HTTPS origin, so a typo can't point the readers at an unexpected path or scheme. */
+/**
+ * Accepts only a bare HTTPS origin, or plain HTTP on the 127.0.0.1 loopback where the workflow serves a build of a
+ * requested commit, so a typo can't point the readers at an unexpected path or scheme.
+ */
 export function validateOrigin(value: string | undefined): string {
   const raw = (value ?? '').trim() || PRODUCTION_ORIGIN;
   let url: URL;
@@ -11,7 +14,9 @@ export function validateOrigin(value: string | undefined): string {
   } catch {
     throw new Error(`target_origin is not a URL: ${raw}`);
   }
-  if (url.protocol !== 'https:') throw new Error(`target_origin must use https: ${raw}`);
+  const loopback = url.protocol === 'http:' && url.hostname === '127.0.0.1';
+  if (url.protocol !== 'https:' && !loopback)
+    throw new Error(`target_origin must use https, or http on 127.0.0.1: ${raw}`);
   if (url.username || url.password) throw new Error('target_origin must not carry credentials');
   if (url.pathname !== '/' || url.search || url.hash || raw.replace(/\/$/, '').toLowerCase() !== url.origin)
     throw new Error(`target_origin must be a bare origin without a path, query or fragment: ${raw}`);

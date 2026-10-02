@@ -68,7 +68,16 @@ captured speech log, not the accessibility tree.
 
 ```sh
 gh workflow run screen-reader-smoke.yml --ref <branch> -f target_origin=<https origin>
+gh workflow run screen-reader-smoke.yml --ref <branch> -f sha=<full commit sha>
 ```
+
+With `sha`, each job checks out that commit, runs `npm ci` and the configured
+build with the repository's public `VITE_FIREBASE_*` variables, and serves
+`dist` on `http://127.0.0.1:4173` through the commit's own
+`scripts/vercel-static-server.ts` and `vercel.json`, so no tunnel is needed.
+`receipt.json` then records `servedCommit` and the served `index.html` SHA-256.
+Each journal step also records the DOM `focusin`/`focusout` events since the
+previous step, to tell DOM focus apart from the reader's virtual focus.
 
 Journeys: (a) Tab to a The 100 card, Enter opens the detail dialog, its name,
 heading and description are spoken with the description once, and Escape
