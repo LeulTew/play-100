@@ -88,9 +88,15 @@ for (const forcedColors of ['none', 'active'] as const) {
       .click();
     const about = page.getByRole('dialog', { name: 'About & credits', exact: true });
     await expect(about).toBeVisible();
-    await expect(about.getByRole('group', { name: 'Public catalog sources', exact: true })).toBeVisible();
-    await expect(about.getByRole('group', { name: 'Project sources and notices', exact: true })).toBeVisible();
-    const aboutMeasurements = await expectSourceLinks(page, about, [...catalogLinks, ...projectLinks]);
+    const catalogSources = about.getByRole('group', { name: 'Public catalog sources', exact: true });
+    const projectSources = about.getByRole('group', { name: 'Project sources and notices', exact: true });
+    await expect(catalogSources).toBeVisible();
+    await expect(projectSources).toBeVisible();
+    await expect(about.getByRole('navigation', { name: 'Author links', exact: true }).getByRole('link')).toHaveCount(4);
+    const aboutMeasurements = [
+      ...(await expectSourceLinks(page, catalogSources, catalogLinks)),
+      ...(await expectSourceLinks(page, projectSources, projectLinks)),
+    ];
     await expect(about).toContainText('FreeToGame data retains credit and source links.');
     await expect(about).toContainText('React Bits is copyright 2026 David Haz, used under MIT + Commons Clause.');
     await expect(about).toContainText('Barlow Condensed and Hanken Grotesk use the SIL Open Font License.');
