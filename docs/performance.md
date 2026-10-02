@@ -136,8 +136,8 @@ What changed for those phones (R24):
   again ran as one task of 1.2 s. A back or forward visit still renders everything at once, so the browser can restore
   its scroll position into the cards.
 - **The films load on use on a constrained device.** Their module and posters load only once the films are used,
-  focused or opened, not when a scroll passes within 800 px of them; until then the section shows their titles in
-  empty poster frames ([`DeferredCollection`](../src/components/DeferredCollection.tsx)).
+  focused or opened, not when a scroll passes within 800 px of them; until then each poster frame shows a title card
+  numbered like the game jackets, with its play mark ([`FilmPosterCard`](../src/components/FilmPosterCard.tsx)).
 - **One style pass before the first paint.** With no tray to place, Compare's chrome heights are measured in the frame
   after the first paint instead of forcing a layout inside React's first commit and restyling the page for it
   (`scheduleTrayMetrics` in [`tray-metrics.ts`](../src/components/compare-tray/tray-metrics.ts)).

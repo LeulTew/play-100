@@ -3,6 +3,7 @@ import { collectionFilms, filmDuration, unloadFilm } from '../lib/films';
 import type { CollectionFilm } from '../lib/films';
 import thumbnails from '../generated/film-thumbnails.json' with { type: 'json' };
 import { Dialog } from './Dialog';
+import { FilmPosterCard } from './FilmPosterCard';
 import { Icon } from './Icon';
 import './collection-films.css';
 
@@ -32,7 +33,9 @@ export function FilmPoster({ film, enabled }: { film: CollectionFilm; enabled: b
           alt=""
           onError={() => setFailed(true)}
         />
-      ) : null}
+      ) : (
+        <FilmPosterCard number={collectionFilms.indexOf(film) + 1} title={film.title} />
+      )}
       <span className="film-play-mark" aria-hidden="true">
         <svg width="20" height="20" viewBox="0 0 20 20">
           <path d="M6 3 17 10 6 17Z" fill="currentColor" />

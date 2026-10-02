@@ -53,6 +53,23 @@
   height: auto;
   aspect-ratio: 16 / 9;
 }
+/* The poster before its artwork shows, and on a constrained device until the films are used (CollectionPage): a title
+   card numbered like the game jackets, with the play mark in its corner. Its lettering is aria-hidden artwork at the
+   jackets' sizes (FilmPosterCard). */
+.film-poster-card {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: end;
+  padding: 0 58px 10px 12px;
+  background: var(--wash);
+  font: 700 23px/0.95 var(--display);
+  text-transform: uppercase;
+}
+.film-poster-card ~ .film-play-mark {
+  right: 10px;
+  bottom: 10px;
+}
 .film-play-mark {
   position: absolute;
   display: grid;
@@ -169,6 +186,9 @@
   .film-poster {
     flex-basis: 40%;
   }
+  .film-poster-card {
+    font-size: 15px;
+  }
   .film-summary > span {
     display: none;
   }
@@ -189,5 +209,11 @@
   .film-player-actions {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+/* Too narrow a frame for the title: the card keeps its series label and the play mark. */
+@media (max-width: 380px) {
+  .film-poster-card strong {
+    display: none;
   }
 }
