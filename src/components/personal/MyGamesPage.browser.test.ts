@@ -19,6 +19,9 @@ declare global {
       holdMoves(): void;
       finishMove(saved: boolean): void;
       moveCount(): number;
+      holdQueueRemovals(): void;
+      finishQueueRemoval(saved: boolean): void;
+      queueRemovalCount(): number;
     };
     myGamesPaging: { arm(): void; settled(): Promise<PagingTurn> };
   }
@@ -85,7 +88,12 @@ beforeAll(async () => {
             },
           },
         ],
-        server: { host: '127.0.0.1', port: 0, watch: null },
+        server: {
+          host: '127.0.0.1',
+          port: Number(process.env.PLAY100_BROWSER_UNIT_PORT ?? 0),
+          strictPort: true,
+          watch: null,
+        },
       }),
     )
   ).server;
@@ -104,9 +112,9 @@ afterAll(async () => {
   await server?.close();
 }, 60_000);
 
-async function withPage(work: (page: Page) => Promise<void>, view = 'ranking', query = '') {
+async function withPage(work: (page: Page) => Promise<void>, view = 'ranking', query = '', width = 1280) {
   if (!browser) throw new Error('My games fixture browser unavailable.');
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+  const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -149,6 +157,110 @@ async function expectGuardedExits(page: Page, keep: () => Promise<void>) {
 }
 
 describe('My games exit guard', () => {
+  for (const view of ['library', 'queue']) {
+    it(`short titles keep a 44px opening target in compact ${view} rows`, async () => {
+      await withPage(
+        async (page) => {
+          const title = page.getByRole('button', { name: 'Halo 3', exact: true });
+          for (const width of [320, 360, 393, 720, 1280]) {
+            await page.setViewportSize({ width, height: 900 });
+            await browserExpect(title).toHaveCSS('min-inline-size', '44px');
+            await browserExpect(title).toHaveCSS('overflow-wrap', 'anywhere');
+            const bounds = await title.boundingBox();
+            expect(bounds?.width).toBeGreaterThanOrEqual(44);
+            expect(bounds?.height).toBeGreaterThanOrEqual(44);
+            expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+          }
+        },
+        view,
+        '&moves&short-title',
+      );
+    });
+  }
+
+  for (const width of [393, 1280]) {
+    for (const count of [1, 3, 26]) {
+      for (const saved of [false, true]) {
+        it(`${width}px queue removal of ${count === 1 ? 'the last row' : count === 26 ? 'the last page' : 'a middle row'} ${saved ? 'hands off after saving' : 'keeps focus after refusal'}`, async () => {
+          await withPage(
+            async (page) => {
+              const list = page.getByRole('list', { name: 'Your Play later games', exact: true });
+              if (count > 25)
+                await page
+                  .getByRole('navigation', { name: 'Play later pages', exact: true })
+                  .getByRole('button', { name: 'Last', exact: true })
+                  .click();
+              const id = count === 1 ? 'alpha' : count === 3 ? 'beta' : 'manual:024';
+              const row = list.locator(`[data-record-id="${id}"]`);
+              const action = row.getByRole('button', { name: /^Remove from Play later:/ });
+              await page.evaluate(() => window.myGamesFixture.holdQueueRemovals());
+              await action.focus();
+              await page.keyboard.press('Enter');
+              await browserExpect.poll(() => page.evaluate(() => window.myGamesFixture.queueRemovalCount())).toBe(1);
+              await browserExpect(action).toBeFocused();
+              await page.keyboard.press('Enter');
+              expect(await page.evaluate(() => window.myGamesFixture.queueRemovalCount())).toBe(1);
+              await page.evaluate((value) => window.myGamesFixture.finishQueueRemoval(value), saved);
+              if (saved) {
+                await browserExpect(row).toHaveCount(0);
+                const target =
+                  count === 1
+                    ? page.getByRole('heading', { name: 'Play later results', exact: true })
+                    : list.locator(
+                        `[data-record-id="${count === 3 ? 'manual:001' : 'manual:023'}"] .remove-library-action`,
+                      );
+                await browserExpect(target).toBeFocused();
+                await browserExpect(target).toBeInViewport();
+              } else await browserExpect(action).toBeFocused();
+            },
+            'queue',
+            `&moves&records=${Math.max(0, count - 2)}&queue-count=${count}`,
+            width,
+          );
+        });
+      }
+    }
+    for (const saved of [false, true]) {
+      for (const next of ['focus', 'tab', 'page'] as const) {
+        it(`${width}px queue completion (${saved}) respects a newer ${next}`, async () => {
+          await withPage(
+            async (page) => {
+              const action = page
+                .getByRole('list', { name: 'Your Play later games', exact: true })
+                .locator('[data-record-id="alpha"] .remove-library-action');
+              await page.evaluate(() => window.myGamesFixture.holdQueueRemovals());
+              await action.focus();
+              await page.keyboard.press('Enter');
+              await browserExpect.poll(() => page.evaluate(() => window.myGamesFixture.queueRemovalCount())).toBe(1);
+              const target =
+                next === 'tab'
+                  ? page.getByRole('button', { name: /^Library,/ })
+                  : next === 'page'
+                    ? page.getByRole('heading', { name: 'Play later results', exact: true })
+                    : page.getByRole('button', { name: 'Find games', exact: true });
+              if (next === 'tab') await target.press('Enter');
+              else if (next === 'page')
+                await page
+                  .getByRole('navigation', { name: 'Play later pages', exact: true })
+                  .getByRole('button', { name: 'Last', exact: true })
+                  .press('Enter');
+              else await target.focus();
+              await browserExpect(target).toBeFocused();
+              await page.evaluate((value) => window.myGamesFixture.finishQueueRemoval(value), saved);
+              if (saved)
+                await browserExpect(page.getByRole('button', { name: 'Play later, 26', exact: true })).toBeVisible();
+              await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+              await browserExpect(target).toBeFocused();
+            },
+            'queue',
+            '&moves&records=25',
+            width,
+          );
+        });
+      }
+    }
+  }
+
   for (const view of ['queue', 'ranking'] as const) {
     it(`${view} move arrows retain focus while saving, at edges, and after a refused save`, async () => {
       await withPage(

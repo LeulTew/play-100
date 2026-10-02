@@ -484,6 +484,7 @@
 }
 .record-title {
   display: block;
+  min-inline-size: 44px;
   min-height: 44px;
   text-align: left;
   background: transparent;

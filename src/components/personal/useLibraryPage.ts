@@ -23,6 +23,8 @@ import { focusMovedRecord } from './reorder-focus';
 import type { MoveDirection } from './reorder-focus';
 import { useRetainedRecords } from './useRetainedRecords';
 import { resolveLibraryPageCursor } from './library-page-cursor';
+import { captureControlFocus } from '../../lib/control-focus';
+import { visibleFocusTarget } from '../../lib/dialog-focus';
 
 export const LIBRARY_PAGE_SIZE = 25;
 
@@ -91,6 +93,14 @@ export function useLibraryPage({
   const focusAfterPage = useRef(false);
   const removalTrigger = useRef<HTMLElement | null>(null);
   const removalFocus = useRef<{ trigger: HTMLElement | null; generation: number } | null>(null);
+  const queueRemoval = useRef<ReturnType<typeof captureControlFocus> | null>(null);
+  const [removedQueue, setRemovedQueue] = useState<{
+    id: string;
+    neighbors: string[];
+    handoff: ReturnType<typeof captureControlFocus>;
+    isCurrent: () => boolean;
+  } | null>(null);
+  const followedQueueRemoval = useRef<typeof removedQueue>(null);
   const generation = useRef(0);
   const mounted = useRef(true);
   const queuePositions = useMemo(
@@ -189,6 +199,7 @@ export function useLibraryPage({
     return () => {
       mounted.current = false;
       generation.current += 1;
+      queueRemoval.current?.cancel();
       window.removeEventListener('popstate', restorePage);
     };
   }, []);
@@ -232,11 +243,53 @@ export function useLibraryPage({
     if (requested && active && requested.generation === generation.current && !requested.trigger?.isConnected)
       focusResults();
   }, [removing.length, active]);
+  useLayoutEffect(() => {
+    if (!removedQueue || followedQueueRemoval.current === removedQueue) return;
+    if (removedQueue.isCurrent() && (state.progress[removedQueue.id]?.later || pendingEdits)) return;
+    if (removedQueue.isCurrent()) {
+      const target = removedQueue.neighbors
+        .map(
+          (id) =>
+            queueResults.current?.querySelector<HTMLElement>(
+              `[data-record-id="${CSS.escape(id)}"] .remove-library-action`,
+            ) ?? null,
+        )
+        .find(visibleFocusTarget);
+      removedQueue.handoff.focus(target ?? resultsHeading.current);
+    } else removedQueue.handoff.cancel();
+    queueRemoval.current = null;
+    followedQueueRemoval.current = removedQueue;
+  }, [removedQueue, state, pendingEdits, active]);
+  const removeFromQueue = async (record: LibraryRecord, trigger: HTMLElement) => {
+    if (!active || busy || tab !== 'later' || queueRemoval.current) return;
+    const request = generation.current;
+    const scopeAndNavigation = captureFocusGuard();
+    const isCurrent = () =>
+      mounted.current && current.current.active && generation.current === request && scopeAndNavigation();
+    const handoff = captureControlFocus(trigger);
+    queueRemoval.current = handoff;
+    const index = records.findIndex((item) => item.id === record.id);
+    const neighbors = [...records.slice(index + 1), ...records.slice(0, index).reverse()].map((item) => item.id);
+    let saved = false;
+    try {
+      saved = await onAction({ type: 'set-progress', records: [record], key: 'later', value: false });
+      if (saved && isCurrent()) setRemovedQueue({ id: record.id, neighbors, handoff, isCurrent });
+    } catch (cause) {
+      console.error('The game could not be removed from Play later.', cause);
+      if (isCurrent()) setMoveError('The game could not be removed from Play later. Your list is unchanged; retry.');
+    } finally {
+      if (!saved || !isCurrent()) {
+        handoff.cancel();
+        if (queueRemoval.current === handoff) queueRemoval.current = null;
+      }
+    }
+  };
   const changePage = (offset: number) => {
     if ((busy && tab !== 'later') || !active || moving) return;
     setFollowMove(null);
     const next = getLocalPage(records.length, LIBRARY_PAGE_SIZE, offset);
     if (next.offset === page.offset) return;
+    queueRemoval.current?.cancel();
     const request = generation.current;
     void onPresentationChange(() => {
       if (!mounted.current || !current.current.active || generation.current !== request) return;
@@ -357,6 +410,7 @@ export function useLibraryPage({
     move,
     changePage,
     requestRemoval,
+    removeFromQueue,
     removeRecords,
     filtered,
     firstRunEmpty,

@@ -286,6 +286,8 @@ The play mark's triangle is intentionally made from transparent top/bottom borde
 Direct and compact. Standard buttons have a **48px minimum height**, a 12px internal gap and the frontmatter padding. Text actions have a 44px minimum height; icon buttons are 44px square. Keep the overall 44px touch-target floor.
 Primary header navigation also keeps a 44px minimum inline size, including
 Friends in the compact header at 768px, 851px and 1024px.
+Compact Library and Play later record titles also keep a 44px minimum inline
+size, even for short names such as Halo 3, without changing their wrapping.
 
 Dark, lime, outline, quiet and destructive variants use the extracted assignments. Outline buttons use a 1px `#a5ac98` border, changing to ink on hover. Disabled buttons use opacity `.45` and a `not-allowed` cursor. Button/link color, background-color and border-color transitions last 150ms.
 
@@ -437,6 +439,15 @@ Mutation feedback follows the public-detail controls, so a rating blur cannot
 insert a new message above a pressed Enable action and move its pointer target
 before the click completes. Online consent still waits for the registered save
 and cancels if the route or scope changes.
+
+When online consent removes its focused Enable control, focus moves to
+**Ratings from other sites** in the same current dialog, whether lookup succeeds
+or fails. A successful single Play later removal focuses the next surviving
+row action, then a previous one, or **Play later results** when the queue is
+empty; last-page removal waits for the clamped page to render. Refused writes
+keep the original control. Manual add remains focusable while saving and hands
+off to **Game title** only after clearing its own submitted draft. A newer draft,
+newer focus, navigation, hidden pane, or unmounted owner cancels these handoffs.
 
 Search and native selects use visible labels above 48px controls. A shared
 select shell centers its noninteractive SVG chevron on the value row, with the

@@ -63,6 +63,55 @@ async function retainPendingRetry(page: Page, retry: Locator, calls: () => numbe
 }
 
 for (const succeeds of [false, true]) {
+  for (const next of ['heading', 'newer focus', 'closed dialog'] as const) {
+    test(`enabling public details ${succeeds ? 'succeeds' : 'fails'} with ${next} preserved`, async ({ page }) => {
+      const response = heldResponse();
+      let calls = 0;
+      await page.route('**/api/catalog-detail?**', async (route) => {
+        calls++;
+        await response.waiting;
+        return succeeds
+          ? route.fulfill({ json: enrichmentFixture() })
+          : route.fulfill({ status: 503, json: { error: 'Synthetic enable refusal.' } });
+      });
+      try {
+        await page.goto('/discover?game=wikidata%3AQ15408545&q=Kingdomcome&catalogs=off');
+        const dialog = page.getByRole('dialog', { name: 'Kingdom Come: Deliverance', exact: true });
+        const enable = dialog.getByRole('button', { name: 'Enable online details', exact: true });
+        await enable.focus();
+        await page.keyboard.press('Enter');
+        await expect.poll(() => calls).toBe(1);
+        const heading = dialog.locator('#catalog-enrichment-title');
+        await expect(enable).toHaveCount(0);
+        await expectVisibleFocus(heading);
+        const newer = dialog.getByRole('button', { name: 'Completed', exact: true });
+        if (next === 'newer focus') await newer.focus();
+        if (next === 'closed dialog') {
+          await page.keyboard.press('Escape');
+          await expect(dialog).toHaveCount(0);
+        }
+        const retained = await page.evaluateHandle(() => document.activeElement);
+        response.release();
+        if (next !== 'closed dialog') {
+          const section = dialog.locator('.catalog-enrichment');
+          if (succeeds)
+            await expect(section.getByRole('list', { name: 'Separate external game ratings' })).toBeVisible();
+          else await expect(section.getByRole('button', { name: 'Retry public details', exact: true })).toBeVisible();
+          await expect(next === 'heading' ? heading : newer).toBeFocused();
+        } else {
+          await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+          expect(await retained.evaluate((element) => element === document.activeElement)).toBe(true);
+          await expect(dialog).toHaveCount(0);
+        }
+        await retained.dispose();
+      } finally {
+        response.release();
+      }
+    });
+  }
+}
+
+for (const succeeds of [false, true]) {
   for (const moveFocus of [false, true]) {
     test(`public-detail retry ${succeeds ? 'succeeds' : 'fails'} ${moveFocus ? 'without reclaiming newer focus' : 'without losing its focus location'}`, async ({
       page,
