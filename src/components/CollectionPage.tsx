@@ -400,8 +400,9 @@ function CollectionPage({
       <AfterFirstPaint now={filmsLinked} reserve={showcaseReserve}>
         {secondPass ? (
           <>
+            {/* A constrained device loads the films' module only once they are used, not as a scroll passes them. */}
             <DeferredCollection
-              near
+              load={constrained ? 'use' : 'near'}
               input={{ kind: 'films', props: { postersReady: collection.status !== 'loading' } }}
             />
             <AnimatedContent animate={animate} className="workbook-section">
