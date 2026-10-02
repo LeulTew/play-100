@@ -22,3 +22,4 @@ ui-debug.log*
 *service-account*.json
 *-firebase-adminsdk-*.json
 *.p12
+scripts/screen-reader-smoke/artifacts/

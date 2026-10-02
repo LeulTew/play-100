@@ -62,3 +62,4 @@
 /third-party/
 node_modules/
 /.git/
+scripts/screen-reader-smoke/artifacts/

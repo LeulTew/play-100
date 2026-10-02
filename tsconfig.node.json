@@ -19,5 +19,6 @@
     "noUncheckedSideEffectImports": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "playwright.config.ts", "playwright.floor.config.ts", "scripts/**/*.ts", "tests/**/*.ts", "api/**/*.ts", "src/vite-env.d.ts"]
+  "include": ["vite.config.ts", "playwright.config.ts", "playwright.floor.config.ts", "scripts/**/*.ts", "tests/**/*.ts", "api/**/*.ts", "src/vite-env.d.ts"],
+  "exclude": ["scripts/screen-reader-smoke/node_modules", "scripts/screen-reader-smoke/tests", "scripts/screen-reader-smoke/playwright.config.ts"]
 }

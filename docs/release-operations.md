@@ -51,9 +51,36 @@ risk for each waiver; an earlier client-first exception is not standing approval
 | Real Google Auth | Production desktop and mobile sign-in, link and reauthentication return signed in without CSP errors; emulator tests cannot certify real credentials, MFA or provider configuration. Reaching Google's sign-in page shows only that the redirect started; it is not a pass. |
 | WAF `api-per-ip` | Review seven days of Log hits; switch Log to 429 **no earlier than 2026-10-02**. Record review, decision and switch time. Log mode records matches and blocks nothing, so the rule is not an active control before that switch. Do not invent a completed switch or modify the log-only OWASP rules. |
 | Device and assistive technology | Physical low-end/mobile and iOS Safari, keyboard and screen-reader journeys, OS installation/launch/uninstall, real multi-window/two-version updates. Record devices and results or explicit waivers. Chromium emulation is not physical-device evidence. |
+| Screen-reader speech receipt | Dispatch [Screen reader smoke](#screen-reader-smoke) against the candidate origin; retain the run URL, both `receipt.json` files (origin and served `index.html` SHA-256), the NVDA, VoiceOver, Chrome and runner versions, and the per-journey phrase logs. Any failed journey stays a failure or an explicit owner waiver. It does not replace the physical-device row above. |
 
 See [iPhone Safari smoke](ios-safari.md) for the Mobile Safari simulator workflow,
 its retained results and the remaining physical-device boundary.
+
+### Screen reader smoke
+
+`.github/workflows/screen-reader-smoke.yml` is dispatch-only. It drives real
+NVDA with Chrome on `windows-2022` and real VoiceOver with Chrome on `macos-15`,
+through Guidepup pinned by `scripts/screen-reader-smoke/package-lock.json`.
+Input is keyboard only, sent through the screen reader; assertions read the
+captured speech log, not the accessibility tree.
+
+```sh
+gh workflow run screen-reader-smoke.yml --ref <branch> -f target_origin=<https origin>
+```
+
+Journeys: (a) Tab to a The 100 card, Enter opens the detail dialog, its name,
+heading and description are spoken with the description once, and Escape
+returns focus to the card; (b) NVDA browse mode activates a card heading and
+Escape returns focus to the card, not BODY; (c) Menu, Settings & backups, Lite
+speaks "Visual preference saved." and closing returns focus to Menu;
+(d) Discover search for `Portal` speaks the result count; (e) pinning a game for
+comparison speaks the confirmation and the tray state. A job fails when any
+journey fails. The `screen-reader-<reader>` artifact keeps the phrase logs,
+versions, `receipt.json` and failure screenshots for 30 days whatever the
+outcome. Release 7 is the failing baseline for (a), a doubled description, and
+(b), focus lost to BODY. Run the light checks with
+`npm run typecheck` in `scripts/screen-reader-smoke` and
+`npx vitest run --project unit scripts/screen-reader-smoke/src/speech.test.ts`.
 
 For consented Windows OS evidence, run
 `npm run release:pwa-os -- --url https://play-100-collection.vercel.app`
