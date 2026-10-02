@@ -524,12 +524,50 @@ readback requirements in §9 still apply.
 ### APB2 v3.2 campaign protocol
 
 APB2 remains a separately frozen performance campaign, not a result implied by
-the SW probe. The full `release:gate` includes a typed, fail-closed APB2 hook.
-The committed runner port is **pending** on this source baseline; do not
-substitute a smaller benchmark or claim a campaign pass from unit checks.
-Until the full fixture/collector graph is ported, retain the reviewed v3.2 frozen
-artifact set and its native suite, freeze, preview, source-binding and capture
-receipts together. Do not use files still changing during the active gate.
+`release:gate` or the SW probe. `npm run release:apb2` is the committed runner. It
+drives the digest-pinned v3.2 measurement set, which stays outside the repository:
+name its folder with `--protocol <dir>` or `PLAY100_APB2_PROTOCOL`, never by a
+path in the repository. Before it loads any of that set, the runner checks all 145
+files against `scripts/release-apb2-v32-files.ts` (plan-freeze-v3-2 `c6eba71b`),
+and checks the pinned configuration's profiles, journey order and budgets against
+`scripts/release-apb2-contract.ts`; any difference stops the run. Do not substitute
+a smaller benchmark or claim a campaign pass from unit checks, and do not use files
+still changing during the active gate.
+
+```sh
+npm run release:apb2 -- verify --protocol <dir>
+npm run release:apb2 -- stage --protocol <dir> --profile fine1440cpu1 --dist dist \
+  --evidence <evidence> --stage-id <name> --browser-version <Chrome> --quiet-attested
+npm run release:apb2 -- stage --protocol <dir> --profile coarse393cpu4 --dist dist \
+  --evidence <evidence> --stage-id <name> --browser-version <Chrome> --quiet-attested \
+  --previous-runtime <protocol>/round4-apb2/<fine stage>/runtime.json
+npm run release:apb2 -- collect --protocol <dir> --profile <id> --capture <capture> \
+  --dist dist --evidence <evidence> --name <name>
+```
+
+A stage runs on the gate runtime. It binds the clean HEAD, every file of the build
+and the hint-authority sources (`motion-hint`, `personal-db`, `scoped-library`,
+`App`) into `<evidence>/<stage-id>/`, sets the fixture's IndexedDB version from the
+committed `DB_VERSION`, serves the build read-only on `127.0.0.1:4199` and launches
+stock Chrome, whose version must equal `--browser-version`. It proves the setup
+guards and the ordinary-Pin preflight before timing, then the pinned adapter
+captures the fixed 72-context population under a 19-minute lease. The capture stays
+where the pinned adapter writes it (`<protocol>/round4-apb2/<stage-id>/capture`).
+Afterwards the runner checks that the owned Chrome and both ports are gone and
+re-checks HEAD, the build and the pinned set. It writes one JSON record per
+scheduled repetition, missing and failed ones included, with an index of SHA-256
+digests, and `table.json`: the pinned aggregation's rows beside rows recomputed in
+TypeScript from those records. The two must agree field by field.
+
+Exit code 0 means a complete capture whose gated rows all pass, 2 a complete
+capture with a gated row not passing, and 1 anything else; the receipts are kept in
+every case. A campaign stage needs `--quiet-attested`, the operator's attestation
+that no other test, server, emulator, build or WSL work runs on the host; the q40
+admission wait, the coordination marker and host covariates stay with the
+operator. `--smoke` runs the same path under a 3.5-minute lease, so it stops after
+the first contexts: it shows the runner works end to end, needs no attestation and
+makes no timing claim. `collect` re-collects a capture of the same HEAD, including
+one taken by another harness of the same pinned protocol.
 
 The hook calls `npm run release:apb2 -- --evidence NEW_DIRECTORY` with
 `PLAY100_APB2_SOURCE_COMMIT` and `PLAY100_APB2_SOURCE_TREE` set to the full
