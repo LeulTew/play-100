@@ -55,7 +55,7 @@ describe('shared author contact links', () => {
     for (const node of [createElement(SiteFooter), createElement(AboutDialog, { onClose: vi.fn() }), menu]) {
       const html = renderToStaticMarkup(node);
       expect(html).toContain(`Curated by <strong>${author.fullName}</strong>`);
-      expect(html.match(/class="author-links"/g)).toHaveLength(1);
+      expect(html.match(/class="author-links button-row"/g)).toHaveLength(1);
       for (const [, name, href] of expected) {
         expect(html).toContain(`aria-label="${name}"`);
         expect(html).toContain(`href="${href}"`);

@@ -22,9 +22,9 @@ export const author = {
 };
 
 export const authorLinks = [
-  ['github', `${shortName} on GitHub`, githubProfileUrl],
-  ['linkedin', `${shortName} on LinkedIn`, linkedinUrl],
-  ['telegram', `${shortName} on Telegram, ${telegramHandle}`, telegramUrl],
+  ['github', `${shortName} on GitHub (opens in a new tab)`, githubProfileUrl],
+  ['linkedin', `${shortName} on LinkedIn (opens in a new tab)`, linkedinUrl],
+  ['telegram', `${shortName} on Telegram, ${telegramHandle} (opens in a new tab)`, telegramUrl],
   ['email', `Email ${shortName} at ${email}`, `mailto:${email}`],
 ] as const;
 

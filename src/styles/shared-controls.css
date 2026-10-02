@@ -139,12 +139,6 @@
   font-size: 13px;
   line-height: 1.5;
 }
-.author-links {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
 .author-links .icon-button {
   color: var(--ink);
 }

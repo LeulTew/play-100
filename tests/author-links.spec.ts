@@ -29,13 +29,13 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function verifyLinks(surface: Locator) {
-  const group = surface.getByRole('navigation', { name: "Leul's links", exact: true });
+  const group = surface.getByRole('navigation', { name: 'Author links', exact: true });
   await expect(group.getByRole('link')).toHaveCount(4);
   for (const [index, [icon, name, href]] of links.entries()) {
     const link = group.getByRole('link').nth(index);
     await expect(link).toHaveAccessibleName(name);
     await expect(link).toHaveAttribute('href', href);
-    await expect(link).toHaveAttribute('title', name.replace(' (opens in a new tab)', ''));
+    await expect(link).toHaveAttribute('title', name);
     if (icon === 'email') await expect(link).not.toHaveAttribute('target');
     else {
       await expect(link).toHaveAttribute('target', '_blank');
