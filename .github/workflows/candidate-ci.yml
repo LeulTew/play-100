@@ -55,12 +55,13 @@ on:
         default: ''
       browser_env:
         description: >-
-          Playwright browser environment: the config as is, Chromium with background throttling off (added launch
-          args), or headed under Xvfb
+          Playwright browser environment: auto (headed under Xvfb for e2e-dev, the config as is otherwise), the config
+          as is, Chromium with background throttling off (added launch args), or headed under Xvfb
         type: choice
         required: false
-        default: default
+        default: auto
         options:
+          - auto
           - default
           - unthrottled
           - xvfb-headed

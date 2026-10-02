@@ -1033,7 +1033,12 @@ gate's builds and environment:
 - `e2e-offline` uses a build with every `VITE_FIREBASE_*` variable absent;
 - `e2e-dev` uses the configured development server; `playwright.config.ts` then
   matches only its source-fixture specs (`menu.spec.ts`, `public-browsing.spec.ts`
-  and the rest of that list), and other specs report "No tests found";
+  and the rest of that list), and other specs report "No tests found". It runs
+  headed under Xvfb: in headless Linux Chromium the background tab that a
+  modified click opens from the dev server stalls before Playwright sees it
+  (`menu.spec.ts` `:412` and `:532`), and disabling background throttling does
+  not help. The `browser_env` input overrides this (`default`, `unthrottled`,
+  `xvfb-headed`), and `identity.json` records the value used as `browserEnv`;
 - `cloud-rules` and `cloud-ui` use Java 21 and the pinned `firebase-tools`
   emulators (`demo-play100`, auth and Firestore). `cloud-rules` starts a fresh
   `emulators:exec` for each repeat, as the convergence loop does. `cloud-ui`

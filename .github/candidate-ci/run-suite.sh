@@ -11,6 +11,14 @@ unset CI GITHUB_SHA DEBUG
 : "${SUITE:?}" "${OUT:?}" "${REPEAT:=1}" "${PROJECT:=both}"
 mkdir -p "$OUT"
 read -r -a specs <<<"${SPECS:-}"
+# Headless Linux Chromium stalls the background tab that a modified click opens from the Vite dev server (menu.spec
+# :412 and :532, runs 36955190309 and 36958514072; disabling background throttling did not help, 36960546555), so the
+# dev suite runs headed under Xvfb (36960548687, 340/340). Recorded in identity.json as browserEnv.
+if [[ "${BROWSER_ENV:-auto}" == auto ]]; then
+  if [[ "$SUITE" == e2e-dev ]]; then BROWSER_ENV=xvfb-headed; else BROWSER_ENV=default; fi
+fi
+export BROWSER_ENV
+if [[ -n "${GITHUB_ENV:-}" ]]; then echo "BROWSER_ENV=$BROWSER_ENV" >>"$GITHUB_ENV"; fi
 
 playwright_projects() {
   case "$PROJECT" in
