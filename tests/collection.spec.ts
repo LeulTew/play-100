@@ -95,7 +95,8 @@ test('search and real filters survive reload and browser history', async ({ page
   await expect(page.locator('.game-card h3')).toHaveText('Mass Effect 2');
   await page.getByRole('button', { name: 'Reset filters', exact: true }).click();
   await openBrowsingFilters(page);
-  await page.getByLabel('Genre', { exact: true }).selectOption('Open-world / Action-Adventure');
+  await page.getByText('Exact source genre', { exact: true }).click();
+  await page.getByLabel('Exact genre label', { exact: true }).selectOption('Open-world / Action-Adventure');
   await page.getByLabel('Year', { exact: true }).selectOption('2018');
   await expect(page.locator('.game-card')).toHaveCount(1);
   await expect(page.locator('.game-card h3')).toHaveText(firstTitle);

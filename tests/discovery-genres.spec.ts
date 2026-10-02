@@ -319,10 +319,11 @@ test('saving a provider game keeps its exact genre in Saved additions without ch
   await expect.poll(async () => (await readLibrary(page)).records[record.id]?.genre).toBe(record.genre);
   await page.goto('/?catalogs=off');
   await openBrowsingFilters(page);
-  const genre = page.getByRole('combobox', { name: 'Genre', exact: true });
+  await page.getByText('Exact source genre', { exact: true }).click();
+  const genre = page.getByRole('combobox', { name: 'Exact genre label', exact: true });
   await expect(genre.locator('optgroup[label="Saved additions"] option')).toHaveText([record.genre]);
   expect(await genre.locator(':scope > option').allTextContents()).toEqual([
-    'All genres',
+    'All source labels',
     ...[...new Set(games.map((game) => game.genre))].sort((a, b) => a.localeCompare(b)),
   ]);
   await genre.selectOption(record.genre);

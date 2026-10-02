@@ -41,6 +41,7 @@ async function readNavigation(page: Page) {
         const rect = item.getBoundingClientRect();
         const label = item.querySelector('span')!;
         const text = label.getBoundingClientRect();
+        const labelHidden = getComputedStyle(label).clipPath === 'inset(50%)';
         const words: { word: string; lines: number; inside: boolean }[] = [];
         const walker = document.createTreeWalker(label, NodeFilter.SHOW_TEXT);
         while (walker.nextNode()) {
@@ -58,13 +59,20 @@ async function readNavigation(page: Page) {
         }
         return {
           label: label.textContent,
+          active: item.getAttribute('aria-current') === 'page',
+          labelHidden,
           words,
           font: Number.parseFloat(getComputedStyle(label).fontSize),
           width: rect.width,
           height: rect.height,
           labelWidth: text.width,
           labelHeight: text.height,
-          hit: item.contains(document.elementFromPoint(text.x + text.width / 2, text.y + text.height / 2)),
+          hit: item.contains(
+            document.elementFromPoint(
+              labelHidden ? rect.x + rect.width / 2 : text.x + text.width / 2,
+              labelHidden ? rect.y + rect.height / 2 : text.y + text.height / 2,
+            ),
+          ),
           inside:
             rect.left >= bounds.left &&
             rect.right <= bounds.right &&
@@ -77,6 +85,7 @@ async function readNavigation(page: Page) {
 }
 
 async function assertNavigation(page: Page) {
+  await expect(page.locator('#root .mobile-nav')).toBeVisible();
   const actual = await readNavigation(page);
   expect(actual.items.map((item) => item.label)).toEqual(labels);
   expect(actual.items.map((item) => item.font)).toEqual([12, 12, 12, 12, 12]);
@@ -90,6 +99,14 @@ async function assertNavigation(page: Page) {
     expect(item.labelHeight).toBeLessThanOrEqual(actual.compareReserved ? 44 : 22);
     expect(item.inside).toBe(true);
     expect(item.hit).toBe(true);
+    // UX-023r: the narrow pinned layout keeps the active label visible and all five targets accessibly named.
+    const hiddenLabel = actual.compareReserved && actual.width <= 380 && !item.active;
+    expect(item.labelHidden, `${item.label}: only inactive narrow pinned labels are visually hidden`).toBe(hiddenLabel);
+    if (hiddenLabel) {
+      expect(item.labelWidth).toBe(1);
+      expect(item.labelHeight).toBe(1);
+      continue;
+    }
     for (const word of item.words) {
       expect(word.lines, `${item.label}: ${word.word} must not break mid-word`).toBe(1);
       expect(word.inside, `${item.label}: ${word.word} must stay inside its target`).toBe(true);
@@ -210,7 +227,7 @@ for (const viewport of [
 }
 
 for (const width of [320, 360, 393]) {
-  test(`all five mobile navigation labels stay readable and reachable at ${width}px without changing dock clearance`, async ({
+  test(`all five mobile navigation targets stay named and reachable with a readable active label at ${width}px`, async ({
     page,
     isMobile,
   }, info) => {
@@ -315,6 +332,7 @@ test('desktop stays unchanged and native 200 percent browser zoom keeps the five
         : route.abort('blockedbyclient'),
     );
     await enlarged.goto('/?catalogs=off');
+    await expect(enlarged.locator('#root .game-card')).toHaveCount(24);
     const actual = await assertNavigation(enlarged);
     expect(actual.width).toBe(720);
     expect(actual.dpr).toBe(2);

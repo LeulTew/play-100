@@ -3,6 +3,12 @@ import { openBrowsingFilters } from './browsing-helpers';
 import { installGuestLibrary, libraryFixture } from './library-pagination-helpers';
 import { rankingFixture } from './ranking-pagination-helpers';
 import { readLibrary } from './library-helpers';
+import { loadEnv } from 'vite';
+import { readFirebaseConfiguration } from '../src/lib/online-config';
+
+const mode = process.env.PLAY100_TEST_BUILD === 'development' ? 'development' : 'production';
+const onlineAvailable =
+  readFirebaseConfiguration({ ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env }).config !== null;
 
 test.beforeEach(async ({ page, baseURL }) => {
   if (!baseURL || !['127.0.0.1', 'localhost'].includes(new URL(baseURL).hostname))
@@ -215,6 +221,7 @@ test('Menu shows a visible external-destination cue for Data use', async ({ page
 });
 
 test('guest Community states its purpose and retains one publish action during request failure', async ({ page }) => {
+  test.skip(!onlineAvailable, 'Community requires a configured build; offline navigation has no Community route.');
   await page.goto('/community');
   await expect(page.getByText('Browse rankings people chose to list publicly.', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Publish (a )?ranking$/ })).toHaveCount(1);

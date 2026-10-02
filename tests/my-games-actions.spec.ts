@@ -14,13 +14,17 @@ test('mobile Play later rows keep Rank and delete together without a repeated pr
   await page.evaluate(() => document.fonts.ready);
   const list = page.getByRole('list', { name: 'Your Play later games' });
   const heights: number[] = [];
-  for (const record of rankedRecords) {
+  for (const [index, record] of rankedRecords.entries()) {
     const row = list.locator(`[data-record-id="${record.id}"]`);
     await row.scrollIntoViewIfNeeded();
     await expect(row.locator('.play-state')).toBeHidden();
-    const rank = row.getByRole('button', { name: `Add ${record.title} to my ranking`, exact: true });
+    const rank = row.getByRole('link', {
+      name: `Ranked #${index + 1}: ${record.title}. Open in Ranking`,
+      exact: true,
+    });
     const remove = row.getByRole('button', { name: `Remove from Play later: ${record.title}`, exact: true });
-    await expect(rank).toHaveText('Rank');
+    await expect(rank).toHaveText(`Ranked #${index + 1}`);
+    await expect(rank).toHaveAttribute('href', `/my-games?tab=ranking#${new URLSearchParams({ rank: record.id })}`);
     const pin = row.locator('.compare-pin');
     await expect(pin).toHaveAccessibleName(`Pin for comparison: ${record.title}`);
     await expect(pin).toHaveText('Pin');

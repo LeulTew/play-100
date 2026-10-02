@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import type { CatalogArtwork } from '../../lib/discovery-catalog-shared';
 import type { LibraryRecord } from '../../lib/personal-types';
 import type { LibraryPageProps } from './LibraryPage';
@@ -7,6 +8,7 @@ import { CompletedToggle } from '../CompletedToggle';
 import { CompareDragSource } from '../compare-tray/CompareDragSource';
 import { ComparePinButton } from '../compare-tray/ComparePinButton';
 import { RecordIdentity } from './RecordIdentity';
+import { captureControlFocus } from '../../lib/control-focus';
 
 export function LibraryRecordRow({
   record,
@@ -42,6 +44,35 @@ export function LibraryRecordRow({
   requestRemoval: (records: LibraryRecord[], trigger: HTMLElement) => void;
   removeFromQueue: (record: LibraryRecord, trigger: HTMLElement) => Promise<void>;
 }) {
+  const rankedLink = useRef<HTMLAnchorElement>(null);
+  const rankFocus = useRef<ReturnType<typeof captureControlFocus> | null>(null);
+  useLayoutEffect(
+    () => () => {
+      rankFocus.current?.cancel();
+      rankFocus.current = null;
+    },
+    [record.id, active],
+  );
+  useLayoutEffect(() => {
+    if (!rankingPosition || !rankFocus.current) return;
+    rankFocus.current.focus(rankedLink.current);
+    rankFocus.current = null;
+  }, [rankingPosition]);
+  const addToRanking = async (control: HTMLButtonElement) => {
+    if (busy) return;
+    rankFocus.current?.cancel();
+    const handoff = captureControlFocus(control);
+    rankFocus.current = handoff;
+    let saved = false;
+    try {
+      saved = await onAction({ type: 'add-ranking', records: [record] });
+    } finally {
+      if (!saved) {
+        handoff.cancel();
+        if (rankFocus.current === handoff) rankFocus.current = null;
+      }
+    }
+  };
   return (
     <CompareDragSource record={record} disabled={!active}>
       {(binding) => (
@@ -109,6 +140,7 @@ export function LibraryRecordRow({
             <span className="record-tail">
               {rankingPosition ? (
                 <a
+                  ref={rankedLink}
                   className="text-button"
                   href={`/my-games?tab=ranking#${new URLSearchParams({ rank: record.id })}`}
                   aria-label={`Ranked #${rankingPosition}: ${record.title}. Open in Ranking`}
@@ -131,9 +163,7 @@ export function LibraryRecordRow({
                   className="text-button"
                   aria-disabled={busy || undefined}
                   aria-label={`Add ${record.title} to my ranking`}
-                  onClick={() => {
-                    if (!busy) void onAction({ type: 'add-ranking', records: [record] });
-                  }}
+                  onClick={(event) => void addToRanking(event.currentTarget)}
                 >
                   <Icon name="rank" width="20" height="20" />
                   Rank

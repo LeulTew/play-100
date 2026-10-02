@@ -395,9 +395,7 @@ for (const surface of [
   'rating order',
 ] as const) {
   for (const rejected of [false, true]) {
-    test(`${surface} Enter keeps the same focused control through ${rejected ? 'rejection' : 'saving'}`, async ({
-      page,
-    }) => {
+    test(`${surface} Enter keeps action focus through ${rejected ? 'rejection' : 'saving'}`, async ({ page }) => {
       const control = await openControl(page, surface);
       const before = await readLibrary(page);
       const handle = await control.elementHandle();
@@ -421,15 +419,37 @@ for (const surface of [
             })
             .first(),
         ).toBeVisible();
-        await expect
-          .poll(() => handle.evaluate((element) => element.isConnected && document.activeElement === element))
-          .toBe(true);
+        if (surface === 'library rank' && !rejected) {
+          await expect(page.getByRole('link', { name: /^Ranked #1:.*\. Open in Ranking$/ })).toBeFocused();
+          expect(await handle.evaluate((element) => element.isConnected)).toBe(false);
+        } else {
+          await expect
+            .poll(() => handle.evaluate((element) => element.isConnected && document.activeElement === element))
+            .toBe(true);
+        }
         if (rejected) expect(await readLibrary(page)).toEqual(before);
         else await expect.poll(async () => (await readLibrary(page)).revision).toBe(before.revision + 1);
       }, [() => held.evaluate((probe) => probe.restore()), () => held.dispose(), () => handle.dispose()]);
     });
   }
 }
+
+test('a saved library Rank does not steal a newer focus when its Ranked link appears', async ({ page }) => {
+  const control = await openControl(page, 'library rank');
+  const before = await readLibrary(page);
+  const held = await holdWrite(page, false);
+  await withActionCleanup(async () => {
+    await control.focus();
+    await control.press('Enter');
+    await expect.poll(() => held.evaluate((probe) => probe.state.held)).toBe(true);
+    const next = page.getByRole('searchbox', { name: 'Search your library', exact: true });
+    await next.focus();
+    await held.evaluate((probe) => probe.release());
+    await expect(page.getByRole('link', { name: /^Ranked #1:.*\. Open in Ranking$/ })).toBeVisible();
+    await expect(next).toBeFocused();
+    await expect.poll(async () => (await readLibrary(page)).revision).toBe(before.revision + 1);
+  }, [() => held.evaluate((probe) => probe.restore()), () => held.dispose()]);
+});
 
 for (const name of [
   'Add to Play later',
