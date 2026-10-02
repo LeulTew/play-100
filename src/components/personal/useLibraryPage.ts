@@ -56,17 +56,16 @@ export function useLibraryPage({
         ? 'later'
         : 'all';
   const { page: hostPage, libraryPage: urlPage, changeLibraryPage: changeUrlPage } = useUrlState();
-  const usesUrlPage = tab !== 'later' && (hostPage === 'games' || hostPage === 'library' || hostPage === 'rankings');
+  // My games keeps the Library and Play later page in ?page=, so Back and reload return to it (UX-033).
+  const usesUrlPage = hostPage === 'games' || hostPage === 'library' || hostPage === 'rankings';
   const [localPage, setLocalPage] = useState(1);
-  const [queuePage, setQueuePage] = useState(1);
-  const libraryPage = tab === 'later' ? queuePage : usesUrlPage ? urlPage : localPage;
+  const libraryPage = usesUrlPage ? urlPage : localPage;
   const changeLibraryPage = useCallback(
     (nextPage: number, method: 'push' | 'replace' = 'push') => {
-      if (tab === 'later') setQueuePage(nextPage);
-      else if (usesUrlPage) changeUrlPage(nextPage, method);
+      if (usesUrlPage) changeUrlPage(nextPage, method);
       else setLocalPage(nextPage);
     },
-    [tab, usesUrlPage, changeUrlPage],
+    [usesUrlPage, changeUrlPage],
   );
   const pendingEdits = usePendingEdits();
   const mode = useLibraryMode();
@@ -83,6 +82,7 @@ export function useLibraryPage({
     direction?: MoveDirection;
     origin: Element | null;
     isCurrent: () => boolean;
+    followPage: () => void;
   } | null>(null);
   const followedMove = useRef<typeof followMove>(null);
   const [pageCue, setPageCue] = useState<CommittedCue | null>(null);
@@ -149,20 +149,18 @@ export function useLibraryPage({
     ) {
       setCursor(nextCursor);
     }
-    if (active && !usesUrlPage && libraryPage !== boundedPage) {
-      if (tab === 'later') setQueuePage(boundedPage);
-      else setLocalPage(boundedPage);
-    }
+    if (active && !usesUrlPage && libraryPage !== boundedPage) setLocalPage(boundedPage);
   }
+  const holdQueuePage = tab === 'later' && pendingEdits;
   useEffect(() => {
     // The removal dialog resolves its neighboring focus before the resulting URL clamp advances navigation.
-    if (active && usesUrlPage && libraryPage !== boundedPage && removing.length === 0)
+    if (active && usesUrlPage && !holdQueuePage && libraryPage !== boundedPage && removing.length === 0)
       changeUrlPage(boundedPage, 'replace');
-  }, [active, usesUrlPage, libraryPage, boundedPage, removing.length, changeUrlPage]);
-  const current = useRef({ active, definition, total: records.length, offset: page.offset, libraryPage, state });
+  }, [active, usesUrlPage, holdQueuePage, libraryPage, boundedPage, removing.length, changeUrlPage]);
+  const current = useRef({ active, tab, definition, total: records.length, offset: page.offset, libraryPage, state });
   useLayoutEffect(() => {
     if (current.current.active !== active || current.current.definition !== definition) generation.current += 1;
-    current.current = { active, definition, total: records.length, offset: page.offset, libraryPage, state };
+    current.current = { active, tab, definition, total: records.length, offset: page.offset, libraryPage, state };
   });
   useCommittedCue(
     pageBoundary,
@@ -187,7 +185,7 @@ export function useLibraryPage({
       if (
         current.current.active &&
         ['games', 'library'].includes(pageFromPath(pathname)) &&
-        myGamesTab(pathname, search) === 'library' &&
+        myGamesTab(pathname, search) === (current.current.tab === 'later' ? 'queue' : 'library') &&
         parseLibraryPage(search) !== current.current.libraryPage
       ) {
         focusAfterPage.current = true;
@@ -228,12 +226,24 @@ export function useLibraryPage({
     if (page.offset !== offset) {
       pageCueLease.current = generation.current;
       setPageCue({ serial: ++pageCueSerial.current, kind: 'library-page', direction: offset > page.offset ? 1 : -1 });
-      setQueuePage(offset / LIBRARY_PAGE_SIZE + 1);
+      changeLibraryPage(offset / LIBRARY_PAGE_SIZE + 1, 'replace');
+      followMove.followPage();
       return;
     }
     if (!focusMovedRecord(queueResults.current, followMove.id, followMove.direction, followMove.origin)) return;
     followedMove.current = followMove;
-  }, [followMove, active, busy, moving, pendingEdits, tab, queuePositions, state.revision, page.offset]);
+  }, [
+    followMove,
+    active,
+    busy,
+    moving,
+    pendingEdits,
+    tab,
+    queuePositions,
+    state.revision,
+    page.offset,
+    changeLibraryPage,
+  ]);
   useLayoutEffect(() => {
     if (!removedQueue || followedQueueRemoval.current === removedQueue) return;
     if (removedQueue.isCurrent() && (state.progress[removedQueue.id]?.later || pendingEdits)) return;
@@ -315,9 +325,13 @@ export function useLibraryPage({
     if (!active || busy || !canReorder || moveCommand.current) return;
     const origin = document.activeElement;
     const request = generation.current;
-    const scopeAndNavigation = captureFocusGuard();
+    let scopeAndNavigation = captureFocusGuard();
     const isCurrent = () =>
       mounted.current && current.current.active && generation.current === request && scopeAndNavigation();
+    // The move's own ?page= change is a navigation, so the guard restarts after it rather than rejecting it.
+    const followPage = () => {
+      scopeAndNavigation = captureFocusGuard();
+    };
     moveCommand.current = true;
     setMoving(true);
     setMoveError('');
@@ -339,7 +353,16 @@ export function useLibraryPage({
         setMoveError('The position could not be saved. Play later has not changed; retry.');
         return;
       }
-      setFollowMove({ id, position: to + 1, offset: current.current.offset, revision, direction, origin, isCurrent });
+      setFollowMove({
+        id,
+        position: to + 1,
+        offset: current.current.offset,
+        revision,
+        direction,
+        origin,
+        isCurrent,
+        followPage,
+      });
     } catch (cause) {
       console.error('The Queue change could not finish.', cause);
       if (isCurrent()) setMoveError('Play later could not be changed. Your current view is still open; retry.');
