@@ -35,12 +35,13 @@ differ from `PWA_BUDGET`.
   `npx tsx scripts/css-unused.ts` lists classes that no source file produces.
 - **Chunks.** Rolldown chooses the chunks. The `app-shared` group in [`vite.config.ts`](../vite.config.ts) keeps the
   entry's whole static closure in one chunk, so already-eager modules are not split into small chunks of their own,
-  without adding steering imports to that eager closure. The deferred
-  [`OnlineController`](../src/cloud/OnlineController.tsx) does retain three bare
-  imports to preserve named offline-core entry chunks for idle-preloaded tools;
-  `online-bridge-closure.test.ts` guards that requirement.
-  [`scripts/app-shared-chunk.ts`](../scripts/app-shared-chunk.ts) lists
-  the modules that anchor it; dynamic imports stay separate, and the eager-module guard checks that boundary.
+  without adding steering imports to that eager closure.
+  [`scripts/app-shared-chunk.ts`](../scripts/app-shared-chunk.ts) lists the modules that anchor it; dynamic imports
+  stay separate, and the eager-module guard checks that boundary. A second group gives each idle-preloaded tool that the
+  deferred online bridge also loads statically its own chunk (`google-intent`, `comparison-game-filter` and
+  `friend-comparison-intent`), so the offline core can precache it; without it Rolldown folds them into an unnamed
+  shared chunk. [`scripts/preloaded-tool-chunks.ts`](../scripts/preloaded-tool-chunks.ts) lists them and finds their
+  facade-less manifest entries, and `online-bridge-closure.test.ts` fails when the bridge loads a preloaded tool it leaves out.
 
 ## Low-end phones
 

@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
 import { motionHintKey } from '../src/lib/motion-hint';
 import { onlinePageRoots } from './online-module-helpers';
+import { manifestEntry } from '../scripts/preloaded-tool-chunks';
 
 declare global {
   interface Window {
@@ -65,9 +66,9 @@ for (const policy of [
   }) => {
     const manifest = await readBuildManifest(path.join(process.cwd(), 'dist'));
     const files = roots.map((root) => {
-      const entry = manifest[root];
+      const entry = manifestEntry(manifest, root);
       if (!entry) throw new Error(`Missing separately emitted tool: ${root}`);
-      return `/${entry.file}`;
+      return `/${entry.chunk.file}`;
     });
     const requested = new Set<string>();
     const catalogRequests: string[] = [];
