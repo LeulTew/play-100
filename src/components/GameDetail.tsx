@@ -117,6 +117,7 @@ export function GameDetail({
     <Dialog
       open
       titleId="game-title"
+      descriptionId="game-description"
       onClose={onClose}
       getOpener={getOpener}
       getFallbackFocus={() => visibleGameTrigger(game.slug)}
@@ -125,7 +126,7 @@ export function GameDetail({
     >
       <div className="detail-top" ref={topRef}>
         <div className="detail-place">
-          <span>#{String(game.rank).padStart(2, '0')} in the collection</span>
+          <span id="game-description">#{String(game.rank).padStart(2, '0')} in the collection</span>
           <span>{game.tier === 'core' ? 'Core 50' : 'Essential 50'}</span>
         </div>
         <h2 id="game-title" tabIndex={-1} data-autofocus>

@@ -320,7 +320,10 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html.split(rationale)).toHaveLength(2);
     const dialog = html.match(/<dialog\b[^>]*>/)?.[0];
     expect(dialog).toContain('aria-labelledby="game-title"');
-    expect(dialog).not.toContain('aria-describedby');
+    expect(dialog).toContain('aria-describedby="game-description"');
+    expect(html).toContain(
+      `<span id="game-description">#${String(game.rank).padStart(2, '0')} in the collection</span>`,
+    );
     expect(dialog).not.toContain('aria-description');
     expect(html.match(/Why it made the list/g)).toHaveLength(1);
     expect(html.indexOf(rationale)).toBeLessThan(html.indexOf('Existing saved copies'));

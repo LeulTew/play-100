@@ -72,6 +72,7 @@ for (const view of ['grid', 'list', 'table']) {
     const scroll = await activateWithoutFocus(page, opener);
     const dialog = page.getByRole('dialog', { name: game.title, exact: true });
     await expect(dialog.locator('#game-title')).toBeFocused();
+    expect(await page.evaluate(() => window.detailFocusEvents)).toEqual(['game-title']);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(opener).toBeFocused();
@@ -79,14 +80,20 @@ for (const view of ['grid', 'list', 'table']) {
   });
 }
 
-test('game detail has one native initial focus and no body-text accessible description', async ({ page }) => {
+test('game detail has one native initial focus, no click action and a short explicit description', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/?catalogs=off');
   const opener = page.locator(`[data-game="${game.slug}"] .game-link`);
-  await activateWithoutFocus(page, opener);
+  await opener.focus();
+  await opener.press('Enter');
   const dialog = page.getByRole('dialog', { name: game.title, exact: true });
   await expect(dialog.locator('#game-title')).toBeFocused();
   expect(await page.evaluate(() => window.detailFocusEvents)).toEqual(['game-title']);
-  await expect(dialog).toHaveAccessibleDescription('');
+  const summary = `#${String(game.rank).padStart(2, '0')} in the collection`;
+  await expect(dialog).toHaveAccessibleDescription(summary);
+  expect(await dialog.evaluate((element) => element.onclick)).toBeNull();
   await expect(dialog.locator('.rationale')).toHaveCount(1);
   await expect(dialog.locator('.rationale')).toHaveText(game.rationale);
   const client = await page.context().newCDPSession(page);
@@ -102,13 +109,39 @@ test('game detail has one native initial focus and no body-text accessible descr
       );
     if (!found) throw new Error('The named game dialog is absent from the accessibility tree.');
     const description = isRecord(found.description) ? found.description.value : '';
-    expect(description).toBe('');
+    expect(description).toBe(summary);
+    expect(summary.length).toBeLessThan(60);
     const sentences = await dialog.locator('p').allTextContents();
     expect(sentences.map((text) => text.trim())).toContain(game.rationale);
     for (const text of sentences.filter((value) => value.trim())) expect(description).not.toContain(text.trim());
   } finally {
     await client.detach();
   }
+});
+
+test('the dialog has no synthetic click action but genuine backdrop gestures still close it', async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto('/?catalogs=off');
+  const opener = page.locator(`[data-game="${game.slug}"] .game-link`);
+  const before = await activateWithoutFocus(page, opener);
+  const dialog = page.getByRole('dialog', { name: game.title, exact: true });
+  await expect(dialog.locator('#game-title')).toBeFocused();
+  await dialog.evaluate((element: HTMLDialogElement) => element.click());
+  await expect(dialog).toBeVisible();
+  const heading = await dialog.locator('#game-title').boundingBox();
+  if (!heading) throw new Error('The native heading must remain visible.');
+  await page.mouse.move(heading.x + heading.width / 2, heading.y + heading.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(1, 1);
+  await page.mouse.up();
+  await expect(dialog).toBeVisible();
+  if (isMobile) await page.touchscreen.tap(1, 1);
+  else await page.mouse.click(1, 1);
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(before);
 });
 
 test('a directly linked game returns to its rendered card when no activation exists', async ({ page }) => {

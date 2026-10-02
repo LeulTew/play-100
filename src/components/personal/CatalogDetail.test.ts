@@ -32,6 +32,15 @@ function renderDetail(overrides: Partial<CatalogDetailProps> = {}) {
 }
 
 describe('catalog detail artwork continuity surface', () => {
+  it('names its short source summary as the description instead of the dialog body', () => {
+    const { html } = renderDetail();
+    expect(html).toContain('aria-describedby="catalog-game-description"');
+    const summary = html.match(/<p id="catalog-game-description" class="dialog-lead">([^<]+)<\/p>/)?.[1];
+    expect(summary).toBeDefined();
+    expect(summary!.length).toBeLessThan(100);
+    expect(summary).not.toMatch(/rating|Preview only|progress/);
+  });
+
   it.each([
     [false, false],
     [false, true],
