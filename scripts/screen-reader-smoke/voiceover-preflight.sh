@@ -8,6 +8,13 @@
 # retries, so a broken host fails here with diagnostics instead of inside every journey.
 set -uo pipefail
 
+# It widens the TCC grants of shells and Node, so it runs only on an ephemeral GitHub-hosted runner, never on a
+# workstation or a self-hosted runner.
+if [ "${GITHUB_ACTIONS:-}" != true ] || [ "${RUNNER_ENVIRONMENT:-}" != github-hosted ]; then
+  echo "voiceover-preflight.sh runs only on GitHub-hosted runners" >&2
+  exit 2
+fi
+
 out="${1:-artifacts/voiceover}"
 mkdir -p "$out"
 diag="$out/voiceover-preflight.txt"
