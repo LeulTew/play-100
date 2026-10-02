@@ -47,7 +47,7 @@ saving consent. Guest data is not automatically adopted or published.
 Legacy lists migrate after an atomic IndexedDB commit. Backups remain available
 locally. No Supabase, paid Firebase features or remote avatar API is used.
 Public profiles contain only an explicitly previewed snapshot; notes, email,
-queue and play history are excluded. Directory listing is separately opt-in.
+Play later and play history are excluded. Directory listing is separately opt-in.
 The creator can inspect consenting account profiles and ranking summaries.
 The creator UI does not load private notes, but the database operator can
 technically access stored private data.
@@ -99,7 +99,7 @@ PUBLIC CATALOG METADATA
 Wikidata structured data is available under CC0.
 https://www.wikidata.org/wiki/Wikidata:Data_access
 Records retain their Wikidata entity links. Discovery uses a conservative direct
-video-game classification and is not an exhaustive census.
+video-game classification. Wikidata lists many games, not all.
 
 Game data from FreeToGame:
 https://www.freetogame.com/

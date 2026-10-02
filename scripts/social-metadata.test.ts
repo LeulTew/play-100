@@ -49,6 +49,9 @@ describe('public social metadata', () => {
     }
     expect(meta('og:image:alt')).toBe('Play 100. Good games. Great escapes. One hundred games worth making time for.');
     expect(meta('og:title')).toBe('Play 100 — Good games. Great escapes.');
+    expect(meta('description', 'name')).toContain('save games to Play later');
+    expect(meta('og:description')).toContain('save games to Play later');
+    expect(html.match(/<noscript>([\s\S]*?)<\/noscript>/)?.[1]).toContain('your private Play later list');
   });
 
   it('matches the hero and social artwork tagline and declares both SVG and PNG favicons', () => {

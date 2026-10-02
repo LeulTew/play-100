@@ -247,7 +247,7 @@ describe('generated public PWA build closure', () => {
       theme_color: '#f3f3e9',
       background_color: '#f3f3e9',
       name: 'Play 100',
-      description: 'A personal collection of games, with your own library, queue and rankings.',
+      description: 'A personal collection of games, with your own library, Play later and rankings.',
       categories: ['games', 'entertainment'],
     });
     expect(data.icons).toEqual(
@@ -268,7 +268,7 @@ describe('generated public PWA build closure', () => {
     ) as WebAppManifest;
     const shortcuts = [
       { name: 'Library', description: 'Open your saved games.', url: '/my-games', tab: 'library' },
-      { name: 'Queue', description: 'Choose what to play next.', url: '/my-games?tab=queue', tab: 'queue' },
+      { name: 'Play later', description: 'Games to play next.', url: '/my-games?tab=queue', tab: 'queue' },
       { name: 'Ranking', description: 'Open your personal ranking.', url: '/my-games?tab=ranking', tab: 'ranking' },
     ];
     const icons = [{ src: '/pwa/icon-192.png', sizes: '192x192', type: 'image/png' }];

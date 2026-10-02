@@ -30,6 +30,44 @@ afterEach(async () => {
 });
 
 describe('same-origin catalog API boundary', () => {
+  it('explains Wikidata coverage and uncertain years in plain language', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn<Upstream>()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              query: { search: [{ title: 'Q1' }], searchinfo: { totalhits: 1 } },
+            }),
+            { headers: JSON_TYPE },
+          ),
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              entities: {
+                Q1: {
+                  labels: { en: { value: 'Synthetic game' } },
+                  claims: { P31: [{ mainsnak: { snaktype: 'value', datavalue: { value: { id: 'Q7889' } } } }] },
+                },
+              },
+            }),
+            { headers: JSON_TYPE },
+          ),
+        ),
+    );
+    const response = await nativeFetch(`${base}/api/catalog?source=wikidata&q=Synthetic`);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      items: [{ title: 'Synthetic game', year: null }],
+      notices: [
+        'Wikidata lists many games, not all. This search includes entries classified as video games. Its structured data is CC0.',
+        'A year appears only when the sources agree on one.',
+      ],
+    });
+  });
+
   it.each([
     'source=steam',
     'offset=-1',

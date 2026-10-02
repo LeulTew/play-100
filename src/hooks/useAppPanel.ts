@@ -54,7 +54,7 @@ export function useAppPanel(scope: string, opening: boolean) {
     prefetchStop.current = scheduleIdlePrefetch(loadSecondaryDialogs, 150, 'intent');
   }, []);
   const loadPanel = useCallback((next: 'about' | 'settings', request: number) => {
-    const title = next === 'about' ? 'credits' : 'Settings';
+    const title = next === 'about' ? 'About & credits' : 'Settings';
     noticeTimer.current = setTimeout(() => {
       if (alive.current && generation.current === request) setMessage({ text: `Opening ${title}…`, error: false });
     }, 500);
@@ -73,7 +73,7 @@ export function useAppPanel(scope: string, opening: boolean) {
         );
         if (alive.current && generation.current === request) {
           clearTimeout(noticeTimer.current);
-          setMessage({ text: `${next === 'about' ? 'Credits' : title} didn't load.`, error: true });
+          setMessage({ text: `${title} didn't load.`, error: true });
           setPanelFailure(next);
         }
       });

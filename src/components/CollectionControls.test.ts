@@ -65,9 +65,7 @@ describe('collection result scope and accessible names', () => {
       );
       const button = html
         .match(/<button\b[^>]*>[\s\S]*?<\/button>/g)
-        ?.find((value) =>
-          value.endsWith(`</svg>${selecting ? 'Exit selection mode' : 'Select multiple games'}</button>`),
-        );
+        ?.find((value) => value.endsWith(`</svg>${selecting ? 'Done selecting' : 'Select multiple games'}</button>`));
       expect(button).toBeDefined();
       expect(button).not.toContain('aria-pressed');
       expect(html).toContain('Core 50 · #1–50');

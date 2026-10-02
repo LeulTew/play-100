@@ -36,21 +36,25 @@ describe('private library removal copy', () => {
   it('uses singular consequences and cancellation for one remaining game', () => {
     const html = render(records.slice(0, 1));
     expect(html).toContain('Remove this game?</h2>');
-    expect(html).toContain('its saved entry, Play later position, played/completed marks, personal rating and note');
+    expect(html).toContain(
+      'its saved entry, Play later position, Played and Completed marks, personal rating and note',
+    );
     expect(html).toContain('Keep game</button>');
     expect(html).not.toContain('Keep games');
     expect(html).toContain('Remove 1 game</button>');
     expect(html).toContain('This cannot be undone.');
+    expect(html).toContain('choose Keep game and export a backup from Settings first.');
   });
 
   it('preserves plural consequences and cancellation for multiple games', () => {
     const html = render(records);
     expect(html).toContain('Remove 2 games?</h2>');
     expect(html).toContain(
-      'their saved entries, Play later positions, played/completed marks, personal ratings and notes',
+      'their saved entries, Play later positions, Played and Completed marks, personal ratings and notes',
     );
     expect(html).toContain('Keep games</button>');
     expect(html).toContain('Remove 2 games</button>');
+    expect(html).toContain('choose Keep games and export a backup from Settings first.');
   });
 
   it('uses the remaining count when another client removed one selected game', () => {

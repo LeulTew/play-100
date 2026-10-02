@@ -99,7 +99,7 @@ for (const width of [320, 393]) {
     }
     await page.getByRole('button', { name: 'Select multiple games', exact: true }).click();
     await expectClearFallback(cards.first().locator('.game-cover'), '01');
-    await page.getByRole('button', { name: 'Exit selection mode', exact: true }).click();
+    await page.getByRole('button', { name: 'Done selecting', exact: true }).click();
     await page.getByRole('button', { name: 'List view', exact: true }).click();
     const row = page.locator(`.games-list > .game-card[data-game="${first.id}"]`);
     await expect(row.locator('.game-cover')).toHaveCSS('aspect-ratio', 'auto');

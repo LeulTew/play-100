@@ -87,10 +87,10 @@ export async function executePwaUpdate(
       );
     }
     access.rememberVersion(result.version);
-    if (!(await changed)) throw new Error('The updated worker did not take control. Your page was not reloaded.');
+    if (!(await changed)) throw new Error('The app update did not start. Your page was not reloaded. Try again.');
     const active = navigator.serviceWorker.controller;
     if (!active || !trustedPwaWorker(active, location.origin))
-      throw new Error('The new controller could not be verified.');
+      throw new Error('This page could not verify the app update. Your page was not reloaded. Try again.');
     const activated = await sendPwaRequest(active, 'STATUS');
     if (activated.version !== status.version || !activated.ready)
       throw new Error('The active update version did not match.');

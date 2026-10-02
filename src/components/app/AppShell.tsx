@@ -84,9 +84,9 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
   const panelRecovery = app.panelFailure && (
     <ChunkRecovery
       key={app.panelFailure}
-      message={app.panelFailure === 'about' ? "Credits didn't load." : "Settings didn't load."}
+      message={app.panelFailure === 'about' ? "About & credits didn't load." : "Settings didn't load."}
       intent={app.panelFailure === 'about' ? 'credits' : 'settings'}
-      label={app.panelFailure === 'about' ? 'Reload and open credits' : 'Reload and open Settings'}
+      label={app.panelFailure === 'about' ? 'Reload and open About & credits' : 'Reload and open Settings'}
       onKeepEditing={() => commands.setPanel(null)}
     />
   );

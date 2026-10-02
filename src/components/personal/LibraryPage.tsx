@@ -169,7 +169,7 @@ export default function LibraryPage(props: LibraryPageProps) {
             }}
           >
             <Icon name="select" width="18" height="18" />
-            {selecting ? 'Exit selection' : 'Select games'}
+            {selecting ? 'Done selecting' : 'Select games'}
           </button>
         </div>
       )}
@@ -203,10 +203,6 @@ export default function LibraryPage(props: LibraryPageProps) {
           selectionHelp="Selection includes matching games on other pages. Changing filters or tabs clears it."
           onSelectAll={() => setSelected(new Set(records.map((record) => record.id)))}
           onClear={() => setSelected(new Set())}
-          onDone={() => {
-            setSelecting(false);
-            setSelected(new Set());
-          }}
           onAction={(action) => {
             void bulkAction(action);
           }}

@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createPwaController, preparePwaUpdate, pwaInstallAvailability, trustedPwaWorker } from './client';
+import {
+  createPwaController,
+  preparePwaUpdate,
+  pwaInstallAvailability,
+  sendPwaRequest,
+  trustedPwaWorker,
+} from './client';
 
 const updateLoad = vi.hoisted(() => {
   let release: () => void = () => {};
@@ -521,6 +527,52 @@ describe('explicit update preserves edits and other tabs', () => {
       expect(current.controller.getSnapshot().error).toMatch(/edit|save/i);
     } finally {
       current.stop();
+    }
+  });
+
+  it('explains an invalid offline reply without exposing worker terminology', async () => {
+    const current = fixture();
+    const worker = {
+      scriptURL: `${origin}/sw.js`,
+      postMessage: (_: unknown, ports: MessagePort[]) => {
+        ports[0]!.postMessage({ channel: 'play100-pwa-v1', version: 'invalid' });
+      },
+    };
+    try {
+      await expect(sendPwaRequest(worker as ServiceWorker, 'STATUS')).rejects.toThrow(
+        'This page could not verify its offline files. Try again when connected.',
+      );
+      expect(current.location.reload).not.toHaveBeenCalled();
+    } finally {
+      current.stop();
+    }
+  });
+
+  it('describes an unverified app update and preserves the current page', async () => {
+    const current = fixture();
+    const report = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await vi.waitFor(() => expect(current.controller.getSnapshot().updateState).toBe('waiting'));
+      current.waiting.activated = () => {
+        const other = new FakeWorker();
+        other.scriptURL = 'https://untrusted.invalid/sw.js';
+        current.serviceWorker.controller = other;
+        current.serviceWorker.dispatchEvent(new Event('controllerchange'));
+      };
+      expect(
+        await current.controller.applyUpdate({
+          prepare: async () => true,
+          isCurrent: () => true,
+          canReload: () => true,
+        }),
+      ).toBe(false);
+      expect(current.controller.getSnapshot().error).toBe(
+        'This page could not verify the app update. Your page was not reloaded. Try again.',
+      );
+      expect(current.location.reload).not.toHaveBeenCalled();
+    } finally {
+      current.stop();
+      report.mockRestore();
     }
   });
 

@@ -269,10 +269,6 @@ export default function DiscoverPage({
             busy={busy}
             onSelectAll={() => setSelected(new Set(records.map((record) => record.id)))}
             onClear={() => setSelected(new Set())}
-            onDone={() => {
-              setSelecting(false);
-              setSelected(new Set());
-            }}
             onAction={(action) => {
               void bulk(action);
             }}
