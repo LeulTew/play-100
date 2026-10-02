@@ -149,6 +149,13 @@ What changed for those phones (R24):
   observers, and the loop reports "ResizeObserver loop limit exceeded" for any observation it has to skip
   (`LocalFrameView::NotifyResizeObservers` in Chromium 106.0.5249). Later versions deliver it first, and a current
   Chromium does not report the error; Chromium 106 does (below).
+  Estimates use rendered content-box medians rounded to 10 px, with separate narrow,
+  wide and coarse-pointer values where the card layout changes. The
+  [`render-containment-estimates` guard](../tests/render-containment-estimates.spec.ts)
+  measures Collection and Discover grid/list cards at 320, 393, 1024, 1280 and 1920 px
+  in both browser projects, requiring each estimate to be within 5% of its median.
+  It renders all rows together so skipped siblings cannot inflate a grid row, and
+  checks authored plain lengths independently of modern Chromium's implicit `auto`.
 - **Lighter paint where it costs most.** A constrained device draws game covers without their blurred shadow.
 - **Game details on older browsers.** On the Test Lab phone a game card's link opened nothing. Its click handler had
   prevented the link's own navigation, and the detail's URL came out unchanged, because the app built queries with
