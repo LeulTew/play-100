@@ -5,7 +5,7 @@ Source-derived read-through inventory for Play 100. Regenerate with
 
 ## Scope and reading convention
 
-Scanned 382 production TS/TSX/JS files and standalone HTML fallbacks; 3783 source entries.
+Scanned 383 production TS/TSX/JS files and standalone HTML fallbacks; 3783 source entries.
 This is a deliberately inclusive inventory of rendered text, accessible labels,
 message outputs, message constants and validation/error strings. It includes the
 Discover help/source notes, Settings/backups/PWA, empty states, confirmations,
@@ -2421,26 +2421,26 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/CollectionArtifact.tsx:251](../src/components/CollectionArtifact.tsx#L251) | Message/fragment | Illustrated view · 3D unavailable | loadScene(); operation rejected or threw |
-| [src/components/CollectionArtifact.tsx:344](../src/components/CollectionArtifact.tsx#L344) | Message/fragment | Illustrated view · reduced motion | explanation(); motionReduced is true |
-| [src/components/CollectionArtifact.tsx:347](../src/components/CollectionArtifact.tsx#L347) | Message/fragment | Illustrated view | explanation(); motionReduced is false; quality === 'lite' is true; pending is true |
-| [src/components/CollectionArtifact.tsx:348](../src/components/CollectionArtifact.tsx#L348) | Message/fragment | Illustrated view · Lite mode | explanation(); motionReduced is false; quality === 'lite' is true; pending is false |
-| [src/components/CollectionArtifact.tsx:350](../src/components/CollectionArtifact.tsx#L350) | Message/fragment | Illustrated view · saving resources | explanation(); motionReduced is false; quality === 'lite' is false; quality === 'auto' &amp;&amp; constrained is true |
-| [src/components/CollectionArtifact.tsx:352](../src/components/CollectionArtifact.tsx#L352) | Message/fragment | Illustrated view · tap Fan out for 3D | explanation(); motionReduced is false; quality === 'lite' is false; quality === 'auto' &amp;&amp; constrained is false; needsInteraction is true |
-| [src/components/CollectionArtifact.tsx:353](../src/components/CollectionArtifact.tsx#L353) | Message/fragment | Illustrated view | explanation(); motionReduced is false; quality === 'lite' is false; quality === 'auto' &amp;&amp; constrained is false; needsInteraction is false; state.reason ??; state.ready is false |
-| [src/components/CollectionArtifact.tsx:363](../src/components/CollectionArtifact.tsx#L363) | Label/help | {motifShown ? 'Static sleeve motif' : undefined} | CollectionArtifact(); when its owning surface/operation is used |
-| [src/components/CollectionArtifact.tsx:363](../src/components/CollectionArtifact.tsx#L363) | Message/fragment | Static sleeve motif | CollectionArtifact(); motifShown is true |
-| [src/components/CollectionArtifact.tsx:376](../src/components/CollectionArtifact.tsx#L376) | Rendered copy | ${motifShown ? 'Static sleeve motif' : 'The 100 game sleeves'} | CollectionArtifact(); when its owning surface/operation is used |
-| [src/components/CollectionArtifact.tsx:376](../src/components/CollectionArtifact.tsx#L376) | Message/fragment | Static sleeve motif | CollectionArtifact(); motifShown is true |
-| [src/components/CollectionArtifact.tsx:376](../src/components/CollectionArtifact.tsx#L376) | Message/fragment | The 100 game sleeves | CollectionArtifact(); motifShown is false |
-| [src/components/CollectionArtifact.tsx:377](../src/components/CollectionArtifact.tsx#L377) | Rendered copy | ${motifShown ? 'Art unavailable' : explanation} | CollectionArtifact(); when its owning surface/operation is used |
-| [src/components/CollectionArtifact.tsx:377](../src/components/CollectionArtifact.tsx#L377) | Message/fragment | Art unavailable | CollectionArtifact(); motifShown is true |
-| [src/components/CollectionArtifact.tsx:380](../src/components/CollectionArtifact.tsx#L380) | Rendered copy | ${fanned ? ( &lt;path d="m3 7 7-4 7 4-7 4-7-4Zm0 3 7 4 7-4M3 13l7 4 7-4" /&gt; ) : ( &lt;path d="m2 11 3-6 4 2M7 15 6 7l7-1 1 8-7 1Zm6-10 4 1-2 8" /&gt; )} ${fanned ? 'Stack up' : 'Fan out'} | CollectionArtifact(); canInteract &amp;&amp; |
-| [src/components/CollectionArtifact.tsx:391](../src/components/CollectionArtifact.tsx#L391) | Label/help | {fanned ? 'Stack up the collection sleeves' : 'Fan out the collection sleeves'} | CollectionArtifact(); canInteract &amp;&amp; |
-| [src/components/CollectionArtifact.tsx:391](../src/components/CollectionArtifact.tsx#L391) | Message/fragment | Fan out the collection sleeves | CollectionArtifact(); canInteract &amp;&amp;; fanned is false |
-| [src/components/CollectionArtifact.tsx:391](../src/components/CollectionArtifact.tsx#L391) | Message/fragment | Stack up the collection sleeves | CollectionArtifact(); canInteract &amp;&amp;; fanned is true |
-| [src/components/CollectionArtifact.tsx:407](../src/components/CollectionArtifact.tsx#L407) | Message/fragment | Fan out | CollectionArtifact(); canInteract &amp;&amp;; fanned is false |
-| [src/components/CollectionArtifact.tsx:407](../src/components/CollectionArtifact.tsx#L407) | Message/fragment | Stack up | CollectionArtifact(); canInteract &amp;&amp;; fanned is true |
+| [src/components/CollectionArtifact.tsx:254](../src/components/CollectionArtifact.tsx#L254) | Message/fragment | Illustrated view · 3D unavailable | loadScene(); operation rejected or threw |
+| [src/components/CollectionArtifact.tsx:347](../src/components/CollectionArtifact.tsx#L347) | Message/fragment | Illustrated view · reduced motion | explanation(); motionReduced is true |
+| [src/components/CollectionArtifact.tsx:350](../src/components/CollectionArtifact.tsx#L350) | Message/fragment | Illustrated view | explanation(); motionReduced is false; quality === 'lite' is true; pending is true |
+| [src/components/CollectionArtifact.tsx:351](../src/components/CollectionArtifact.tsx#L351) | Message/fragment | Illustrated view · Lite mode | explanation(); motionReduced is false; quality === 'lite' is true; pending is false |
+| [src/components/CollectionArtifact.tsx:353](../src/components/CollectionArtifact.tsx#L353) | Message/fragment | Illustrated view · saving resources | explanation(); motionReduced is false; quality === 'lite' is false; quality === 'auto' &amp;&amp; constrained is true |
+| [src/components/CollectionArtifact.tsx:355](../src/components/CollectionArtifact.tsx#L355) | Message/fragment | Illustrated view · tap Fan out for 3D | explanation(); motionReduced is false; quality === 'lite' is false; quality === 'auto' &amp;&amp; constrained is false; needsInteraction is true |
+| [src/components/CollectionArtifact.tsx:356](../src/components/CollectionArtifact.tsx#L356) | Message/fragment | Illustrated view | explanation(); motionReduced is false; quality === 'lite' is false; quality === 'auto' &amp;&amp; constrained is false; needsInteraction is false; state.reason ??; state.ready is false |
+| [src/components/CollectionArtifact.tsx:366](../src/components/CollectionArtifact.tsx#L366) | Label/help | {motifShown ? 'Static sleeve motif' : undefined} | CollectionArtifact(); when its owning surface/operation is used |
+| [src/components/CollectionArtifact.tsx:366](../src/components/CollectionArtifact.tsx#L366) | Message/fragment | Static sleeve motif | CollectionArtifact(); motifShown is true |
+| [src/components/CollectionArtifact.tsx:379](../src/components/CollectionArtifact.tsx#L379) | Rendered copy | ${motifShown ? 'Static sleeve motif' : 'The 100 game sleeves'} | CollectionArtifact(); when its owning surface/operation is used |
+| [src/components/CollectionArtifact.tsx:379](../src/components/CollectionArtifact.tsx#L379) | Message/fragment | Static sleeve motif | CollectionArtifact(); motifShown is true |
+| [src/components/CollectionArtifact.tsx:379](../src/components/CollectionArtifact.tsx#L379) | Message/fragment | The 100 game sleeves | CollectionArtifact(); motifShown is false |
+| [src/components/CollectionArtifact.tsx:380](../src/components/CollectionArtifact.tsx#L380) | Rendered copy | ${motifShown ? 'Art unavailable' : explanation} | CollectionArtifact(); when its owning surface/operation is used |
+| [src/components/CollectionArtifact.tsx:380](../src/components/CollectionArtifact.tsx#L380) | Message/fragment | Art unavailable | CollectionArtifact(); motifShown is true |
+| [src/components/CollectionArtifact.tsx:383](../src/components/CollectionArtifact.tsx#L383) | Rendered copy | ${fanned ? ( &lt;path d="m3 7 7-4 7 4-7 4-7-4Zm0 3 7 4 7-4M3 13l7 4 7-4" /&gt; ) : ( &lt;path d="m2 11 3-6 4 2M7 15 6 7l7-1 1 8-7 1Zm6-10 4 1-2 8" /&gt; )} ${fanned ? 'Stack up' : 'Fan out'} | CollectionArtifact(); canInteract &amp;&amp; |
+| [src/components/CollectionArtifact.tsx:394](../src/components/CollectionArtifact.tsx#L394) | Label/help | {fanned ? 'Stack up the collection sleeves' : 'Fan out the collection sleeves'} | CollectionArtifact(); canInteract &amp;&amp; |
+| [src/components/CollectionArtifact.tsx:394](../src/components/CollectionArtifact.tsx#L394) | Message/fragment | Fan out the collection sleeves | CollectionArtifact(); canInteract &amp;&amp;; fanned is false |
+| [src/components/CollectionArtifact.tsx:394](../src/components/CollectionArtifact.tsx#L394) | Message/fragment | Stack up the collection sleeves | CollectionArtifact(); canInteract &amp;&amp;; fanned is true |
+| [src/components/CollectionArtifact.tsx:410](../src/components/CollectionArtifact.tsx#L410) | Message/fragment | Fan out | CollectionArtifact(); canInteract &amp;&amp;; fanned is false |
+| [src/components/CollectionArtifact.tsx:410](../src/components/CollectionArtifact.tsx#L410) | Message/fragment | Stack up | CollectionArtifact(); canInteract &amp;&amp;; fanned is true |
 ## src/components/CollectionControls.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -3393,10 +3393,10 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/personal/useLibraryPage.ts:291](../src/components/personal/useLibraryPage.ts#L291) | Message/fragment | The game could not be removed from Play later. Your list is unchanged; retry. | removeFromQueue(); operation rejected or threw; isCurrent() is true |
-| [src/components/personal/useLibraryPage.ts:357](../src/components/personal/useLibraryPage.ts#L357) | Message/fragment | That Play later position is no longer available. Choose a current position and retry. | move(); from &lt; 0 &#124;&#124; to &lt; 0 is true |
-| [src/components/personal/useLibraryPage.ts:364](../src/components/personal/useLibraryPage.ts#L364) | Message/fragment | The position could not be saved. Play later has not changed; retry. | move(); !moved is true |
-| [src/components/personal/useLibraryPage.ts:379](../src/components/personal/useLibraryPage.ts#L379) | Message/fragment | Play later could not be changed. Your current view is still open; retry. | move(); operation rejected or threw; isCurrent() is true |
+| [src/components/personal/useLibraryPage.ts:299](../src/components/personal/useLibraryPage.ts#L299) | Message/fragment | The game could not be removed from Play later. Your list is unchanged; retry. | removeFromQueue(); operation rejected or threw; isCurrent() is true |
+| [src/components/personal/useLibraryPage.ts:365](../src/components/personal/useLibraryPage.ts#L365) | Message/fragment | That Play later position is no longer available. Choose a current position and retry. | move(); from &lt; 0 &#124;&#124; to &lt; 0 is true |
+| [src/components/personal/useLibraryPage.ts:372](../src/components/personal/useLibraryPage.ts#L372) | Message/fragment | The position could not be saved. Play later has not changed; retry. | move(); !moved is true |
+| [src/components/personal/useLibraryPage.ts:387](../src/components/personal/useLibraryPage.ts#L387) | Message/fragment | Play later could not be changed. Your current view is still open; retry. | move(); operation rejected or threw; isCurrent() is true |
 ## src/components/personal/useRankingsPage.ts
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -3505,12 +3505,12 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/scene/CollectionScene.tsx:59](../src/components/scene/CollectionScene.tsx#L59) | Error/validation | The collection artwork could not be drawn. | canvasSurface(); !context is true |
-| [src/components/scene/CollectionScene.tsx:318](../src/components/scene/CollectionScene.tsx#L318) | Message/fragment | Illustrated view · 3D interrupted | onContextLost(); when its owning surface/operation is used |
-| [src/components/scene/CollectionScene.tsx:329](../src/components/scene/CollectionScene.tsx#L329) | Error/validation | WebGL 2 is unavailable. | createCollectionScene(); !context is true |
-| [src/components/scene/CollectionScene.tsx:569](../src/components/scene/CollectionScene.tsx#L569) | Message/fragment | Illustrated view · 3D interrupted | renderFrame(); engine.getContext().isContextLost() is true |
-| [src/components/scene/CollectionScene.tsx:578](../src/components/scene/CollectionScene.tsx#L578) | Message/fragment | Illustrated view · 3D was too slow | renderFrame(); action === 'fallback' is true |
-| [src/components/scene/CollectionScene.tsx:586](../src/components/scene/CollectionScene.tsx#L586) | Message/fragment | Illustrated view · 3D unavailable | renderFrame(); operation rejected or threw |
+| [src/components/scene/CollectionScene.tsx:60](../src/components/scene/CollectionScene.tsx#L60) | Error/validation | The collection artwork could not be drawn. | canvasSurface(); !context is true |
+| [src/components/scene/CollectionScene.tsx:319](../src/components/scene/CollectionScene.tsx#L319) | Message/fragment | Illustrated view · 3D interrupted | onContextLost(); when its owning surface/operation is used |
+| [src/components/scene/CollectionScene.tsx:332](../src/components/scene/CollectionScene.tsx#L332) | Error/validation | WebGL 2 is unavailable. | createCollectionScene(); !context is true |
+| [src/components/scene/CollectionScene.tsx:577](../src/components/scene/CollectionScene.tsx#L577) | Message/fragment | Illustrated view · 3D interrupted | renderFrame(); engine.getContext().isContextLost() is true |
+| [src/components/scene/CollectionScene.tsx:586](../src/components/scene/CollectionScene.tsx#L586) | Message/fragment | Illustrated view · 3D was too slow | renderFrame(); action === 'fallback' is true |
+| [src/components/scene/CollectionScene.tsx:594](../src/components/scene/CollectionScene.tsx#L594) | Message/fragment | Illustrated view · 3D unavailable | renderFrame(); operation rejected or threw |
 ## src/components/scene/sceneFonts.ts
 
 | Source | Kind | Copy or expression | Showing condition / owner |
