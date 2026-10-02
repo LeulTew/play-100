@@ -16,11 +16,14 @@ read -r -a specs <<<"${SPECS:-}"
 # dev suite runs headed under Xvfb (36960548687, 340/340). The offline build stalls the same way
 # (root-navigation-guards.spec :277 mobile: 3/10 failed headless in 36968462436, 180/180 passed headed in 36968465330;
 # a full mobile offline pass fails the same tests headless and headed apart from :277, 36971706327 and 36971709266), so
-# e2e-offline runs headed too. e2e-prod stays headless: headed desktop adds 33 motion, drag and breakpoint failures and
-# takes 46% longer (36971172335 against 36971170036). Recorded in identity.json as browserEnv.
+# e2e-offline runs its mobile project headed. Desktop stays headless there and in e2e-prod: headed desktop adds about
+# 30 motion, drag and breakpoint failures (prod 36971172335 against 36971170036, 46% longer; offline 36977394043, 32
+# desktop failures, 0 mobile), so xvfb-headed-mobile keeps one Playwright run and one report under xvfb-run with a
+# per-project headless override. Recorded in identity.json as browserEnv.
 if [[ "${BROWSER_ENV:-auto}" == auto ]]; then
   case "$SUITE" in
-    e2e-dev | e2e-offline) BROWSER_ENV=xvfb-headed ;;
+    e2e-dev) BROWSER_ENV=xvfb-headed ;;
+    e2e-offline) BROWSER_ENV=xvfb-headed-mobile ;;
     *) BROWSER_ENV=default ;;
   esac
 fi
@@ -62,6 +65,21 @@ export default {
 };
 EOF
     config="$wrapper"
+  elif [[ "${BROWSER_ENV:-default}" == xvfb-headed-mobile ]]; then
+    # Same untracked-wrapper approach: only each project's headless flag changes (mobile headed, the rest headless).
+    local wrapper="${config%.ts}.candidate-ci.ts"
+    cat >"$wrapper" <<EOF
+import base from './${config%.ts}';
+
+export default {
+  ...base,
+  projects: (base.projects ?? []).map((project) => ({
+    ...project,
+    use: { ...project.use, headless: project.name !== 'mobile' },
+  })),
+};
+EOF
+    config="$wrapper"
   fi
   # shellcheck disable=SC2207
   args=(test --config "$config" --forbid-only --retries=0 "--workers=$workers" "--repeat-each=$REPEAT"
@@ -74,7 +92,7 @@ EOF
 run_playwright() {
   local name="$1"; shift
   local launcher=()
-  if [[ "${BROWSER_ENV:-default}" == xvfb-headed ]]; then launcher=(xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24"); fi
+  if [[ "${BROWSER_ENV:-default}" == xvfb-headed* ]]; then launcher=(xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24"); fi
   PLAYWRIGHT_JSON_OUTPUT_FILE="$OUT/$name.json" PLAYWRIGHT_JUNIT_OUTPUT_FILE="$OUT/$name.junit.xml" \
     "${launcher[@]}" npx --no-install playwright "$@" 2>&1 | tee "$OUT/$name.log"
 }

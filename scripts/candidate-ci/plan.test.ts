@@ -142,7 +142,11 @@ describe('dispatching', () => {
   it('resolves the browser environment as run-suite.sh does', () => {
     expect(resolvedBrowserEnv({ suite: 'e2e-dev', browserEnv: 'auto' })).toBe('xvfb-headed');
     expect(resolvedBrowserEnv({ suite: 'e2e-prod', browserEnv: 'auto' })).toBe('default');
-    expect(resolvedBrowserEnv({ suite: 'e2e-offline', browserEnv: 'auto' })).toBe('xvfb-headed');
+    expect(resolvedBrowserEnv({ suite: 'e2e-offline', browserEnv: 'auto' })).toBe('xvfb-headed-mobile');
+    expect(resolvedBrowserEnv({ suite: 'e2e-prod', browserEnv: 'xvfb-headed-mobile' })).toBe('xvfb-headed-mobile');
+    expect(
+      parsePlan({ schemaVersion: 1, entries: [entry({ browserEnv: 'xvfb-headed-mobile' })] }).entries[0]?.browserEnv,
+    ).toBe('xvfb-headed-mobile');
     expect(resolvedBrowserEnv({ suite: 'cloud-ui', browserEnv: 'auto' })).toBe('default');
     expect(resolvedBrowserEnv({ suite: 'e2e-offline', browserEnv: 'default' })).toBe('default');
     expect(resolvedBrowserEnv({ suite: 'e2e-dev', browserEnv: 'unthrottled' })).toBe('unthrottled');

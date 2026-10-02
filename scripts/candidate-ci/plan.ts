@@ -17,7 +17,7 @@ export const SUITES = [
 export type Suite = (typeof SUITES)[number];
 export const PROJECTS = ['both', 'desktop', 'mobile'] as const;
 export type Project = (typeof PROJECTS)[number];
-export const BROWSER_ENVS = ['auto', 'default', 'unthrottled', 'xvfb-headed'] as const;
+export const BROWSER_ENVS = ['auto', 'default', 'unthrottled', 'xvfb-headed', 'xvfb-headed-mobile'] as const;
 export type BrowserEnv = (typeof BROWSER_ENVS)[number];
 
 /**
@@ -170,12 +170,18 @@ export function dispatchArgs(entry: PlanEntry, sha: string, ref: string, request
   ];
 }
 
-const HEADED_SUITES: readonly string[] = ['e2e-dev', 'e2e-offline'];
+const AUTO_BROWSER_ENV: Readonly<Record<string, BrowserEnv>> = {
+  'e2e-dev': 'xvfb-headed',
+  'e2e-offline': 'xvfb-headed-mobile',
+};
 
-/** The browser environment run-suite.sh resolves and identity.json records: `auto` is xvfb-headed for e2e-dev and e2e-offline. */
+/**
+ * The browser environment run-suite.sh resolves and identity.json records: `auto` is xvfb-headed for e2e-dev,
+ * xvfb-headed-mobile (mobile headed, desktop headless, one run) for e2e-offline, and the config as is otherwise.
+ */
 export function resolvedBrowserEnv(entry: Pick<PlanEntry, 'suite' | 'browserEnv'>): string {
   if (entry.browserEnv !== 'auto') return entry.browserEnv;
-  return HEADED_SUITES.includes(entry.suite) ? 'xvfb-headed' : 'default';
+  return AUTO_BROWSER_ENV[entry.suite] ?? 'default';
 }
 
 /** Shared API budget: dispatch and collect never poll GitHub more often than once every five minutes. */

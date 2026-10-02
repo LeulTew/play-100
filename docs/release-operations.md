@@ -1157,19 +1157,21 @@ gate's builds and environment:
 - `e2e-dev` uses the configured development server; `playwright.config.ts` then
   matches only its source-fixture specs (`menu.spec.ts`, `public-browsing.spec.ts`
   and the rest of that list), and other specs report "No tests found";
-- `e2e-dev` and `e2e-offline` run headed under Xvfb. In headless Linux
+- `e2e-dev` and the mobile `e2e-offline` project run headed under Xvfb. In headless Linux
   Chromium the tab that a modified click opens sometimes stalls before
   Playwright sees it: `menu.spec.ts` `:412` and `:532` on the dev server, and
   `root-navigation-guards.spec.ts` `:277` on the offline build (mobile: 3 of 10
   headless iterations failed in run 36968462436; 180 of 180 passed headed in
-  36968465330). Disabling background throttling does not help. A Playwright
-  invocation has one browser mode, so the whole suite runs headed; a full
-  mobile offline pass failed the same tests headless and headed, apart from
-  `:277` (36971706327, 36971709266), and took 14.5 rather than 12.3 minutes.
-  `e2e-prod` stays headless: headed desktop added 33 motion, drag and
-  breakpoint failures and took 35 rather than 24 minutes (36971172335 against
-  36971170036). The `browser_env` input overrides this (`default`,
-  `unthrottled`, `xvfb-headed`), and `identity.json` records the value used as
+  36968465330). Disabling background throttling does not help. `e2e-dev` runs
+  the whole suite headed. `e2e-offline` runs only its mobile project headed
+  (`xvfb-headed-mobile`: one Playwright run and one report under Xvfb, with an
+  untracked wrapper config that sets `headless: false` on the `mobile` project
+  alone), because headed desktop Chromium breaks motion, drag and
+  dialog-lifecycle specs: 32 desktop failures against 0 mobile in offline run
+  36977394043, and 33 more failures over 35 rather than 24 minutes in prod
+  (36971172335 against 36971170036). `e2e-prod` stays headless. The
+  `browser_env` input overrides this (`default`, `unthrottled`, `xvfb-headed`,
+  `xvfb-headed-mobile`), and `identity.json` records the value used as
   `browserEnv`;
 - `cloud-rules` and `cloud-ui` use Java 21 and the pinned `firebase-tools`
   emulators (`demo-play100`, auth and Firestore). `cloud-rules` starts a fresh

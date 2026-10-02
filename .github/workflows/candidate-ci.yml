@@ -55,7 +55,7 @@ on:
         default: ''
       browser_env:
         description: >-
-          Playwright browser environment: auto (headed under Xvfb for e2e-dev and e2e-offline, the config as is otherwise), the config as is, Chromium with background throttling off (added launch args), or headed under Xvfb
+          Playwright browser environment: auto (headed under Xvfb for e2e-dev, mobile-only headed under Xvfb for e2e-offline, the config as is otherwise), the config as is, Chromium with background throttling off (added launch args), headed under Xvfb, or only the mobile project headed under Xvfb
         type: choice
         required: false
         default: auto
@@ -64,6 +64,7 @@ on:
           - default
           - unthrottled
           - xvfb-headed
+          - xvfb-headed-mobile
       request:
         description: >-
           Optional request id (letters, digits, dot, underscore, hyphen; at most 64) that npm run ci:dispatch puts in
