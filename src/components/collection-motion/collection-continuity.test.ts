@@ -9,7 +9,7 @@ import { GameCard } from '../GameCard';
 import { GameDetail } from '../GameDetail';
 import { AboutDialog } from '../AboutDialog';
 import RatingsTable from '../RatingsTable';
-import coverMetadata from '../../generated/cover-metadata.json';
+import coverSizes from '../../generated/cover-sizes.json';
 import * as compareSource from '../compare-tray/useCompareDragSource';
 import { CompareTrayContext } from '../compare-tray/compare-tray-context';
 import type { LibraryRecord } from '../../lib/personal-types';
@@ -18,7 +18,7 @@ import { MotionPolicyContext, staticMotionPolicy } from '../../motion/context';
 
 const raw: unknown = JSON.parse(readFileSync(new URL('../../../data/collection.json', import.meta.url), 'utf8'));
 const games = parseCollection(raw).games;
-const dimensions: Record<string, { width: number; height: number }> = coverMetadata;
+const sizes: readonly (readonly number[] | null)[] = coverSizes;
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -196,7 +196,7 @@ describe('collection continuity preserves the public presentation', () => {
       expect(html).toContain('9.9696969696969688');
       expect(html).toContain('title="Original workbook rating: 9.9696969696969688"');
       expect(html).toContain(' critic avg.');
-      expect(html).toContain(`width="${dimensions[game.slug]?.width}" height="${dimensions[game.slug]?.height}"`);
+      expect(html).toContain(`width="${sizes[game.rank - 1]?.[0]}" height="${sizes[game.rank - 1]?.[1]}"`);
       expect(html.match(/<img\b/g)).toHaveLength(1);
       expect(html).toContain(`aria-label="Select ${game.title}"`);
       expect(html).toContain('Pin for comparison');
@@ -241,7 +241,7 @@ describe('collection continuity preserves the public presentation', () => {
     expect(html.match(/<input\b/g)).toHaveLength(1);
     expect(html.match(/id="game-title"/g)).toHaveLength(1);
     expect(html.match(/<img\b/g)).toHaveLength(1);
-    expect(html).toContain(`width="${dimensions[game.slug]?.width}" height="${dimensions[game.slug]?.height}"`);
+    expect(html).toContain(`width="${sizes[game.rank - 1]?.[0]}" height="${sizes[game.rank - 1]?.[1]}"`);
     expect(onRate).not.toHaveBeenCalled();
   });
 
