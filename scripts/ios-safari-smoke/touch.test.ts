@@ -26,6 +26,7 @@ test('drag holds the same touch for 600 ms before moving and releasing it', () =
     { type: 'pointerDown', button: 0 },
     { type: 'pause', duration: 600 },
     { type: 'pointerMove', origin: 'viewport', duration: 600, x: 30, y: 160 },
+    { type: 'pause', duration: 200 },
     { type: 'pointerUp', button: 0 },
   ]);
 });

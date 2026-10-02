@@ -37,6 +37,7 @@ export function touchDrag(from: Point, to: Point) {
     { type: 'pointerDown', button: 0 },
     { type: 'pause', duration: 600 },
     move(to, 600),
+    { type: 'pause', duration: 200 },
     { type: 'pointerUp', button: 0 },
   ]);
 }

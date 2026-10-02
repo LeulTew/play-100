@@ -369,6 +369,8 @@ async function drag(from: WebElement, to: WebElement) {
     const end = await nativeTarget(toMeasurements, toLabel);
     assert.ok(start.coordinates && end.coordinates);
     const actions = touchDrag(start.coordinates, end.coordinates);
+    start.actions = actions;
+    await writeFile(`${output}/09-queue-gesture.json`, JSON.stringify({ start, end, actions }, null, 2));
     await wd('POST', '/actions', actions);
     await wd('DELETE', '/actions');
     return { start, end, actions };
