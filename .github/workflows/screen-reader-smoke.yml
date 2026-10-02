@@ -234,6 +234,9 @@ jobs:
           npx guidepup setup
           npx guidepup install
           npx playwright install ffmpeg
+      - name: Grant and check VoiceOver AppleScript control
+        timeout-minutes: 5
+        run: bash voiceover-preflight.sh artifacts/voiceover
       - name: Record versions
         run: |
           mkdir -p artifacts/voiceover
