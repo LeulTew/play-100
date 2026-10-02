@@ -119,13 +119,17 @@ test('game detail enters once with a short description and no click action', asy
 
 test('only a complete backdrop gesture closes the dialog', async ({ page, isMobile }) => {
   await page.goto('/?catalogs=off');
-  const opener = page.locator(`[data-game="${game.slug}"] .game-link`);
+  // Menu exposes a backdrop at mobile widths; the full-screen game drawer has none to tap.
+  const opener = page.getByRole('button', { name: 'Menu', exact: true });
   const before = await activateWithoutFocus(page, opener);
-  const dialog = page.getByRole('dialog', { name: game.title, exact: true });
-  await expect(dialog.locator('#game-title')).toBeFocused();
+  const dialog = page.getByRole('dialog', { name: 'Menu', exact: true });
+  await expect(dialog.locator('#menu-title')).toBeFocused();
+  const bounds = await dialog.boundingBox();
+  if (!bounds) throw new Error('The native dialog must expose its bounds.');
+  expect(1 < bounds.x || 1 < bounds.y, 'the tap point must be outside the actual dialog').toBe(true);
   await dialog.evaluate((element: HTMLDialogElement) => element.click());
   await expect(dialog).toBeVisible();
-  const heading = await dialog.locator('#game-title').boundingBox();
+  const heading = await dialog.locator('#menu-title').boundingBox();
   if (!heading) throw new Error('The native heading must remain visible.');
   await page.mouse.move(heading.x + heading.width / 2, heading.y + heading.height / 2);
   await page.mouse.down();
