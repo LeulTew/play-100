@@ -1338,12 +1338,13 @@ describe('All-sharing bounded SDK transport', () => {
         .mockImplementationOnce(actual.runTransaction)
         .mockImplementationOnce(refuse);
       await expect(a.all.cleanupPage(a.uid, 'games')).rejects.toMatchObject({ code: 'permission-denied' });
-      // The refused deletion, the reread and the one retry, refused again.
-      expect(runTransaction).toHaveBeenCalledTimes(3);
+      // The refused deletion, the reread, the one retry, refused again, and a last reread of the unchanged view.
+      expect(runTransaction).toHaveBeenCalledTimes(4);
       expect(await a.all.head(a.uid, 'games')).not.toBeNull();
       expect((await getDocFromServer(jobRef)).exists()).toBe(true);
       vi.mocked<RunTransaction>(runTransaction).mockClear().mockImplementationOnce(refuse);
       expect(await a.all.cleanupPage(a.uid, 'games')).toEqual({ deleted: 0, done: true });
+      // The refused deletion, the reread, and the retry that deletes the view.
       expect(runTransaction).toHaveBeenCalledTimes(3);
       expect(await a.all.head(a.uid, 'games')).toBeNull();
       expect((await getDocFromServer(jobRef)).exists()).toBe(false);
