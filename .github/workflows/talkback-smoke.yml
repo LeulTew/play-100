@@ -7,8 +7,6 @@ on:
         description: Origin to test (production or a public candidate URL)
         required: false
         default: https://play-100-collection.vercel.app
-  push:
-    branches: [leultew-r24-talkback]
 
 permissions:
   contents: read
