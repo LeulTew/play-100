@@ -14,12 +14,7 @@ export function SiteFooter({
 }) {
   return (
     <footer className="site-footer compact-footer" id="site-credits">
-      <div className="author-footer">
-        <p>
-          Curated by <strong>{author.fullName}</strong>
-        </p>
-        <AuthorLinks />
-      </div>
+      <AuthorLinks className="author-footer" />
       <nav className="footer-tools" aria-label="Resources">
         <a href={author.githubUrl} target="_blank" rel="noopener noreferrer">
           Source code
