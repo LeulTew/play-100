@@ -82,7 +82,9 @@ test('ratings table shows native scales, missing values and reversible column so
 });
 
 test('bulk selection updates queue, completion and own ranking without changing author ranks', async ({ page }) => {
-  await page.goto('/');
+  // This journey selects the three collection games, not late-arriving public-catalog matches.
+  await page.goto('/?catalogs=off');
+  await expect(page.getByRole('checkbox', { name: 'Search public catalogs', exact: true })).not.toBeChecked();
   await page.getByRole('searchbox').fill('Mass Effect');
   await expect(page.locator('.game-card')).toHaveCount(3);
   await page.getByRole('button', { name: 'Select multiple games', exact: true }).click();
@@ -91,11 +93,13 @@ test('bulk selection updates queue, completion and own ranking without changing 
   await page.getByRole('button', { name: 'Add to Play later', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).queueOrder.length).toBe(3);
   await page.getByRole('button', { name: 'Select all 3 in this view', exact: true }).click();
+  await expect(page.locator('.card-selection input:checked')).toHaveCount(3);
   await page.getByRole('button', { name: 'Mark completed', exact: true }).click();
   await expect
     .poll(async () => Object.values((await readLibrary(page)).progress).filter((entry) => entry.completed).length)
     .toBe(3);
   await page.getByRole('button', { name: 'Select all 3 in this view', exact: true }).click();
+  await expect(page.locator('.card-selection input:checked')).toHaveCount(3);
   await page.getByRole('button', { name: 'Add to my ranking', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.length).toBe(3);
   const original = await page.request.get('/data/collection.json');
