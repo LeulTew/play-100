@@ -36,9 +36,6 @@
   .author-footer a {
     font-size: 12px;
   }
-  .author-rating-card {
-    font-size: 12px;
-  }
   .author-rating-card strong {
     font-size: 13px;
   }
@@ -89,9 +86,6 @@
     padding-inline: 12px;
     gap: 7px;
   }
-  .selection-bar > p {
-    font-size: 12px;
-  }
   .ratings-explainer {
     gap: 5px;
   }
@@ -132,9 +126,6 @@
     left: auto;
     z-index: 3;
   }
-  .table-sort {
-    font-size: 12px;
-  }
   .app-page {
     padding-top: 27px;
     padding-bottom: 35px;
@@ -158,7 +149,6 @@
   }
   .private-label {
     min-height: 20px;
-    font-size: 12px;
   }
   .personal-tabs {
     gap: 19px;
@@ -167,9 +157,6 @@
   .personal-tabs > button {
     font-size: 12px;
     gap: 7px;
-  }
-  .personal-tabs span {
-    font-size: 12px;
   }
   .record-title {
     font-size: 15px;

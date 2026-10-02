@@ -434,7 +434,6 @@
   .move-buttons {
     flex-direction: row;
     grid-column: 2;
-    justify-content: flex-end;
     margin-top: -4px;
   }
   .record-identity {
@@ -474,7 +473,6 @@
   }
   .played-check {
     grid-column: 2 / 4;
-    font-size: 12px;
   }
   .ranking-note {
     margin-top: -6px;
