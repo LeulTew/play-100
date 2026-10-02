@@ -155,8 +155,10 @@ export function useLibraryPage({
     }
   }
   useEffect(() => {
-    if (active && usesUrlPage && libraryPage !== boundedPage) changeUrlPage(boundedPage, 'replace');
-  }, [active, usesUrlPage, libraryPage, boundedPage, changeUrlPage]);
+    // The removal dialog resolves its neighboring focus before the resulting URL clamp advances navigation.
+    if (active && usesUrlPage && libraryPage !== boundedPage && removing.length === 0)
+      changeUrlPage(boundedPage, 'replace');
+  }, [active, usesUrlPage, libraryPage, boundedPage, removing.length, changeUrlPage]);
   const current = useRef({ active, definition, total: records.length, offset: page.offset, libraryPage, state });
   useLayoutEffect(() => {
     if (current.current.active !== active || current.current.definition !== definition) generation.current += 1;

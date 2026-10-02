@@ -33,9 +33,12 @@ async function mockGames(page: Page) {
 
 async function rate(page: Page, record: LibraryRecord, value: string) {
   await openActions(page, record);
-  await row(page, record)
-    .getByRole('spinbutton', { name: `Your rating / 10 for ${record.title}`, exact: true })
-    .fill(value);
+  const rating = row(page, record).getByRole('spinbutton', {
+    name: `Your rating / 10 for ${record.title}`,
+    exact: true,
+  });
+  await rating.fill(value);
+  if (await page.evaluate(() => matchMedia('(pointer: coarse)').matches)) await rating.press('Enter');
   await expect
     .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === record.id)?.score)
     .toBe(value ? Number(value) : null);

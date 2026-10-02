@@ -19,7 +19,9 @@ async function prepare(page: Page) {
 }
 
 async function rate(page: Page, game: typeof a, value: string) {
-  await page.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true }).fill(value);
+  const rating = page.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true });
+  await rating.fill(value);
+  if (await page.evaluate(() => matchMedia('(pointer: coarse)').matches)) await rating.press('Enter');
   await expect
     .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === game.id)?.score)
     .toBe(value ? Number(value) : null);
