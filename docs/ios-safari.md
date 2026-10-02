@@ -34,6 +34,11 @@ real reload. The finger remains at its destination for 200 ms before release,
 allowing the final hover position to settle. Before/after screenshots, the actual
 gesture payload, trusted touch events and drag announcements are retained,
 including when the order assertion fails.
+The action path anchors the unchanged coordinate after the hold, then moves in
+eight ticks. XCUITest otherwise interpolated movement across a standalone pause,
+starting only 22 ms after touch-down instead of holding for 600 ms.
+Recorded trusted touch timestamps must show at least 500 ms stationary before
+movement, and a real release; an undelivered hold cannot count as passing.
 No move-button, DOM-event or storage-writing substitute is used.
 
 It opens a game detail and touches Share, requires the native iOS
