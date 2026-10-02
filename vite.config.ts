@@ -11,7 +11,6 @@ import { publicMetadataHtml } from './scripts/public-metadata.ts';
 import { landingFontFiles } from './scripts/landing-fonts.ts';
 import { firstPaintShell, firstPaintVariant } from './scripts/first-paint/plugin.ts';
 import { clientEnvGuard } from './scripts/client-env-guard.ts';
-import author from './author.json' with { type: 'json' };
 import deployment from './vercel.json' with { type: 'json' };
 import { appCheckCspProblems, readAppCheckConfiguration } from './src/lib/app-check-config.ts';
 import { readFirebaseConfiguration } from './src/lib/online-config.ts';
@@ -84,7 +83,6 @@ export default defineConfig(({ mode }) => {
               )
             : [];
           const tags: HtmlTagDescriptor[] = [
-            { tag: 'meta', attrs: { name: 'author', content: author.fullName } },
             ...fonts.map((fileName) => ({
               tag: 'link',
               attrs: { rel: 'preload', href: `/${fileName}`, as: 'font', type: 'font/woff2', crossorigin: 'anonymous' },

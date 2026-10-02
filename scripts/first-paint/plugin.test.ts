@@ -47,7 +47,6 @@ const FONT_FACES = [
 
 // The tags the public-metadata plugin adds with Vite's default head-prepend placement.
 const VITE_HEAD_TAGS =
-  '\n    <meta name="author" content="Leul Tewodros Agonafer">' +
   '\n    <link rel="preload" href="/assets/barlow-condensed-latin-800-normal-BKzMuPgK.woff2" as="font" type="font/woff2" crossorigin="anonymous">' +
   '\n    <link rel="preload" href="/data/collection.json" as="fetch" type="application/json" crossorigin="anonymous">\n';
 // Vite's own tags, which it injects before </head>: the module entry, its modulepreloads and the entry stylesheet.
@@ -193,7 +192,7 @@ describe('charset declaration', () => {
 
   it('passes documents whose declaration fits within the first 1024 bytes and reports its byte offset', () => {
     expect(assertCharsetDeclaration(indexHtml)).toBe(46);
-    expect(assertCharsetDeclaration(builtIndexHtml())).toBe(359);
+    expect(assertCharsetDeclaration(builtIndexHtml())).toBe(301);
     expect(assertCharsetDeclaration(at(999))).toBe(999);
   });
 
@@ -655,7 +654,7 @@ describe('first-paint index.html', () => {
     expect(head.indexOf('<style>')).toBeLessThan(head.indexOf(template));
     expect(head.endsWith(`${template}\n  <script>${result.script}</script>\n  `)).toBe(true);
     // The head-prepended preloads left, so the charset declaration moved up; the budget gate still counts the template's tags as eager.
-    expect(assertCharsetDeclaration(result.html)).toBe(105);
+    expect(assertCharsetDeclaration(result.html)).toBe(47);
     expect(eagerHtmlFiles(result.html)).toEqual([
       'assets/index-AAAAAAAA.js',
       'assets/index-BBBBBBBB.css',
@@ -845,7 +844,7 @@ describe('first-paint index.html', () => {
       expect(logged).toHaveLength(1);
       expect(logged[0]).toMatch(
         new RegExp(
-          `^first-paint shell: offline header; <meta charset> at byte 105; deferred 1 entry, 1 modulepreload, 1 stylesheet, 2 preload; inline style \\d+ B ${literal(styles.offline!)}; inline script \\d+ B 'sha256-[\\w+/=]+'; online variant inline style ${literal(styles.online!)}$`,
+          `^first-paint shell: offline header; <meta charset> at byte 47; deferred 1 entry, 1 modulepreload, 1 stylesheet, 2 preload; inline style \\d+ B ${literal(styles.offline!)}; inline script \\d+ B 'sha256-[\\w+/=]+'; online variant inline style ${literal(styles.online!)}$`,
         ),
       );
       // check:budgets gates both variants' inline style and the boot script from the record the build retains.

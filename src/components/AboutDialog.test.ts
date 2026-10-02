@@ -73,7 +73,9 @@ describe('About source reference rows', () => {
       expect(link[1]).toContain('rel="noreferrer"');
       expect(link[2]!.replace(/<svg\b[\s\S]*?<\/svg>/g, '').trim()).toBe(expected[index]![0]);
     }
-    expect(html.match(/<a\b/g)).toHaveLength(6);
+    expect(html.match(/<a\b/g)).toHaveLength(10);
+    expect(html).toContain('aria-label="Collection author"');
+    expect(html).toContain('aria-label="Email Leul at leulman2@gmail.com"');
     expect(html).not.toMatch(/<p>[^<]*<a\b/);
   });
 

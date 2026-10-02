@@ -1,6 +1,7 @@
 import { author } from '../lib/author';
 import { DataUseLink } from './DataUseLink';
 import { Icon } from './Icon';
+import { AuthorLinks } from './AuthorLinks';
 
 export function SiteFooter({
   onAbout,
@@ -17,22 +18,13 @@ export function SiteFooter({
         <p>
           Curated by <strong>{author.fullName}</strong>
         </p>
-        <nav aria-label="Creator links">
-          <a href={author.githubUrl} target="_blank" rel="noopener noreferrer">
-            GitHub
-            <Icon name="up-right" width="15" height="15" />
-          </a>
-          <a href={author.linkedinUrl} target="_blank" rel="noopener noreferrer">
-            LinkedIn
-            <Icon name="up-right" width="15" height="15" />
-          </a>
-          <a href={author.telegramUrl} target="_blank" rel="noopener noreferrer">
-            Telegram {author.telegramHandle}
-            <Icon name="up-right" width="15" height="15" />
-          </a>
-        </nav>
+        <AuthorLinks />
       </div>
       <nav className="footer-tools" aria-label="Resources">
+        <a href={author.githubUrl} target="_blank" rel="noopener noreferrer">
+          Source code
+          <Icon name="up-right" width="15" height="15" />
+        </a>
         <a href="/downloads/Play-100-Collection.xlsx" download>
           Enhanced spreadsheet
         </a>

@@ -41,6 +41,7 @@ const publicCore = [
   '/pwa/fallback.css',
   '/favicon.svg',
   '/data/collection.json',
+  '/icons/author-links.svg',
   '/data/discovery/catalog.v1.json',
   ...PWA_ICONS.map((icon) => `/pwa/${icon.file}`),
 ];
