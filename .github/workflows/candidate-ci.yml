@@ -4,9 +4,6 @@ name: Candidate CI
 # rules and cloud-UI suites against the Firebase emulators, and Lighthouse on the production build. It complements the
 # local release gate and does not replace it (docs/release-operations.md, "Candidate CI runs").
 on:
-  # Temporary, to register the new inputs from this branch; every job is skipped on push.
-  push:
-    branches: [leultew-r24-candidate-ci]
   workflow_dispatch:
     inputs:
       sha:
@@ -63,7 +60,6 @@ permissions:
 jobs:
   run:
     name: ${{ inputs.suite }} ${{ inputs.project }} @ ${{ inputs.sha }}
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
@@ -106,7 +102,9 @@ jobs:
           ref: ${{ github.workflow_sha }}
           path: _ci
           persist-credentials: false
+          # The root package.json ("type": "module") makes tsx load the helpers as ESM.
           sparse-checkout: |
+            /package.json
             .github/candidate-ci
             scripts/candidate-ci
           sparse-checkout-cone-mode: false
@@ -201,14 +199,15 @@ jobs:
         id: suite
         working-directory: candidate
         env:
-          # The development suite runs against the configured dev server, as the gate's development step does, and the
-          # CSP refresh builds the configured production build.
-          VITE_FIREBASE_API_KEY: ${{ (inputs.suite == 'e2e-dev' || inputs.suite == 'csp-refresh') && vars.VITE_FIREBASE_API_KEY || '' }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ (inputs.suite == 'e2e-dev' || inputs.suite == 'csp-refresh') && vars.VITE_FIREBASE_AUTH_DOMAIN || '' }}
-          VITE_FIREBASE_PROJECT_ID: ${{ (inputs.suite == 'e2e-dev' || inputs.suite == 'csp-refresh') && vars.VITE_FIREBASE_PROJECT_ID || '' }}
-          VITE_FIREBASE_APP_ID: ${{ (inputs.suite == 'e2e-dev' || inputs.suite == 'csp-refresh') && vars.VITE_FIREBASE_APP_ID || '' }}
-          VITE_SITE_URL: ${{ (inputs.suite == 'e2e-dev' || inputs.suite == 'csp-refresh') && vars.VITE_SITE_URL || '' }}
-          VITE_FIREBASE_REQUIRED: ${{ (inputs.suite == 'e2e-dev' || inputs.suite == 'csp-refresh') && 'true' || '' }}
+          # The configured suites' specs read the public Firebase configuration, which the gate's .env.local supplies
+          # locally: e2e-prod and floor test the configured build, e2e-dev the configured dev server, and csp-refresh
+          # builds it.
+          VITE_FIREBASE_API_KEY: ${{ contains(fromJSON('["e2e-prod","e2e-dev","csp-refresh","floor"]'), inputs.suite) && vars.VITE_FIREBASE_API_KEY || '' }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ contains(fromJSON('["e2e-prod","e2e-dev","csp-refresh","floor"]'), inputs.suite) && vars.VITE_FIREBASE_AUTH_DOMAIN || '' }}
+          VITE_FIREBASE_PROJECT_ID: ${{ contains(fromJSON('["e2e-prod","e2e-dev","csp-refresh","floor"]'), inputs.suite) && vars.VITE_FIREBASE_PROJECT_ID || '' }}
+          VITE_FIREBASE_APP_ID: ${{ contains(fromJSON('["e2e-prod","e2e-dev","csp-refresh","floor"]'), inputs.suite) && vars.VITE_FIREBASE_APP_ID || '' }}
+          VITE_SITE_URL: ${{ contains(fromJSON('["e2e-prod","e2e-dev","csp-refresh","floor"]'), inputs.suite) && vars.VITE_SITE_URL || '' }}
+          VITE_FIREBASE_REQUIRED: ${{ contains(fromJSON('["e2e-prod","e2e-dev","csp-refresh","floor"]'), inputs.suite) && 'true' || '' }}
         run: |
           set -euo pipefail
           for name in VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_APP_ID VITE_SITE_URL VITE_FIREBASE_REQUIRED; do
