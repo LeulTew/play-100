@@ -1,0 +1,128 @@
+name: Screen reader smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_origin:
+        description: HTTPS origin to test (production or a public candidate tunnel)
+        type: string
+        required: true
+        default: https://play-100-collection.vercel.app
+  push:
+    branches:
+      - leultew-r24-screen-reader-ci
+
+permissions:
+  contents: read
+
+concurrency:
+  group: screen-reader-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TARGET_ORIGIN: ${{ inputs.target_origin || 'https://play-100-collection.vercel.app' }}
+
+jobs:
+  nvda:
+    name: NVDA with Chrome (Windows)
+    runs-on: windows-2022
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: scripts/screen-reader-smoke
+    env:
+      SR_READER: nvda
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.23.2'
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Set up NVDA for automation
+        run: |
+          npx guidepup setup --ci
+          npx guidepup install
+      - name: Record versions
+        run: |
+          New-Item -ItemType Directory -Force artifacts/nvda | Out-Null
+          $nvda = Get-ChildItem -Path . , $env:TEMP, $env:LOCALAPPDATA -Recurse -Depth 6 -Filter nvda.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          $chrome = Get-Item "$env:ProgramFiles\Google\Chrome\Application\chrome.exe" -ErrorAction SilentlyContinue
+          [ordered]@{
+            nvdaPath = $nvda.FullName
+            nvdaVersion = $nvda.VersionInfo.ProductVersion
+            chromeVersion = $chrome.VersionInfo.ProductVersion
+            os = (Get-CimInstance Win32_OperatingSystem).Caption + ' ' + [Environment]::OSVersion.Version
+            imageVersion = $env:ImageVersion
+          } | ConvertTo-Json | Tee-Object artifacts/nvda/system-versions.json
+      - name: Fingerprint the served index.html
+        run: node src/receipt.ts
+      - name: Run the journeys through NVDA
+        run: npx playwright test --project=nvda
+      - name: Add the speech summary to the job
+        if: always()
+        run: |
+          if (Test-Path artifacts/nvda/summary.md) { Get-Content artifacts/nvda/summary.md | Add-Content $env:GITHUB_STEP_SUMMARY }
+      - name: Upload phrase logs, versions and failure screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: screen-reader-nvda
+          path: scripts/screen-reader-smoke/artifacts/
+          if-no-files-found: error
+          retention-days: 30
+
+  voiceover:
+    name: VoiceOver with Chrome (macOS)
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: scripts/screen-reader-smoke
+    env:
+      SR_READER: voiceover
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.23.2'
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Set up VoiceOver for automation
+        run: |
+          npx guidepup setup --ci
+          npx guidepup install
+      - name: Record versions
+        run: |
+          mkdir -p artifacts/voiceover
+          {
+            echo "macOS: $(sw_vers -productVersion) ($(sw_vers -buildVersion))"
+            echo "VoiceOver: $(defaults read /System/Library/CoreServices/VoiceOver.app/Contents/Info CFBundleShortVersionString 2>/dev/null || echo unknown)"
+            echo "Chrome: $('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --version 2>/dev/null || echo unknown)"
+            echo "Image: ${ImageVersion:-unknown}"
+          } | tee artifacts/voiceover/system-versions.txt
+      - name: Fingerprint the served index.html
+        run: node src/receipt.ts
+      - name: Run the journeys through VoiceOver
+        run: npx playwright test --project=voiceover
+      - name: Capture the desktop on failure
+        if: failure()
+        run: screencapture -x artifacts/voiceover/desktop-failure.png || true
+      - name: Add the speech summary to the job
+        if: always()
+        run: |
+          if [ -f artifacts/voiceover/summary.md ]; then cat artifacts/voiceover/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Upload phrase logs, versions and failure screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: screen-reader-voiceover
+          path: scripts/screen-reader-smoke/artifacts/
+          if-no-files-found: error
+          retention-days: 30

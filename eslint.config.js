@@ -11,7 +11,7 @@ const untypedFiles = ['**/*.{js,mjs,cjs}'];
 const testFiles = ['**/*.{test,spec}.{ts,tsx}', '**/*fixture*.{ts,tsx}', 'tests/**/*.ts', 'tests-cloud/**/*.ts', 'tests-cloud-ui/**/*.ts'];
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'third-party', 'test-results', 'playwright-report', '.vercel', 'data'] },
+  { ignores: ['dist', 'node_modules', 'third-party', 'test-results', 'playwright-report', '.vercel', 'data', 'scripts/screen-reader-smoke/artifacts'] },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {

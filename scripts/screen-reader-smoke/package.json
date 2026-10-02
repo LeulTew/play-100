@@ -1,0 +1,23 @@
+{
+  "name": "play-100-screen-reader-smoke",
+  "private": true,
+  "type": "module",
+  "description": "Drives NVDA and VoiceOver through Play 100 with real keyboard input and checks the spoken phrase log.",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "receipt": "node src/receipt.ts",
+    "test:nvda": "playwright test --project=nvda",
+    "test:voiceover": "playwright test --project=voiceover",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@guidepup/guidepup": "0.35.0",
+    "@guidepup/playwright": "0.19.1",
+    "@guidepup/setup": "0.29.1",
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.10.1",
+    "typescript": "5.9.3"
+  }
+}
