@@ -28,9 +28,8 @@ const CatalogDetail = lazy(loadCatalogDetail);
 // The 100's game detail ships in the catalog detail's chunk (CatalogDetail.tsx). A page warms it when it is idle, when
 // a game link is pointed at, focused or pressed, and when a linked game opens (DialogHost).
 const LazyGameDetail = lazy(
-  createMemoizedModule(() =>
-    import('../personal/CatalogDetail').then((module) => ({ default: module.GameDetail })),
-  ).load,
+  createMemoizedModule(() => import('../personal/CatalogDetail').then((module) => ({ default: module.GameDetail })))
+    .load,
 );
 const DETAIL_INTENT_EVENTS = ['pointerover', 'focusin', 'pointerdown'] as const;
 function warmGameDetail(event?: Event) {
