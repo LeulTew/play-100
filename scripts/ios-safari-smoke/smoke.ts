@@ -9,6 +9,7 @@ import { touchDrag, touchTap } from './touch.ts';
 import { redactOAuthUrls } from './google.ts';
 import { runTouchUx } from './ux.ts';
 import type { WebElement } from './ux.ts';
+import { webdriverResponse } from './http.ts';
 
 interface PageError {
   type: string;
@@ -18,6 +19,7 @@ interface PageError {
 }
 
 interface DocumentEvidence {
+  documentId: string;
   timeOrigin: number;
   installedAtMs: number;
   readyStateAtInstall: string;
@@ -33,6 +35,7 @@ interface Step {
   startedAt: string;
   evidence?: unknown;
   passed?: boolean;
+  skipped?: string;
   error?: string;
   failureMetrics?: Metrics;
   metricsError?: string;
@@ -94,16 +97,15 @@ const results: Results = {
 let session: string | undefined;
 
 async function command<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
-  const response = await fetch(`${endpoint}${path}`, {
+  const { ok, payload } = await webdriverResponse(
     method,
-    headers: { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(path === '/session' ? 420_000 : 90_000),
-  });
-  const payload: unknown = await response.json();
+    `${endpoint}${path}`,
+    body,
+    path === '/session' ? 420_000 : 90_000,
+  );
   assert.ok(payload && typeof payload === 'object' && 'value' in payload, 'Invalid WebDriver response.');
   const value = payload.value;
-  if (!response.ok || (value && typeof value === 'object' && 'error' in value && value.error)) {
+  if (!ok || (value && typeof value === 'object' && 'error' in value && value.error)) {
     throw new Error(`${method} ${path}: ${JSON.stringify(payload.value)}`);
   }
   // The classic WebDriver protocol has no response schema; callers specify each command's result.
@@ -176,13 +178,14 @@ async function step(name: string, action: () => Promise<unknown>) {
   }
 }
 
-async function installCollector(previousTimeOrigin?: number) {
+async function installCollector(previousDocumentId?: string) {
   const document = await waitFor<DocumentEvidence>(
     `
-    if (location.origin !== ${JSON.stringify(site)} ||
-        performance.timeOrigin === ${JSON.stringify(previousTimeOrigin ?? null)}) return null;
+    if (location.origin !== ${JSON.stringify(site)} || document.readyState === 'loading' ||
+        window.__iosSmoke?.documentId === ${JSON.stringify(previousDocumentId ?? null)}) return null;
     if (!window.__iosSmoke) {
       const state = window.__iosSmoke = {
+        documentId: crypto.randomUUID(),
         errors: [], clicks: [], installedAtMs: performance.now(), readyState: document.readyState, outbound: false,
         fcp: null, lcp: null, supportedEntryTypes: PerformanceObserver.supportedEntryTypes || []
       };
@@ -218,7 +221,8 @@ async function installCollector(previousTimeOrigin?: number) {
         }).observe({ type: 'largest-contentful-paint', buffered: true });
       }
     }
-    return { timeOrigin: performance.timeOrigin, installedAtMs: window.__iosSmoke.installedAtMs,
+    return { documentId: window.__iosSmoke.documentId, timeOrigin: performance.timeOrigin,
+      installedAtMs: window.__iosSmoke.installedAtMs,
       readyStateAtInstall: window.__iosSmoke.readyState };
   `,
     'install error collector in the new target document',
@@ -300,7 +304,8 @@ async function measureTarget(element: WebElement, label: string) {
     const viewport = visualViewport;
     return {
       target: rect(element.closest('.mobile-nav') ? element.querySelector('svg') : element),
-      anchor: rect(anchor), nativeType: element.tagName === 'BUTTON' ? 'XCUIElementTypeButton' :
+      anchor: rect(anchor), nativeType: element.hasAttribute('aria-pressed') ? 'XCUIElementTypeSwitch' :
+        element.tagName === 'BUTTON' ? 'XCUIElementTypeButton' :
         aria && element.tagName === 'A' ? 'XCUIElementTypeLink' : 'XCUIElementTypeStaticText',
       viewport: { offsetLeft: viewport.offsetLeft, offsetTop: viewport.offsetTop,
         width: viewport.width, height: viewport.height, scale: viewport.scale }
@@ -313,7 +318,7 @@ async function measureTarget(element: WebElement, label: string) {
 
 async function nativeTarget(measurements: Awaited<ReturnType<typeof measureTarget>>, label: string) {
   await writeFile(`${output}/native-target-${results.steps.length}.xml`, await wd<string>('GET', '/source'));
-  const value = `type == ${JSON.stringify(measurements.nativeType)} AND label == ${JSON.stringify(label)}`;
+  const value = `type == ${JSON.stringify(measurements.nativeType)} AND visible == true AND label == ${JSON.stringify(label)}`;
   const deadline = Date.now() + 15_000;
   let elements: WebElement[] = [];
   while (!elements.length && Date.now() < deadline) {
@@ -382,9 +387,7 @@ async function nativeAction<T>(action: () => Promise<T>) {
 
 async function nativeTouch(element: WebElement) {
   const id = element['element-6066-11e4-a52e-4f735466cecf'];
-  const rect = await wd<NativeRect>('GET', `/element/${id}/rect`);
-  await wd('POST', '/actions', touchTap({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }));
-  await wd('DELETE', '/actions');
+  await wd('POST', `/element/${id}/click`, {});
 }
 
 async function dismissSafariTip() {
@@ -607,7 +610,7 @@ try {
     return { heading };
   });
   await step('08-reload', async () => {
-    const before = await execute<number>('return performance.timeOrigin;');
+    const before = await execute<string>('return window.__iosSmoke.documentId;');
     await collectErrors();
     await wd('POST', '/refresh', {});
     await installCollector(before);
@@ -624,6 +627,10 @@ try {
   await runTouchUx({
     site,
     step,
+    skip: async (name, reason) => {
+      results.steps.push({ name, startedAt: new Date().toISOString(), skipped: reason, durationMs: 0 });
+      await save();
+    },
     wd,
     execute,
     waitFor,
@@ -643,7 +650,7 @@ try {
   results.passed = true;
 } catch (error) {
   results.error = errorDetails(error);
-  console.error(error);
+  console.error(errorDetails(error));
   process.exitCode = 1;
 } finally {
   if (session) {

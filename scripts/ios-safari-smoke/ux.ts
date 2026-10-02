@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import { googleOutboundEvidence, redactOAuthUrls } from './google.ts';
+import { productionOrigin } from './target.ts';
 
 export interface WebElement {
   'element-6066-11e4-a52e-4f735466cecf': string;
@@ -9,6 +10,7 @@ export interface WebElement {
 export interface SmokeContext {
   site: string;
   step(name: string, action: () => Promise<unknown>): Promise<void>;
+  skip(name: string, reason: string): Promise<void>;
   wd<T = unknown>(method: string, path: string, body?: unknown): Promise<T>;
   execute<T = unknown>(script: string, ...args: unknown[]): Promise<T>;
   waitFor<T = unknown>(script: string, message: string, timeout?: number): Promise<NonNullable<T>>;
@@ -18,7 +20,7 @@ export interface SmokeContext {
   nativeAction<T>(action: () => Promise<T>): Promise<T>;
   nativeTouch(element: WebElement): Promise<void>;
   collectErrors(): Promise<void>;
-  installCollector(previousTimeOrigin?: number): Promise<unknown>;
+  installCollector(previousDocumentId?: string): Promise<unknown>;
   assertLoaded(): Promise<void>;
   capture(name: string): Promise<void>;
   artifact(name: string, text: string): Promise<void>;
@@ -35,11 +37,10 @@ const queueSnapshot = `
     id: row.dataset.recordId, title: row.querySelector('.record-title').textContent.trim()
   }));
 `;
-const sheetPredicate =
-  'visible == true AND (name == "ActivityListView" OR (type == "XCUIElementTypeButton" AND label == "Copy"))';
+const sheetPredicate = 'visible == true AND (name == "ActivityListView" OR label == "Copy")';
 
 async function go(context: SmokeContext, path: string) {
-  const before = await context.execute<number>('return performance.timeOrigin;');
+  const before = await context.execute<string>('return window.__iosSmoke.documentId;');
   await context.collectErrors();
   await context.wd('POST', '/url', { url: `${context.site}${path}` });
   await context.installCollector(before);
@@ -97,7 +98,7 @@ async function queueReorder(context: SmokeContext) {
   const after = await context.execute<QueueRecord[]>(queueSnapshot);
   assert.deepEqual(after, expected);
   await context.capture('09-queue-after-drag');
-  const documentBeforeReload = await context.execute<number>('return performance.timeOrigin;');
+  const documentBeforeReload = await context.execute<string>('return window.__iosSmoke.documentId;');
   await context.collectErrors();
   await context.wd('POST', '/refresh', {});
   await context.installCollector(documentBeforeReload);
@@ -112,7 +113,8 @@ async function queueReorder(context: SmokeContext) {
 }
 
 async function nativeShare(context: SmokeContext) {
-  await go(context, '/');
+  await go(context, '/discover');
+  await context.navigation('The 100');
   const card = await context.waitFor<WebElement>('return document.querySelector(".game-card");', 'collection card');
   await context.execute('arguments[0].scrollIntoView({ block: "center" });', card);
   await context.click('.game-card .game-link');
@@ -149,6 +151,7 @@ async function nativeShare(context: SmokeContext) {
         sheet = await nativeElements(context, sheetPredicate);
         if (!sheet.length) await delay(200);
       }
+      await context.artifact('10-native-share-observed.xml', await context.wd<string>('GET', '/source'));
       assert.ok(sheet.length, 'The native iOS ActivityListView or Copy option must appear.');
       sheetOpened = true;
       await context.artifact('10-native-share-sheet.xml', await context.wd<string>('GET', '/source'));
@@ -258,6 +261,10 @@ export async function runTouchUx(context: SmokeContext) {
     ['10-native-share', nativeShare],
     ['11-google-outbound-back', googleOutbound],
   ] as const) {
+    if (name === '11-google-outbound-back' && context.site !== productionOrigin) {
+      await context.skip(name, "SKIPPED: requires an origin on the API key's referrer list");
+      continue;
+    }
     try {
       await context.step(name, () => action(context));
     } catch (error) {

@@ -39,7 +39,7 @@ natively and verifies its disappearance. A DOM observer checks that no
 fallback toast, detail notice or manual share dialog appears during native
 sharing or cancellation.
 
-Finally it opens Account and touches Continue with Google without entering
+On the production origin only, it opens Account and touches Continue with Google without entering
 credentials. It requires Google's genuine HTTPS origin, a registered client
 and callback in the provider's direct or nested continuation URL, and Play 100
 branding on Google's page. The callback must be the target origin's
@@ -49,10 +49,15 @@ session-storage marker records the trusted initiating touch across navigation.
 OAuth query strings are removed from uploaded diagnostics; structured evidence
 retains only the public client ID, callback and origin/path chain.
 This checks outbound wiring and cancellation, not completed authentication.
-Candidate origins need valid Firebase authorized-domain and callback wiring;
-the runner does not configure or bypass those checks.
+Every other origin records
+`SKIPPED: requires an origin on the API key's referrer list` for this step,
+without attempting sign-in or counting it as a pass or failure. The key's
+HTTP-referrer restrictions deliberately exclude temporary origins; the runner
+does not configure or bypass them. A green candidate run therefore covers
+the ten executed steps, not Google outbound or Back. That eleventh step must
+run against production after the candidate is released.
 
-Every step produces a PNG. Each device's `results.json` includes step outcomes,
+Every executed step produces a PNG. Each device's `results.json` includes step outcomes,
 user agent, viewport, navigation timing, FCP/LCP when supported, boot attributes,
 uncaught errors, and the collector's installation timing. Failed assertions
 fail the job; screenshots, Safari diagnostics and partial results upload even
@@ -217,7 +222,11 @@ one accessibility anchor, a visible control and a trusted click;
 it never substitutes JavaScript-generated clicks. The typed harness sends W3C
 pointer actions with `pointerType: touch`, integer native viewport coordinates
 and an explicit press/release. Its JSON records the actual action payload beside
-each calibrated point. Native accessibility trees
+each calibrated point. Safari's own onboarding Close, keyboard Done and
+share-sheet dismissal use native accessibility-element taps in `NATIVE_APP`;
+they are not DOM-generated clicks. WebKit exposes `aria-pressed` controls as
+native switches, so saving games uses their toggle accessibility type.
+Native accessibility trees
 are uploaded alongside screenshots for diagnosing missing or ambiguous targets.
 The search evidence records `visualViewport` scale and offsets rather than
 hiding zoom. Appium's redundant Safari reset is skipped: every job already
@@ -227,6 +236,13 @@ its native Close button, verifies that it disappears, and closes the search keyb
 button before returning to The 100. These browser-only actions are recorded
 separately; no application overlays, input styles or navigation state are
 modified.
+
+Reloads wait for a new per-document collector UUID rather than exact
+`performance.timeOrigin` inequality: iOS 18.5 can return slightly different
+time origins for the same document, allowing an old page to look reloaded.
+The classic WebDriver transport uses Node's HTTP request API with explicit
+420-second session and 90-second command deadlines, avoiding fetch's separate
+300-second response-header timeout during slow simulator initialization.
 
 The image changes over time. The workflow therefore records its actual
 runtime inventory instead of claiming a permanently fixed device matrix.
