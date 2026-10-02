@@ -2,15 +2,81 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
-import { tapCoordinates } from './coordinates.mjs';
-import { productionOrigin, targetOrigin } from './target.mjs';
+import { tapCoordinates } from './coordinates.ts';
+import type { NativeRect, TapMeasurements } from './coordinates.ts';
+import { productionOrigin, targetOrigin } from './target.ts';
 
-let site;
+interface WebElement {
+  'element-6066-11e4-a52e-4f735466cecf': string;
+}
+
+interface PageError {
+  type: string;
+  message: string;
+  stack?: string;
+  url: string;
+}
+
+interface DocumentEvidence {
+  timeOrigin: number;
+  installedAtMs: number;
+  readyStateAtInstall: string;
+}
+
+interface Metrics {
+  userAgent: string;
+  [key: string]: unknown;
+}
+
+interface Step {
+  name: string;
+  startedAt: string;
+  evidence?: unknown;
+  passed?: boolean;
+  error?: string;
+  failureMetrics?: Metrics;
+  metricsError?: string;
+  screenshotError?: string;
+  durationMs?: number;
+}
+
+interface NativeTap extends TapMeasurements {
+  nativeType: string;
+  coordinates?: { x: number; y: number };
+}
+
+interface Results {
+  site: string | null;
+  device: string | undefined;
+  runtime: string | undefined;
+  udid: string | undefined;
+  startedAt: string;
+  steps: Step[];
+  documents: DocumentEvidence[];
+  pageErrors: PageError[];
+  errorAllowlist: { pattern: string; issue: string }[];
+  nativeTaps: NativeTap[];
+  browserActions: { action: string; at: string }[];
+  passed: boolean;
+  serverStartupError?: string;
+  capabilities?: unknown;
+  interactionMode?: string;
+  error?: string;
+  finalError?: string;
+  cleanupError?: string;
+  finishedAt?: string;
+}
+
+function errorDetails(error: unknown) {
+  return error instanceof Error ? (error.stack ?? error.message) : String(error);
+}
+
+let site: string;
 const endpoint = 'http://127.0.0.1:4444';
 const output = 'ios-safari-artifacts';
 // Add only narrowly matched, justified exceptions with an issue reference.
-const errorAllowlist = [];
-const results = {
+const errorAllowlist: Results['errorAllowlist'] = [];
+const results: Results = {
   site: null,
   device: process.env.IOS_DEVICE_NAME,
   runtime: process.env.IOS_VERSION,
@@ -24,29 +90,33 @@ const results = {
   browserActions: [],
   passed: false,
 };
-let session;
+let session: string | undefined;
 
-async function command(method, path, body) {
+async function command<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
   const response = await fetch(`${endpoint}${path}`, {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(path === '/session' ? 420_000 : 90_000),
   });
-  const payload = await response.json();
-  if (!response.ok || payload.value?.error) {
+  const payload: unknown = await response.json();
+  assert.ok(payload && typeof payload === 'object' && 'value' in payload, 'Invalid WebDriver response.');
+  const value = payload.value;
+  if (!response.ok || (value && typeof value === 'object' && 'error' in value && value.error)) {
     throw new Error(`${method} ${path}: ${JSON.stringify(payload.value)}`);
   }
-  return payload.value;
+  // The classic WebDriver protocol has no response schema; callers specify each command's result.
+  return value as T;
 }
 
-const wd = (method, path, body) => command(method, `/session/${session}${path}`, body);
-const execute = (script, ...args) => wd('POST', '/execute/sync', { script, args });
+const wd = <T = unknown>(method: string, path: string, body?: unknown) =>
+  command<T>(method, `/session/${session}${path}`, body);
+const execute = <T = unknown>(script: string, ...args: unknown[]) => wd<T>('POST', '/execute/sync', { script, args });
 
-async function waitFor(script, message, timeout = 45_000) {
+async function waitFor<T = unknown>(script: string, message: string, timeout = 45_000): Promise<NonNullable<T>> {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
-    const value = await execute(script);
+    const value = await execute<T>(script);
     if (value) return value;
     await delay(200);
   }
@@ -57,14 +127,17 @@ async function save() {
   await writeFile(`${output}/results.json`, JSON.stringify(results, null, 2));
 }
 
-async function capture(name) {
-  const image = await wd('GET', '/screenshot');
+async function capture(name: string) {
+  const image = await wd<string>('GET', '/screenshot');
   await writeFile(`${output}/${name}.png`, Buffer.from(image, 'base64'));
+  assert.ok(results.udid);
   execFileSync('xcrun', ['simctl', 'io', results.udid, 'screenshot', `${output}/${name}-simulator.png`]);
 }
 
 async function collectErrors() {
-  const errors = await execute('return window.__iosSmoke ? window.__iosSmoke.errors.splice(0) : null;');
+  const errors = await execute<PageError[] | null>(
+    'return window.__iosSmoke ? window.__iosSmoke.errors.splice(0) : null;',
+  );
   assert.ok(errors, 'The page error collector must remain installed throughout the document.');
   results.pageErrors.push(...errors);
   const unexpected = results.pageErrors.filter(
@@ -73,8 +146,8 @@ async function collectErrors() {
   assert.equal(unexpected.length, 0, `Uncaught page errors: ${JSON.stringify(unexpected)}`);
 }
 
-async function step(name, action) {
-  const record = { name, startedAt: new Date().toISOString() };
+async function step(name: string, action: () => Promise<unknown>) {
+  const record: Step = { name, startedAt: new Date().toISOString() };
   results.steps.push(record);
   const start = performance.now();
   try {
@@ -84,16 +157,16 @@ async function step(name, action) {
     record.passed = true;
   } catch (error) {
     record.passed = false;
-    record.error = error.stack;
+    record.error = errorDetails(error);
     try {
       record.failureMetrics = await metrics();
     } catch (metricsError) {
-      record.metricsError = metricsError.message;
+      record.metricsError = errorDetails(metricsError);
     }
     try {
       await capture(`${name}-failure`);
     } catch (captureError) {
-      record.screenshotError = captureError.message;
+      record.screenshotError = errorDetails(captureError);
     }
     throw error;
   } finally {
@@ -102,8 +175,8 @@ async function step(name, action) {
   }
 }
 
-async function installCollector(previousTimeOrigin) {
-  const document = await waitFor(
+async function installCollector(previousTimeOrigin?: number) {
+  const document = await waitFor<DocumentEvidence>(
     `
     if (location.origin !== ${JSON.stringify(site)} ||
         performance.timeOrigin === ${JSON.stringify(previousTimeOrigin ?? null)}) return null;
@@ -148,7 +221,7 @@ async function installCollector(previousTimeOrigin) {
 }
 
 async function metrics() {
-  return execute(`
+  return execute<Metrics>(`
     const root = document.documentElement;
     const state = window.__iosSmoke;
     return {
@@ -187,8 +260,8 @@ async function assertLoaded() {
   );
 }
 
-async function click(selector) {
-  const element = await waitFor(
+async function click(selector: string) {
+  const element = await waitFor<WebElement>(
     `${visible}
     const element = document.querySelector(${JSON.stringify(selector)});
     return visible(element) ? element : null;
@@ -197,7 +270,7 @@ async function click(selector) {
   );
   const id = element['element-6066-11e4-a52e-4f735466cecf'];
   assert.ok(id, `No WebDriver element for ${selector}`);
-  const label = await execute(
+  const label = await execute<string>(
     `return arguments[0].getAttribute('aria-label') ||
     arguments[0].querySelector('h3')?.textContent.trim() || arguments[0].innerText.trim();`,
     element,
@@ -206,9 +279,9 @@ async function click(selector) {
   return element;
 }
 
-async function tap(element, label) {
-  const before = await execute('return window.__iosSmoke.clicks.length;');
-  const measurements = await execute(
+async function tap(element: WebElement, label: string) {
+  const before = await execute<number>('return window.__iosSmoke.clicks.length;');
+  const measurements = await execute<Omit<NativeTap, 'nativeAnchor' | 'coordinates' | 'label'>>(
     `
     const element = arguments[0];
     const aria = element.getAttribute('aria-label');
@@ -230,18 +303,20 @@ async function tap(element, label) {
     label,
   );
   await nativeAction(async () => {
-    await writeFile(`${output}/native-target-${results.steps.length}.xml`, await wd('GET', '/source'));
+    await writeFile(`${output}/native-target-${results.steps.length}.xml`, await wd<string>('GET', '/source'));
     const value = `type == ${JSON.stringify(measurements.nativeType)} AND label == ${JSON.stringify(label)}`;
     const deadline = Date.now() + 15_000;
-    let elements = [];
+    let elements: WebElement[] = [];
     while (!elements.length && Date.now() < deadline) {
-      elements = await wd('POST', '/elements', { using: '-ios predicate string', value });
+      elements = await wd<WebElement[]>('POST', '/elements', { using: '-ios predicate string', value });
       if (!elements.length) await delay(300);
     }
     assert.equal(elements.length, 1, `Expected one native accessibility anchor for ${label}.`);
-    const id = elements[0]['element-6066-11e4-a52e-4f735466cecf'];
-    const nativeAnchor = await wd('GET', `/element/${id}/rect`);
-    const record = { label, ...measurements, nativeAnchor };
+    const anchor = elements[0];
+    assert.ok(anchor);
+    const id = anchor['element-6066-11e4-a52e-4f735466cecf'];
+    const nativeAnchor = await wd<NativeRect>('GET', `/element/${id}/rect`);
+    const record: NativeTap = { label, ...measurements, nativeAnchor };
     results.nativeTaps.push(record);
     record.coordinates = tapCoordinates(record);
     await execute('mobile: tap', record.coordinates);
@@ -253,8 +328,8 @@ async function tap(element, label) {
   );
 }
 
-async function nativeAction(action) {
-  const context = await wd('GET', '/context');
+async function nativeAction<T>(action: () => Promise<T>) {
+  const context = await wd<string>('GET', '/context');
   await wd('POST', '/context', { name: 'NATIVE_APP' });
   try {
     return await action();
@@ -265,20 +340,22 @@ async function nativeAction(action) {
 
 async function dismissSafariTip() {
   await nativeAction(async () => {
-    const tips = await wd('POST', '/elements', {
+    const tips = await wd<WebElement[]>('POST', '/elements', {
       using: '-ios predicate string',
       value:
         'type == "XCUIElementTypeStaticText" AND visible == true AND label == "View Bookmarks, Share Menu, and Open Tabs"',
     });
     if (!tips.length) return;
     assert.equal(tips.length, 1, 'Expected one known Safari onboarding tip.');
-    const buttons = await wd('POST', '/elements', {
+    const buttons = await wd<WebElement[]>('POST', '/elements', {
       using: '-ios class chain',
       value: '**/XCUIElementTypePopover[`visible == true`]/**/XCUIElementTypeButton[`label == "Close"`]',
     });
     assert.equal(buttons.length, 1, 'Safari onboarding must expose one Close button.');
-    await writeFile(`${output}/safari-onboarding.xml`, await wd('GET', '/source'));
-    await wd('POST', `/element/${buttons[0]['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+    await writeFile(`${output}/safari-onboarding.xml`, await wd<string>('GET', '/source'));
+    const close = buttons[0];
+    assert.ok(close);
+    await wd('POST', `/element/${close['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
     results.browserActions.push({ action: 'dismiss Safari onboarding tip', at: new Date().toISOString() });
   });
 }
@@ -286,19 +363,21 @@ async function dismissSafariTip() {
 async function dismissKeyboard() {
   await nativeAction(async () => {
     if (!(await execute('mobile: isKeyboardShown'))) return;
-    const buttons = await wd('POST', '/elements', {
+    const buttons = await wd<WebElement[]>('POST', '/elements', {
       using: '-ios predicate string',
       value: 'type == "XCUIElementTypeButton" AND visible == true AND label == "Done"',
     });
     assert.equal(buttons.length, 1, 'Safari keyboard must expose one Done button.');
-    await wd('POST', `/element/${buttons[0]['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
+    const done = buttons[0];
+    assert.ok(done);
+    await wd('POST', `/element/${done['element-6066-11e4-a52e-4f735466cecf']}/click`, {});
     assert.equal(await execute('mobile: isKeyboardShown'), false, 'Done must dismiss the Safari keyboard.');
     results.browserActions.push({ action: 'dismiss search keyboard with Done', at: new Date().toISOString() });
   });
 }
 
-async function navigation(label) {
-  const element = await waitFor(
+async function navigation(label: string) {
+  const element = await waitFor<WebElement>(
     `${visible}
     return [...document.querySelectorAll('.mobile-nav a')]
       .find(element => visible(element) && element.textContent.trim() === ${JSON.stringify(label)}) || null;
@@ -324,13 +403,13 @@ try {
       await command('GET', '/status');
       serverReady = true;
     } catch (error) {
-      results.serverStartupError = error.message;
+      results.serverStartupError = errorDetails(error);
       await delay(1000);
     }
   }
   assert.ok(serverReady, `Automation server not ready: ${results.serverStartupError}`);
   delete results.serverStartupError;
-  const created = await command('POST', '/session', {
+  const created = await command<{ sessionId: string; capabilities: unknown }>('POST', '/session', {
     capabilities: {
       alwaysMatch: {
         browserName: 'Safari',
@@ -351,7 +430,7 @@ try {
           ? {
               'appium:usePreinstalledWDA': true,
               'appium:prebuiltWDAPath': process.env.WDA_APP,
-              'appium:updatedWDABundleId': process.env.WDA_BUNDLE_ID.replace(/\.xctrunner$/, ''),
+              'appium:updatedWDABundleId': process.env.WDA_BUNDLE_ID?.replace(/\.xctrunner$/, ''),
             }
           : {}),
       },
@@ -385,7 +464,7 @@ try {
     return { url: await wd('GET', '/url') };
   });
   await step('03-search', async () => {
-    const element = await wd('POST', '/element', { using: 'css selector', value: '#catalog-search' });
+    const element = await wd<WebElement>('POST', '/element', { using: 'css selector', value: '#catalog-search' });
     const id = element['element-6066-11e4-a52e-4f735466cecf'];
     await wd('POST', `/element/${id}/value`, { text: 'portal' });
     const titles = await waitFor(
@@ -412,10 +491,10 @@ try {
     await waitFor(`${visible} return visible(document.querySelector('.game-card .game-link'));`, 'collection card');
     return { url: await wd('GET', '/url') };
   });
-  let opener;
-  let title;
+  let opener: WebElement | undefined;
+  let title: string | undefined;
   await step('05-game-detail', async () => {
-    title = await execute('return document.querySelector(".game-card .game-link h3").textContent.trim();');
+    title = await execute<string>('return document.querySelector(".game-card .game-link h3").textContent.trim();');
     opener = await click('.game-card .game-link');
     const heading = await waitFor(
       `${visible}
@@ -436,6 +515,7 @@ try {
     `,
       'game dialog closed',
     );
+    assert.ok(opener, 'The detail step must record its opener.');
     const openerId = opener['element-6066-11e4-a52e-4f735466cecf'];
     const restored = await waitFor(
       `
@@ -467,7 +547,7 @@ try {
     return { heading };
   });
   await step('08-reload', async () => {
-    const before = await execute('return performance.timeOrigin;');
+    const before = await execute<number>('return performance.timeOrigin;');
     await collectErrors();
     await wd('POST', '/refresh', {});
     await installCollector(before);
@@ -485,7 +565,7 @@ try {
   await collectErrors();
   results.passed = true;
 } catch (error) {
-  results.error = error.stack;
+  results.error = errorDetails(error);
   console.error(error);
   process.exitCode = 1;
 } finally {
@@ -494,14 +574,14 @@ try {
       await collectErrors();
     } catch (error) {
       results.passed = false;
-      results.finalError = error.stack;
+      results.finalError = errorDetails(error);
       process.exitCode = 1;
     }
     try {
       await wd('DELETE', '');
     } catch (error) {
       results.passed = false;
-      results.cleanupError = error.message;
+      results.cleanupError = errorDetails(error);
       process.exitCode = 1;
     }
   }

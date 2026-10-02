@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
-import { tapCoordinates } from './coordinates.mjs';
+import { test } from 'vitest';
+import { tapCoordinates } from './coordinates.ts';
 
 test('tap the whole navigation control rather than its text under Safari chrome', () => {
   assert.deepEqual(

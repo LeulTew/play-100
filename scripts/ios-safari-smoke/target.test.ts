@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
-import { productionOrigin, targetOrigin } from './target.mjs';
+import { test } from 'vitest';
+import { productionOrigin, targetOrigin } from './target.ts';
 
 test('default to production and normalize a public HTTPS tunnel origin', () => {
   assert.equal(targetOrigin(), productionOrigin);
