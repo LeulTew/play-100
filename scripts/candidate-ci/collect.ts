@@ -86,7 +86,7 @@ for (const run of runsFile.runs) {
   rmSync(target, { recursive: true, force: true });
   mkdirSync(target, { recursive: true });
   try {
-    gh(['run', 'download', String(run.runId), '--repo', repo, '-D', target], 900_000);
+    gh(['run', 'download', String(run.runId), '--repo', repo, '-D', target, '-p', 'candidate-ci-*'], 900_000);
   } catch (error) {
     console.error(`${run.entry.id}: no artifact (${String(error).split('\n')[0]})`);
   }

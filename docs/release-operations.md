@@ -1054,7 +1054,7 @@ three mobile and three desktop runs in each of two cells: `linux-liberation`
 visible). It writes the JSON and HTML reports, `fonts-<cell>.txt` and
 `summary.json` with per-run scores and medians.
 
-Each run uploads one artifact, `candidate-ci-<suite>-<sha>-<run>-<attempt>`, for
+Each run uploads an evidence artifact, `candidate-ci-<suite>-<sha>-<run>-<attempt>`, for
 30 days. It holds the Playwright JSON and JUnit reports or the per-iteration
 Vitest reports, the console log, and the traces and `error-context.md` files of
 failures. It also holds the emulator debug logs and `identity.json`, which records:
@@ -1068,6 +1068,14 @@ failures. It also holds the emulator debug logs and `identity.json`, which recor
 - `files`: the POSIX path (relative to the artifact root), bytes and SHA-256 of
   every other uploaded file. It is written last, so a detached report can be
   matched to its run.
+
+When a test fails, the run also uploads a small `failures-<suite>-<sha>-<run>-<attempt>`
+artifact for quick diagnosis: `failures.json` (each failed attempt's title,
+`file:line`, project, repeat index, status and first error) and every failed
+Playwright attempt's `error-context.md` and screenshots, without traces or
+videos. It is a convenience copy outside `identity.json`'s `files`; cite the
+full artifact as evidence. Fetch it with
+`gh run download <run> --repo LeulTew/play-100 -p 'failures-*'`.
 
 **What it does not prove.** A run is not a gate receipt. It does not replace
 `npm run release:gate`, §3, the manifest or any manual gate. It runs one suite

@@ -264,3 +264,23 @@ jobs:
           path: evidence/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Extract failures
+        id: failures
+        if: always() && steps.suite.outcome == 'failure'
+        working-directory: candidate
+        run: |
+          set -euo pipefail
+          npx --no-install tsx "$CI_SCRIPTS/failures.ts" "$OUT" "$RUNNER_TEMP/failures"
+          if [[ -f "$RUNNER_TEMP/failures/failures.json" ]]; then echo "found=true" >> "$GITHUB_OUTPUT"; fi
+
+      # Small companion to the full artifact: each failed test's error-context.md, screenshots and failures.json,
+      # without traces, so a failure can be read without downloading the full evidence.
+      - name: Upload failures
+        if: always() && steps.failures.outputs.found == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: failures-${{ inputs.suite }}-${{ inputs.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/failures/
+          if-no-files-found: error
+          retention-days: 30
