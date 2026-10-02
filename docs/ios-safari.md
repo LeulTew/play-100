@@ -11,6 +11,14 @@ target is production; manual runs can use an HTTPS candidate origin instead.
 
 ## Coverage and evidence
 
+The inventory artifact includes `target-identity.json`: the validated target
+origin, UTC fetch time, byte count and SHA-256 of the HTML served at that origin's
+root. The planner fetches without cache and refuses redirects, failed HTTP
+responses, non-HTML and empty bodies; it hashes response bytes without text
+normalization. This identifies the observed build before simulator jobs begin.
+Keep a candidate immutable for the run: this snapshot does not prove that a
+mutable origin served identical bytes to every later browser navigation.
+
 Each fresh simulator cold-loads the selected origin (production by default) and
 checks both hero phrases, the hidden boot-error panel and app-started state.
 It uses the phone's bottom navigation to open Discover, types `portal` and
@@ -179,7 +187,7 @@ The harness is TypeScript executed by `tsx` on the repository's pinned Node
 the local release gate's `tsc -b` and Vitest unit project therefore cover them.
 Run the focused unit checks with
 `npm exec -- vitest run --project unit --maxWorkers=1 scripts/ios-safari-smoke`.
-The inventory job also checks types, focused lint, formatting and these ten tests
+The inventory job also checks types, focused lint, formatting and these thirteen tests
 before starting any simulator job.
 
 `scripts/ios-safari-smoke/package-lock.json` locks Appium, XCUITest and their
