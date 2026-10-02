@@ -93,8 +93,11 @@ function certificate() {
   return { key: readFileSync(key), cert: readFileSync(cert) };
 }
 
-/** Serves a build as production does; the browser applies the network profile. */
-export async function serve(root: string) {
+/**
+ * Serves a build as production does; the browser applies the network profile. Port 0 takes any free port; a session
+ * on a shared host passes the port it was given.
+ */
+export async function serve(root: string, port = 0) {
   // The build's own checkout's deployment config, when it has one.
   const config = path.join(root, '..', 'vercel.json');
   const deployment = JSON.parse(readFileSync(existsSync(config) ? config : 'vercel.json', 'utf8')) as Deployment;
@@ -159,7 +162,13 @@ export async function serve(root: string) {
       response.end();
     }
   });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, '127.0.0.1', () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('The profile server has no address.');
   return { origin: `https://127.0.0.1:${address.port}`, close: () => new Promise((resolve) => server.close(resolve)) };
