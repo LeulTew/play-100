@@ -108,7 +108,11 @@ export function useRankingsPage({
       updateView({ query: searchInput, offset: 0 });
     }
   }, [active, searchHeld, pendingEdits, searchInput, updateView]);
-  const [removal, setRemoval] = useState<{ record: LibraryRecord; scope: string } | null>(null);
+  const [removal, setRemoval] = useState<{
+    record: LibraryRecord;
+    scope: string;
+    getFallbackFocus: () => HTMLElement | null;
+  } | null>(null);
   const progressView = progressFilter ?? (completedOnly ? 'completed' : 'all');
   const rankingById = useMemo(
     () => new Map(state.ranking.map((entry, index) => [entry.id, { entry, position: index + 1 }])),

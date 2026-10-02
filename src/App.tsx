@@ -5,7 +5,6 @@ import { useUrlState } from './hooks/useUrlState';
 import { useShare } from './hooks/useShare';
 import { createShareLink } from './lib/url';
 import { pageDestination } from './lib/page-navigation';
-import { appDocumentTitle } from './lib/document-title';
 import type { AppPage, Filters } from './lib/types';
 import type { LibraryRecord } from './lib/personal-types';
 import { recordFromGame } from './lib/personal-types';
@@ -128,10 +127,6 @@ export default function App() {
   const titlePanel = manualLink
     ? 'share'
     : (requestedTitlePanel ?? (online?.signInOpen ? 'account' : compareTrayVisible ? 'compare-tray' : null));
-  const documentTitle = appDocumentTitle(page, selectedGame, selectedRecord, titlePanel, gamesView);
-  useEffect(() => {
-    document.title = documentTitle;
-  }, [documentTitle]);
   useSearchShortcut();
   const navigate = (next: AppPage, patch: Partial<Filters> = {}) => {
     signIn.reset();
@@ -333,6 +328,7 @@ export default function App() {
                       app={{
                         page,
                         gamesView,
+                        titlePanel,
                         publicHandle: url.publicHandle,
                         openGame: url.openGame,
                         getGameOpener: url.getGameOpener,

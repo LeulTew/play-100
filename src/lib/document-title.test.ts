@@ -4,6 +4,20 @@ import { myGamesTab } from './my-games-navigation';
 import { pageFromPath } from './url';
 
 describe('committed-state document titles', () => {
+  it('names the missing-game dialog without overriding a foreground utility or a resolved game', () => {
+    expect(appDocumentTitle('collection', undefined, undefined, null, undefined, true)).toBe(
+      'Game not found | Play 100',
+    );
+    expect(appDocumentTitle('discover', undefined, undefined, null, undefined, true)).toBe('Game not found | Play 100');
+    expect(appDocumentTitle('collection', undefined, undefined, 'settings', undefined, true)).toBe(
+      'Settings & backups | Play 100',
+    );
+    expect(appDocumentTitle('collection', { title: 'Game', rank: 4 }, undefined, null, undefined, true)).toBe(
+      'Game · #4 | Play 100',
+    );
+    expect(appDocumentTitle('collection')).toBe('The 100 | Play 100');
+  });
+
   it.each([
     ['/my-library', '?list=later&catalogs=off', 'Play later'],
     ['/my-library/', '?list=later', 'Play later'],

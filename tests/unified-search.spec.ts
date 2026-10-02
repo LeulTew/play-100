@@ -347,6 +347,7 @@ test('failed load-more retries the failed page without losing prior records or d
 
 test('a quota failure keeps an unranked rating draft without partially importing or endlessly retrying', async ({
   page,
+  isMobile,
 }) => {
   await page.clock.install();
   await mockGames(page);
@@ -369,6 +370,7 @@ test('a quota failure keeps an unranked rating draft without partially importing
     document.documentElement.dataset.failImport = 'yes';
   });
   await row(page, a).getByRole('spinbutton').fill('7');
+  if (isMobile) await row(page, a).getByRole('spinbutton').press('Enter');
   await expect(row(page, a).locator('.inline-error')).toContainText('could not be saved');
   await expect(row(page, a).getByRole('spinbutton')).toHaveValue('7');
   expect(await readLibrary(page)).toEqual(before);

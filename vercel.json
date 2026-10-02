@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
+  "git": { "deploymentEnabled": { "leultew-r24-rating-targets": false } },
   "trailingSlash": false,
   "buildCommand": "npm run build",
   "installCommand": "npm ci",

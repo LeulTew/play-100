@@ -21,6 +21,7 @@ interface SettingsDialogProps {
   onReset: () => Promise<LibraryResetResult>;
   state: PersonalLibraryState;
   persistent: boolean;
+  loading?: boolean;
   busy: boolean;
   onRestore: (state: PersonalLibraryState) => Promise<boolean>;
   onAbout: () => void;
@@ -46,6 +47,7 @@ export function SettingsDialog({
   onClose,
   state,
   persistent,
+  loading = false,
   busy,
   onRestore,
   onAbout,
@@ -183,6 +185,7 @@ export function SettingsDialog({
         state={state}
         busy={busy}
         persistent={persistent}
+        loading={loading}
         onRestore={onRestore}
         onActionStart={() => setResetResult(null)}
       />

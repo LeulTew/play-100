@@ -19,7 +19,7 @@ import { usePendingEdits } from '../../hooks/useExitSave';
 import { useNavigationScope } from '../../hooks/useNavigationScope';
 import { useDiscoveryArtwork } from '../../hooks/useDiscoveryCatalog';
 import { useLibraryMode } from '../../lib/library-mode';
-import { focusMovedRecord } from './reorder-focus';
+import { focusMovedRecord, removalReturnFocus } from './reorder-focus';
 import type { MoveDirection } from './reorder-focus';
 import { useRetainedRecords } from './useRetainedRecords';
 import { resolveLibraryPageCursor } from './library-page-cursor';
@@ -91,8 +91,7 @@ export function useLibraryPage({
   const pageBoundary = useRef<HTMLDivElement>(null);
   const resultsHeading = useRef<HTMLHeadingElement>(null);
   const focusAfterPage = useRef(false);
-  const removalTrigger = useRef<HTMLElement | null>(null);
-  const removalFocus = useRef<{ trigger: HTMLElement | null; generation: number } | null>(null);
+  const removalFallback = useRef<(() => HTMLElement | null) | null>(null);
   const queueRemoval = useRef<ReturnType<typeof captureControlFocus> | null>(null);
   const [removedQueue, setRemovedQueue] = useState<{
     id: string;
@@ -179,9 +178,6 @@ export function useLibraryPage({
   const artwork = useDiscoveryArtwork(visibleRecords, active);
   const selectedRecords = records.filter((record) => selected.has(record.id));
   if (!active && removing.length > 0) setRemoving([]);
-  useLayoutEffect(() => {
-    if (!active) removalFocus.current = null;
-  }, [active]);
   useEffect(() => {
     mounted.current = true;
     const restorePage = () => {
@@ -236,13 +232,6 @@ export function useLibraryPage({
     if (!focusMovedRecord(queueResults.current, followMove.id, followMove.direction, followMove.origin)) return;
     followedMove.current = followMove;
   }, [followMove, active, busy, moving, pendingEdits, tab, queuePositions, state.revision, page.offset]);
-  useEffect(() => {
-    if (removing.length) return;
-    const requested = removalFocus.current;
-    removalFocus.current = null;
-    if (requested && active && requested.generation === generation.current && !requested.trigger?.isConnected)
-      focusResults();
-  }, [removing.length, active]);
   useLayoutEffect(() => {
     if (!removedQueue || followedQueueRemoval.current === removedQueue) return;
     if (removedQueue.isCurrent() && (state.progress[removedQueue.id]?.later || pendingEdits)) return;
@@ -307,11 +296,16 @@ export function useLibraryPage({
       }
     });
   };
-  const requestRemoval = (
-    chosen: LibraryRecord[],
-    trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null,
-  ) => {
-    removalTrigger.current = trigger;
+  const requestRemoval = (chosen: LibraryRecord[]) => {
+    const scopeAndNavigation = captureFocusGuard();
+    const request = generation.current;
+    const target = removalReturnFocus(
+      records,
+      chosen.map((record) => record.id),
+      resultsHeading.current,
+    );
+    removalFallback.current = () =>
+      current.current.active && generation.current === request && scopeAndNavigation() ? target() : null;
     setRemoving(chosen);
   };
   const canReorder = tab === 'later' && !query && !selecting && progressView === 'all';
@@ -370,14 +364,10 @@ export function useLibraryPage({
     if (await onAction(selectionOperation(action, chosen))) setSelected(new Set());
   };
   const removeRecords = async (ids: string[]) => {
-    const request = generation.current;
     const success = await onAction({ type: 'remove-records', ids });
     if (success && mounted.current) {
       const removed = new Set(ids);
       setSelected((prior) => new Set([...prior].filter((id) => !removed.has(id))));
-      if (current.current.active && request === generation.current) {
-        removalFocus.current = { trigger: removalTrigger.current, generation: request };
-      }
     }
     return success;
   };
@@ -410,6 +400,7 @@ export function useLibraryPage({
     move,
     changePage,
     requestRemoval,
+    getRemovalFallback: () => removalFallback.current?.() ?? null,
     removeFromQueue,
     removeRecords,
     filtered,
