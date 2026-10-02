@@ -2,45 +2,45 @@
 
 exports[`Account page markup contract > active sync keeps its complete DOM 1`] = `"e5968c8d170cdbddc70e9d2ab1385f848a4c52e38cb9b99a551d7f53d1d4021e"`;
 
-exports[`Account page markup contract > busy connection keeps its complete DOM 1`] = `"4492d986ce2893b73f5039281c232fb363fef000f3639b5664e1b33e139b9a92"`;
+exports[`Account page markup contract > busy connection keeps its complete DOM 1`] = `"51b2fb804c4bf4e669c4f5784c5674189c5ef1fa78e7761044125dce4d03fe33"`;
 
-exports[`Account page markup contract > cancelled registration keeps its complete DOM 1`] = `"cfdd48a446e3846b33b016dd4ef9b515301c9d17f811183bc87384a236cedc13"`;
+exports[`Account page markup contract > cancelled registration keeps its complete DOM 1`] = `"f0939c73dc02bea504150174f5be701949d287c6b42aae603951ce02ca6d3fc0"`;
 
-exports[`Account page markup contract > checking deletion keeps its complete DOM 1`] = `"f7aa9b7593d898bce22829641fd48cdd71f00645ebcce557319cf4c0e35b2ddc"`;
+exports[`Account page markup contract > checking deletion keeps its complete DOM 1`] = `"2ffe3b217f37d9965970edb59448ed7f49d6f1d971cdfd9cda2e814e56836ddb"`;
 
-exports[`Account page markup contract > checking remote copies keeps its complete DOM 1`] = `"8c77c463a2c07f7f8d125f3b2d26bbb08066dec22535c66cff3107e9dc3ccaa1"`;
+exports[`Account page markup contract > checking remote copies keeps its complete DOM 1`] = `"4c1b2a37fc116cadf12c7f10bc860e0baae462a9482d58b906a069e73d3c3b8e"`;
 
-exports[`Account page markup contract > cleanup warning keeps its complete DOM 1`] = `"d9e0cf4b084bddbc04290e3bc59c41f28114323f2861803ec60442c420bd51b8"`;
+exports[`Account page markup contract > cleanup warning keeps its complete DOM 1`] = `"ed82f31cee87ed39cd1e1cc182d688b7b8dfd7401f6e3ce7c8409d5a199d6d72"`;
 
-exports[`Account page markup contract > complete deletion keeps its complete DOM 1`] = `"39baf5aeee70951afde61d9427627893eb742ee36faee683cd993f07c5fb052a"`;
+exports[`Account page markup contract > complete deletion keeps its complete DOM 1`] = `"cc90949fe851fc63465a187548d7e7f9b64e40306aa05a2a7bf44016ba5ad7fc"`;
 
-exports[`Account page markup contract > delete-account confirmation keeps its text, fields and native dialog controls 1`] = `"84fdc9636e6c4dae65ce24270bf9031359d9391579a475086521e8803a040fd3"`;
+exports[`Account page markup contract > delete-account confirmation keeps its text, fields and native dialog controls 1`] = `"6273db61806291a728b13b8f84a70ae5b9993ed00e25560d11b223fdeeb45e1f"`;
 
-exports[`Account page markup contract > delete-copy confirmation keeps its text, fields and native dialog controls 1`] = `"2a02088eafd607640d3268e4d8a8550cf7e80e389dc2f3e4eb4a62231f7da855"`;
+exports[`Account page markup contract > delete-copy confirmation keeps its text, fields and native dialog controls 1`] = `"96a516ad18393d3020fbb9be921a05898b1a169891e6829d65d2aff4f3ef0fb7"`;
 
-exports[`Account page markup contract > empty verified account keeps its complete DOM 1`] = `"83096c8aa1b51b9182f141a241199c8d0af9e0ff96f7a95bf19352b3c87359bd"`;
+exports[`Account page markup contract > empty verified account keeps its complete DOM 1`] = `"95ef3e3e9b32c3f568c0a42e2515b225e59b27b98a7632553523934c54bf0dad"`;
 
-exports[`Account page markup contract > incomplete deletion keeps its complete DOM 1`] = `"372e4619155f7ae57afbf914215f1732bd93ac19e3bc23aef996223f261ad23c"`;
+exports[`Account page markup contract > incomplete deletion keeps its complete DOM 1`] = `"ff495a1991eebfce40c91e5ffc8ea4562636163662fbbbc7c33074ca953e6a26"`;
 
-exports[`Account page markup contract > keeps Google deletion continuation markup with confirmed=false 1`] = `"5658f58427646b9db47e7a5fe05c4383cc2648d590ba35a0a1831537060327a9"`;
+exports[`Account page markup contract > keeps Google deletion continuation markup with confirmed=false 1`] = `"e4fcf706fc065b7735d8be0d67d7d3588be8931ed0e1f33d9c462aefbb16d120"`;
 
-exports[`Account page markup contract > keeps Google deletion continuation markup with confirmed=true 1`] = `"47cb02eba6718914d69b509b20380c052b29105f87970fa2eff32cfa4747d4e4"`;
+exports[`Account page markup contract > keeps Google deletion continuation markup with confirmed=true 1`] = `"741afad9eff8d01adfb119580f9654f13534ed6f2552e2e22cfd9bd54527acbc"`;
 
-exports[`Account page markup contract > local confirmation keeps its text, fields and native dialog controls 1`] = `"a8d76b6353564d37a2e1b5e77adefbf7aee59a98da7329919b7899b646e7019f"`;
+exports[`Account page markup contract > local confirmation keeps its text, fields and native dialog controls 1`] = `"565cec278c17413d69f6652d242097b319f373c040885548d297ffea74f7cecf"`;
 
-exports[`Account page markup contract > missing device cache keeps its complete DOM 1`] = `"bd298468c3a1c484c842d60b33dbe4eeaec3d79681e0c2f841d2e3cbe3119e86"`;
+exports[`Account page markup contract > missing device cache keeps its complete DOM 1`] = `"744f6162dcb6779fe79433197585a40fab61e9083f4c752fe5df9b54950c9247"`;
 
-exports[`Account page markup contract > online replacement choices keeps its complete DOM 1`] = `"beb57270974d0738375aa4e172a7b22c34115fc9c4e7202e30d5a26b886471c6"`;
+exports[`Account page markup contract > online replacement choices keeps its complete DOM 1`] = `"0dc88fe1432ff93e37d78e3e6327f597a77f8191ee1bf4f50b73dc35f7d470cf"`;
 
-exports[`Account page markup contract > pause confirmation keeps its text, fields and native dialog controls 1`] = `"eaa86da9b8c8f822e2e31cf8ab4f9cafbd5904cfb0dce30440c06d799f616839"`;
+exports[`Account page markup contract > pause confirmation keeps its text, fields and native dialog controls 1`] = `"8f3b6e1cc16bb1f272417e3635e334cab1c0d60d872836c5a70c9660170acd2b"`;
 
 exports[`Account page markup contract > pending verification keeps its complete DOM 1`] = `"2e86db2bc3bbcb2f0d60a09ea483f90b2b63889d8e5b4dd570ba471b393bf572"`;
 
-exports[`Account page markup contract > remote confirmation keeps its text, fields and native dialog controls 1`] = `"a3b3daa12fd20f475f070fdc7bb4d93091401ee34118b2a9eb0fc06388e2128b"`;
+exports[`Account page markup contract > remote confirmation keeps its text, fields and native dialog controls 1`] = `"c2c7134b6f3ca4887083580ad0368d2b42b6c368082d3baf21485652072da2c8"`;
 
-exports[`Account page markup contract > sharing and creator tools keeps its complete DOM 1`] = `"3936b8d3d41eb40fa52666b03f08a805418bba9ce49ee98a6ab29f0130d1d122"`;
+exports[`Account page markup contract > sharing and creator tools keeps its complete DOM 1`] = `"584cf718f796ae1e51dd3e29d06ae99f081c9eaca1a88bb94fcb235820f3c834"`;
 
-exports[`Account page markup contract > signout-device confirmation keeps its text, fields and native dialog controls 1`] = `"246909332f0bf26783d44764a7465d6d8fe76fd0ed4f2b280121df46b0a2f6d3"`;
+exports[`Account page markup contract > signout-device confirmation keeps its text, fields and native dialog controls 1`] = `"535521b5082411d08abec286656556415911065dd23aabc8088d9a1807acdc87"`;
 
 exports[`Account page markup contract > sync conflict keeps its complete DOM 1`] = `"45eca6975e391ab829ef8b5b663bf6b0a5a09a8792d2d3b4ec38b9acfd99f656"`;
 

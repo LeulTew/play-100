@@ -209,7 +209,7 @@ for (const mobile of [false, true]) {
         await browserExpect(page.locator('dialog[open]')).toHaveCount(0);
         await browserExpect(trigger).toBeFocused();
         const filters = page.locator('details.browse-filters');
-        if ((await filters.getAttribute('open')) === null) await filters.locator('summary').click();
+        if ((await filters.getAttribute('open')) === null) await filters.locator(':scope > summary').click();
         await page.getByRole('checkbox', { name: 'Search public catalogs', exact: true }).check();
         await browserExpect(
           page.getByRole('navigation', { name: 'Main navigation', includeHidden: true }).getByRole('link', {
