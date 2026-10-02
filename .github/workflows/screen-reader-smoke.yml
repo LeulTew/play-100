@@ -46,6 +46,7 @@ jobs:
         run: |
           npx guidepup setup --ci
           npx guidepup install
+          npx playwright install ffmpeg
       - name: Record versions
         run: |
           New-Item -ItemType Directory -Force artifacts/nvda | Out-Null
@@ -98,6 +99,7 @@ jobs:
         run: |
           npx guidepup setup --ci
           npx guidepup install
+          npx playwright install ffmpeg
       - name: Record versions
         run: |
           mkdir -p artifacts/voiceover
