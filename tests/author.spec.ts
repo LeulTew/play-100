@@ -50,7 +50,7 @@ test('canonical rationale stays complete before bookkeeping at narrow, mobile, i
   await expect(opener).toBeFocused();
 });
 
-test('Leul original values are visible by default and never become visitor ratings', async ({ page }) => {
+test('Leul original values are visible by default and never become visitor ratings', async ({ page, isMobile }) => {
   await page.goto('/?view=table');
   await expect(page.getByRole('columnheader', { name: /Leul's rating/ })).toBeVisible();
   await expect(page.locator('tr[data-game="the-witcher-3-wild-hunt"] .table-author-rating')).toHaveText('9.9');
@@ -72,6 +72,7 @@ test('Leul original values are visible by default and never become visitor ratin
   });
   await expect(ownRating).toHaveValue('');
   await ownRating.fill('4');
+  if (isMobile) await ownRating.press('Enter');
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(4);
   await page.goto('/');
   await expect(page.locator('[data-game="the-witcher-3-wild-hunt"] .author-rating-card')).toContainText('9.9');
