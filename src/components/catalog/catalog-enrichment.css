@@ -1,3 +1,5 @@
+@import '../personal/catalog-detail-motion.css';
+
 .catalog-enrichment {
   border-top: 1px solid var(--line);
   padding-top: 20px;

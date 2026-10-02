@@ -601,6 +601,11 @@ root when nothing else lazy has loaded. The online bridge
 counts the part of the bridge's closure that the page's chunks import, so the two
 rows overlap rather than add up.
 
+Catalog detail styles join the existing lazy catalog-enrichment stylesheet.
+`CatalogDetail` receives both through its static `CatalogEnrichment` dependency,
+before the dialog renders; Discover shares that stylesheet. This avoids a
+separate CSS asset without moving either stylesheet into the eager closure.
+
 The bridge's closure leaves out code that only some pages run, so opening Compare,
 Friends or any other page does not load it. Publishing, moderation, reports and
 public-copy cleanup ([social-publication](../src/cloud/social-publication.ts))
