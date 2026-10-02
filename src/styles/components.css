@@ -117,6 +117,11 @@ html[data-constrained] .game-cover img {
 .has-cover .jacket-drawing {
   opacity: 0.25;
 }
+/* On a constrained device a cover sits on its flat jacket color: the faint drawing is one more layer each card composites
+   as The 100 scrolls. */
+html[data-constrained] .has-cover .jacket-drawing {
+  display: none;
+}
 .jacket-series {
   position: absolute;
   top: 15px;
