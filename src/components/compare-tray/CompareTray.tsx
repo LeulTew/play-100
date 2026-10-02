@@ -157,6 +157,15 @@ function ScopedCompareTray({
     return () => onVisibilityChange?.(false);
   }, [visible, onVisibilityChange]);
   const close = () => setOpen(false);
+  useEffect(() => {
+    if (!open) return;
+    // Browser Back or Forward closes the sheet rather than changing the page beneath it (UX-027).
+    const back = (event: Event) => {
+      if (event.isTrusted) setOpen(false);
+    };
+    window.addEventListener('popstate', back);
+    return () => window.removeEventListener('popstate', back);
+  }, [open]);
   const compare = () => {
     if (!items.length) return;
     close();
