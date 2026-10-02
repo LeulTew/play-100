@@ -1,18 +1,24 @@
 /**
- * Markup helpers for the static first-paint shell in index.html (docs/first-paint-shell.md).
- * They have no build dependencies, so tests can read the exact shell markup the build ships.
+ * Markup helpers for the first-paint shell (docs/first-paint-shell.md). #root in index.html holds a placeholder,
+ * which the build replaces with React's first commit at "/" rendered from the landing components
+ * (src/first-paint/shell-render.tsx), followed by the failure notice.
+ * They have no build dependencies, so tests can read the exact #root markup the build ships.
  */
 
 export const SHELL_CLASS = 'first-paint-shell';
-/** Ends the shell markup in index.html; builds drop it (its name dates from when the entry stylesheet moved there). */
+/** Ends the #root markup in index.html; builds drop it (its name dates from when the entry stylesheet moved there). */
 export const STYLESHEET_MARKER = '<!--p100:stylesheets-->';
+/** Marks the place of the rendered shell in #root of index.html. */
+export const SHELL_PLACEHOLDER = '<!--p100:shell-->';
 export type ShellVariant = 'online' | 'offline';
 
 export const ROOT_OPEN = '<div id="root">';
-export const SHELL_OPEN = `<div class="${SHELL_CLASS}" hidden>`;
+/** Opens the shell as react-dom/server renders it. */
+export const SHELL_OPEN = `<div class="${SHELL_CLASS}" hidden="">`;
 /** Opens the failure notice the boot script shows in place of the shell when the app cannot start. */
 export const NOTICE_OPEN = '<main class="app-error" id="p100-boot-error" hidden>';
-const VARIANT_BLOCK = /<!--shell:(online|offline)-->([\s\S]*?)<!--\/shell:\1-->/g;
+// An element name no markup uses, standing in for the shell while the comments of #root are removed.
+const SHELL_SENTINEL = '<p100-shell>';
 const NAMED_ENTITIES: Readonly<Record<string, string>> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 
 export function shellRegion(html: string): { start: number; end: number } {
@@ -24,13 +30,6 @@ export function shellRegion(html: string): { start: number; end: number } {
     );
   }
   return { start, end };
-}
-
-/** Keeps the markup of one header variant and drops the variant markers. */
-export function selectShellVariant(html: string, variant: ShellVariant): string {
-  const selected = html.replace(VARIANT_BLOCK, (_, name: string, content: string) => (name === variant ? content : ''));
-  if (/<!--\/?shell:/.test(selected)) throw new Error('index.html has an unbalanced first-paint shell variant marker.');
-  return selected;
 }
 
 /**
@@ -58,18 +57,33 @@ function withoutComments(markup: string): string {
   return output;
 }
 
-/** Removes comments and the indentation between tags inside #root, matching React's markup. */
-export function normalizeShellWhitespace(html: string): string {
+/**
+ * index.html with a rendered shell in place of its placeholder. The comments of #root and the indentation between its
+ * tags go, so the failure notice after the shell matches React's markup too; the shell itself stays as rendered.
+ */
+export function withShell(html: string, shell: string): string {
+  if (!shell.startsWith(SHELL_OPEN) || shell.includes('<!--') || shell.includes(SHELL_SENTINEL))
+    throw new Error(`The rendered first-paint shell must start with ${SHELL_OPEN} and hold no comments.`);
   const { start, end } = shellRegion(html);
-  const region = withoutComments(html.slice(start, end)).replace(/>\s*\n\s*</g, '><');
-  return html.slice(0, start) + region + html.slice(end);
+  const region = html.slice(start, end);
+  if (
+    html.split(SHELL_PLACEHOLDER).length !== 2 ||
+    !region.includes(SHELL_PLACEHOLDER) ||
+    region.includes(SHELL_SENTINEL)
+  )
+    throw new Error(`index.html must hold exactly one ${SHELL_PLACEHOLDER}, inside #root.`);
+  const marked = withoutComments(region.replace(SHELL_PLACEHOLDER, SHELL_SENTINEL)).replace(/>\s*\n\s*</g, '><');
+  // A placeholder inside a comment goes with it.
+  if (marked.split(SHELL_SENTINEL).length !== 2)
+    throw new Error(`The ${SHELL_PLACEHOLDER} of index.html must stand outside every comment.`);
+  return html.slice(0, start) + marked.replace(SHELL_SENTINEL, () => shell) + html.slice(end);
 }
 
-/** The #root markup of index.html for one variant, exactly as the build ships it. */
-export function shellMarkup(html: string, variant: ShellVariant): string {
-  const normalized = normalizeShellWhitespace(selectShellVariant(html, variant));
-  const { start, end } = shellRegion(normalized);
-  const markup = normalized.slice(start, end);
+/** The #root markup of index.html with a rendered shell, exactly as the build ships it. */
+export function shellMarkup(html: string, shell: string): string {
+  const shipped = withShell(html, shell);
+  const { start, end } = shellRegion(shipped);
+  const markup = shipped.slice(start, end);
   if (!markup.startsWith(ROOT_OPEN + SHELL_OPEN)) throw new Error(`#root must start with ${SHELL_OPEN}.`);
   return markup;
 }

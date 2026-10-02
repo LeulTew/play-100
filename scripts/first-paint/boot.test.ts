@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { minifyBootScript } from './plugin.ts';
-import { NOTICE_OPEN, bootNotice, shellMarkup } from './shell-html.ts';
+import { NOTICE_OPEN, SHELL_OPEN, bootNotice, shellMarkup } from './shell-html.ts';
 
 const read = (file: string) => readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const bootScript = minifyBootScript(read('src/first-paint/boot.js'));
@@ -815,8 +815,9 @@ describe('first-paint failure notice', () => {
     expect(result.shellRemoved()).toBe(false);
   });
 
-  it.each(['offline', 'online'] as const)('waits hidden after the %s shell in #root', (variant) => {
-    const notice = bootNotice(shellMarkup(indexHtml, variant));
+  it('waits hidden after the shell in #root', () => {
+    // The notice is index.html's own and follows the rendered shell of either variant (src/first-paint/shell-render.test.ts).
+    const notice = bootNotice(shellMarkup(indexHtml, `${SHELL_OPEN}</div>`));
     expect(NOTICE_OPEN).toContain(' id="p100-boot-error" hidden>');
     expect(bootScript).toMatch(/document\.getElementById\((['"`])p100-boot-error\1\)/);
     expect(bootScript).toMatch(/document\.querySelector\((['"`])\.first-paint-shell\1\)/);

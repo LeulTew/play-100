@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as ts from 'typescript';
 import { sourceNodes, sourceTokens } from '../../scripts/source-contract';
 import { NOTICE_OPEN, bootNotice, shellMarkup } from '../../scripts/first-paint/shell-html';
+import type { ShellVariant } from '../../scripts/first-paint/shell-html';
 import { AppHeader } from '../components/app/AppHeader';
 import { MobileNav } from '../components/app/MobileNav';
 import CollectionArtifact from '../components/CollectionArtifact';
@@ -23,11 +24,19 @@ import { pageDestination } from '../lib/page-navigation';
 import { emptyPersonalLibrary } from '../lib/personal-library';
 import type { AppPage } from '../lib/types';
 import { defaultFilters } from '../lib/url';
+import { renderShell } from './shell-render';
 
-// The static shell in index.html must equal what React's first commit renders at "/", so the
-// first paint and the hydrated page never differ (docs/first-paint-shell.md).
+// The static shell the build renders into index.html (shell-render.tsx) must equal what React's first commit renders at
+// "/", but for the shell's own differences, so the first paint and the hydrated page never differ
+// (docs/first-paint-shell.md).
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const html = read('../../index.html');
+// #root as the build emits it: the rendered shell, then the boot script's failure notice. Rendered before any test
+// stubs a browser global, as the build renders it in Node.
+const roots: Record<ShellVariant, string> = {
+  offline: shellMarkup(html, renderShell('offline')),
+  online: shellMarkup(html, renderShell('online')),
+};
 // App renders AppShell, which renders the landing structure; useOnlineState derives the header's library label and
 // useAppCapabilities the first commit's motion hint.
 const shellSource = read('../components/app/AppShell.tsx');
@@ -94,20 +103,23 @@ function element(markup: string, start: string, end: string): string {
 function captured(pattern: RegExp, source: string): string {
   const value = pattern.exec(source)?.[1];
   if (value === undefined)
-    throw new Error(`${pattern} no longer matches; update the shell parity test and index.html together.`);
+    throw new Error(`${pattern} no longer matches; update the shell parity test and shell-render.tsx together.`);
   return value;
 }
 
+const QUIET = 'class="button button-quiet"';
+
 /**
- * The shell disables the controls only the app can run, with a bare `disabled`, and React's first commit renders them
- * enabled. Pick for me, which React's first commit disables too, keeps React's own `disabled=""`.
+ * The shell disables the controls only the app can run, and React's first commit renders them enabled. Pick for me
+ * (the quiet button), which React's first commit disables too, keeps its `disabled=""`.
  */
-const withoutShellOnly = (markup: string) => markup.replace(/ disabled(?=[ >])/g, '');
+const withoutShellOnly = (markup: string) =>
+  markup.replace(/<button\b[^>]*>/g, (tag) => (tag.includes(QUIET) ? tag : tag.replace(' disabled=""', '')));
 
 /** The shell's artifact markup as one boot-art state shows it. */
 function shellArtifact(state: string): string {
   return withoutShellOnly(
-    element(shellMarkup(html, 'offline'), '<figure', '</figure>')
+    element(roots.offline, '<figure', '</figure>')
       .replace(/<span data-shell-art="([a-z]+)">([^<]*)<\/span>/g, (_, name: string, text: string) =>
         name === state ? text : '',
       )
@@ -175,10 +187,10 @@ describe("first-paint shell parity with React's first commit", () => {
       sourceTokens('jsx("div", { key: scope }, publicContent(content, route))'),
     );
     for (const variant of VARIANTS) {
-      const shell = shellMarkup(html, variant);
+      const shell = roots[variant];
       expect(
         shell.startsWith(
-          `<div id="root"><div class="first-paint-shell" hidden><a class="skip-link" href="${target}">Skip to ${text}</a><header `,
+          `<div id="root"><div class="first-paint-shell" hidden=""><a class="skip-link" href="${target}">Skip to ${text}</a><header `,
         ),
       ).toBe(true);
       expect(shell).toContain('</header><main id="page-main"><div><section class="hero"');
@@ -192,26 +204,20 @@ describe("first-paint shell parity with React's first commit", () => {
   });
 
   it.each(VARIANTS)('makes every %s shell control a working link or a disabled button, never inert', (variant) => {
-    const markup = shellMarkup(html, variant);
+    const markup = roots[variant];
     // Only the shell: the failure notice after it is hidden unless the app cannot start, and then works without it.
     const shell = markup.slice(0, markup.indexOf(NOTICE_OPEN));
     expect(shell).not.toMatch(/ inert(?=[ >=])/);
     const links = [...shell.matchAll(/<a\b[^>]*>/g)].map(([tag]) => tag);
     expect(links.filter((tag) => !/ href="[^"]+"/.test(tag))).toEqual([]);
-    // Nothing in the static shell can run a button, so each one shows that it waits for the app: with React's own
-    // `disabled=""` where its first commit disables it too, otherwise with the shell's bare `disabled`.
+    // Nothing in the static shell can run a button, so each one shows that it waits for the app. React's first commit
+    // disables Pick for me too (the parity tests below keep its `disabled`); the shell disables the others itself.
     const buttons = [...shell.matchAll(/<button\b[^>]*>/g)].map(([tag]) => tag);
-    const shellOnly = buttons.filter((tag) => / disabled(?=[ >])/.test(tag));
-    expect(buttons.filter((tag) => !/ disabled(?:="")?(?=[ >])/.test(tag))).toEqual([]);
-    expect(buttons.filter((tag) => tag.includes(' disabled=""'))).toEqual([
-      '<button class="button button-quiet" disabled="">',
-    ]);
-    expect(shellOnly.map((tag) => /\bclass="([^"]+)"/.exec(tag)?.[1] ?? 'mobile Menu')).toEqual([
-      'saved-nav',
-      'menu-nav',
-      'artifact-control',
-      'mobile Menu',
-    ]);
+    expect(buttons.filter((tag) => !tag.includes(' disabled=""'))).toEqual([]);
+    expect(buttons.filter((tag) => tag.includes(QUIET))).toEqual(['<button class="button button-quiet" disabled="">']);
+    expect(
+      buttons.filter((tag) => !tag.includes(QUIET)).map((tag) => /\bclass="([^"]+)"/.exec(tag)?.[1] ?? 'mobile Menu'),
+    ).toEqual(['saved-nav', 'menu-nav', 'artifact-control', 'mobile Menu']);
   });
 
   it.each(VARIANTS)('renders the %s header exactly as AppHeader does', (variant) => {
@@ -243,7 +249,7 @@ describe("first-paint shell parity with React's first commit", () => {
         onAccount: vi.fn(),
       }),
     );
-    expect(withoutShellOnly(element(shellMarkup(html, variant), '<header', '</header>'))).toBe(react);
+    expect(withoutShellOnly(element(roots[variant], '<header', '</header>'))).toBe(react);
   });
 
   it.each(VARIANTS)('renders the %s mobile navigation exactly as MobileNav does', (variant) => {
@@ -260,7 +266,7 @@ describe("first-paint shell parity with React's first commit", () => {
         onMenu: vi.fn(),
       }),
     );
-    expect(withoutShellOnly(element(shellMarkup(html, variant), '<nav class="mobile-nav"', '</nav>'))).toBe(react);
+    expect(withoutShellOnly(element(roots[variant], '<nav class="mobile-nav"', '</nav>'))).toBe(react);
   });
 
   it.each(VARIANTS)('renders the %s hero copy and loading collection exactly as CollectionPage does', (variant) => {
@@ -286,7 +292,7 @@ describe("first-paint shell parity with React's first commit", () => {
         notify: vi.fn(),
       }),
     ).replace(/ style="[^"]*"/g, '');
-    const shell = shellMarkup(html, variant);
+    const shell = roots[variant];
     expect(shell).toContain('Leul&#x27;s 100: the Core 50 and 50 more essentials.');
     expect(html).toContain('<title>The 100 | Play 100</title>');
     for (const [start, end] of [
