@@ -3,6 +3,8 @@
  * Observation only: the journeys move focus with real key events; this never clicks or focuses anything.
  * Usage: node scripts/talkback-smoke/cdp.ts '<expression>'  — prints the expression's JSON value.
  */
+export {};
+
 interface Target {
   type: string;
   url: string;
