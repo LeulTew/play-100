@@ -380,17 +380,25 @@ an adjacent `<file>.identity.json` must match the candidate and exact report
 bytes. Missing, partial, conflicting or different-commit/tree declarations fail,
 even when another identity source is valid.
 
-Candidate CI's original downloaded artifacts are the explicit legacy exception
-to per-report sidecars: they contain `identity.json` with `commit`, `tree`,
+Candidate CI's original downloaded artifacts contain `identity.json` with `commit`, `tree`,
 `requestedSha`, `suite` and the workflow-run URL. Keep that artifact intact.
 A sibling `identity.json` is discovered automatically; for nested reports set
 the index row's optional `"identity": "candidate-ci/identity.json"` relative to
 the index. Reports must remain beneath that identity's artifact directory and
 the identity must name this repository's Candidate CI run and exact candidate.
-The manifest binds the downloaded report and identity bytes. These older CI
-identities have no per-report digest: their association relies on the original
-workflow artifact, not proof that a detached file came from that run. Verify
-the workflow URL and artifact origin; do not mix files from different runs.
+The identity's `suite` must match the lean category: `checks` supplies `static`
+and `units`; the other supported categories use the suite mapping in
+[`LEAN_CI_CHECKS`](../scripts/candidate-ci/plan.ts). Other categories need their
+own creation-time evidence, not a relabelled CI artifact.
+When `files` is present, exactly one entry must match the report's
+artifact-relative path (forward-slash separators), `bytes` and `sha256`.
+An empty, malformed or nonmatching inventory is rejected, even if the report
+also embeds matching commit/tree metadata. The manifest labels this binding
+`candidate-ci-files` and binds the downloaded report and identity bytes.
+Only identities **without** `files` retain legacy acceptance, explicitly labelled
+`legacy-candidate-ci`: their association relies on the original workflow artifact,
+not proof that a detached file came from that run. Verify the workflow URL and
+artifact origin; do not mix files from different runs.
 
 Creation-time metadata is not a cryptographic execution attestation. Review command headers, native
 results, device build identity and completeness before accepting it. The

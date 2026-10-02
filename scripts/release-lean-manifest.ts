@@ -4,6 +4,7 @@ import { lstat, readFile, realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { requireObject, requireText } from '../src/lib/guards.js';
 import { evidenceFileExists, fullGitId, type EvidenceSource } from './release-evidence';
+import { LEAN_CI_CHECKS } from './candidate-ci/plan';
 
 export const LEAN_CHECKS = [
   'static',
@@ -33,6 +34,11 @@ export const LEAN_CHECKS = [
   'npm-signatures',
 ] as const;
 type LeanCheck = (typeof LEAN_CHECKS)[number];
+const ciSuites: Partial<Record<LeanCheck, string>> = {
+  ...Object.fromEntries(Object.entries(LEAN_CI_CHECKS).map(([check, entry]) => [check, entry.suite])),
+  static: 'checks',
+  units: 'checks',
+};
 interface Evidence {
   check: LeanCheck;
   file: string;
@@ -163,6 +169,7 @@ function verifyEmbeddedIdentity(content: Buffer, file: string, source: EvidenceS
 }
 
 async function verifyReportProvenance(
+  check: LeanCheck,
   content: Buffer,
   file: string,
   explicitIdentity: string | undefined,
@@ -183,6 +190,7 @@ async function verifyReportProvenance(
     const bytes = await regularFile(identity);
     const receipt = requireObject(parseJson(bytes));
     verifyIdentity(receipt, source);
+    let binding: 'candidate-ci-files' | 'legacy-candidate-ci' | undefined;
     if (identity === adjacent || receipt.schemaVersion === 1) {
       if (
         receipt.schemaVersion !== 1 ||
@@ -194,7 +202,6 @@ async function verifyReportProvenance(
       )
         throw new Error('Report identity must bind the exact report SHA-256 and creation command.');
     } else {
-      // Legacy Candidate CI bundles have one creation-time identity, not per-report digests.
       const workflow = requireObject(receipt.workflow);
       const relative = path.relative(await realpath(path.dirname(identity)), await realpath(file));
       if (
@@ -208,8 +215,21 @@ async function verifyReportProvenance(
         path.isAbsolute(relative)
       )
         throw new Error('CI identity must belong to the original Candidate CI artifact containing this report.');
+      if (receipt.suite !== ciSuites[check])
+        throw new Error(`${check}: CI identity suite does not match the lean evidence category.`);
+      if (Object.hasOwn(receipt, 'files')) {
+        if (!Array.isArray(receipt.files)) throw new Error('CI identity files must be an array.');
+        const reportPath = relative.split(path.sep).join('/');
+        const entries = receipt.files.map((entry) => requireObject(entry)).filter((entry) => entry.path === reportPath);
+        if (entries.length !== 1 || entries[0]!.bytes !== content.length || entries[0]!.sha256 !== hash(content))
+          throw new Error('CI identity files must bind this report path, byte count and SHA-256 exactly once.');
+        binding = 'candidate-ci-files';
+      } else {
+        // Only pre-inventory artifacts rely on the original bundle rather than per-report digests.
+        binding = 'legacy-candidate-ci';
+      }
     }
-    identities.push({ file: identity, sha256: hash(bytes), bytes: bytes.length });
+    identities.push({ file: identity, sha256: hash(bytes), bytes: bytes.length, ...(binding ? { binding } : {}) });
   }
   if (!embedded && !identities.length)
     throw new Error(
@@ -258,6 +278,7 @@ export async function collectLeanManifest(root: string, output: string, input: s
     if (bytes.length !== row.bytes || hash(bytes) !== row.sha256)
       throw new Error(`${row.check}: evidence bytes changed since they were recorded.`);
     const identities = await verifyReportProvenance(
+      row.check,
       bytes,
       file,
       row.identity ? path.resolve(path.dirname(indexPath), row.identity) : undefined,

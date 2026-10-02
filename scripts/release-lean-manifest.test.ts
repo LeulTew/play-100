@@ -258,6 +258,10 @@ describe('lean release manifest', () => {
     const current = await fixture();
     const first = current.data.evidence[0]!;
     await rm(path.join(current.evidence, `${first.file}.identity.json`));
+    await mkdir(path.join(current.evidence, 'ci'));
+    first.file = 'ci/static.txt';
+    await writeFile(path.join(current.evidence, first.file), first.check);
+    await writeFile(current.input, JSON.stringify(current.data));
     const ci = {
       commit: sha,
       tree,
@@ -265,17 +269,23 @@ describe('lean release manifest', () => {
       suite: 'checks',
       workflow: { run: 'https://github.com/LeulTew/play-100/actions/runs/123' },
     };
-    const file = path.join(current.evidence, 'identity.json');
+    const file = path.join(current.evidence, 'ci', 'identity.json');
     await writeFile(file, JSON.stringify(ci));
     const manifest = await collectLeanManifest(current.root, current.output, current.input);
     expect(manifest.evidence[0]!.identities).toEqual([
-      { file: 'identity.json', sha256: digest(JSON.stringify(ci)), bytes: Buffer.byteLength(JSON.stringify(ci)) },
+      {
+        file: 'ci/identity.json',
+        sha256: digest(JSON.stringify(ci)),
+        bytes: Buffer.byteLength(JSON.stringify(ci)),
+        binding: 'legacy-candidate-ci',
+      },
     ]);
     for (const change of [
       { tree: 'c'.repeat(40) },
       { commit: 'c'.repeat(40) },
       { requestedSha: 'c'.repeat(40) },
       { workflow: { run: 'made-up' } },
+      { suite: 'cloud-rules' },
     ]) {
       await writeFile(file, JSON.stringify({ ...ci, ...change }));
       await expect(collectLeanManifest(current.root, current.output, current.input)).rejects.toThrow();
@@ -292,7 +302,7 @@ describe('lean release manifest', () => {
   });
   it('accepts an explicit CI artifact identity for a nested report and rejects a missing identity', async () => {
     const current = await fixture();
-    const first = current.data.evidence[0]!;
+    const first = current.data.evidence.find((row) => row.check === 'cloud-rules')!;
     const nested = path.join(current.evidence, 'ci', 'iteration-1');
     await mkdir(nested, { recursive: true });
     first.file = 'ci/iteration-1/results.json';
@@ -314,6 +324,70 @@ describe('lean release manifest', () => {
       }),
     );
     const manifest = await collectLeanManifest(current.root, current.output, current.input);
-    expect(manifest.evidence[0]!.identities[0]!.file).toBe('ci/identity.json');
+    expect(manifest.evidence.find((row) => row.check === 'cloud-rules')!.identities[0]!.file).toBe('ci/identity.json');
+  });
+  it.each([
+    ['static', 'checks'],
+    ['units', 'checks'],
+    ['e2e-production', 'e2e-prod'],
+    ['e2e-development', 'e2e-dev'],
+    ['e2e-offline', 'e2e-offline'],
+    ['films-download', 'e2e-prod'],
+    ['cloud-rules', 'cloud-rules'],
+    ['cloud-ui-desktop', 'cloud-ui'],
+    ['cloud-ui-mobile', 'cloud-ui'],
+    ['floor-smoke', 'floor'],
+  ])('requires the CI inventory and suite for %s', async (check, suite) => {
+    const current = await fixture();
+    const row = current.data.evidence.find((entry) => entry.check === check)!;
+    const nested = path.join(current.evidence, 'ci', 'reports');
+    await mkdir(nested, { recursive: true });
+    row.file = 'ci/reports/results.json';
+    // Valid embedded provenance must not hide an invalid CI inventory or suite.
+    const content = JSON.stringify({ source: { commit: sha, tree }, passed: true });
+    row.bytes = Buffer.byteLength(content);
+    row.sha256 = digest(content);
+    Object.assign(row, { identity: 'ci/identity.json' });
+    await writeFile(path.join(current.evidence, row.file), content);
+    await writeFile(current.input, JSON.stringify(current.data));
+    const entry = { path: 'reports/results.json', bytes: row.bytes, sha256: row.sha256 };
+    const ci = {
+      commit: sha,
+      tree,
+      requestedSha: sha,
+      suite,
+      workflow: { run: 'https://github.com/LeulTew/play-100/actions/runs/123' },
+      files: [entry],
+    };
+    const identity = path.join(current.evidence, 'ci', 'identity.json');
+    await writeFile(identity, JSON.stringify(ci));
+    const manifest = await collectLeanManifest(current.root, current.output, current.input);
+    expect(manifest.evidence.find((entry) => entry.check === check)!.identities).toEqual([
+      {
+        file: 'ci/identity.json',
+        sha256: digest(JSON.stringify(ci)),
+        bytes: Buffer.byteLength(JSON.stringify(ci)),
+        binding: 'candidate-ci-files',
+      },
+    ]);
+    for (const files of [
+      [],
+      null,
+      {},
+      [{ ...entry, path: 'unproduced.json' }],
+      [{ ...entry, path: 'reports\\results.json' }],
+      [{ ...entry, bytes: row.bytes + 1 }],
+      [{ ...entry, sha256: 'd'.repeat(64) }],
+      [entry, entry],
+    ]) {
+      await writeFile(identity, JSON.stringify({ ...ci, files }));
+      await expect(collectLeanManifest(current.root, current.output, current.input)).rejects.toThrow(
+        'CI identity files',
+      );
+    }
+    await writeFile(identity, JSON.stringify({ ...ci, suite: 'lighthouse' }));
+    await expect(collectLeanManifest(current.root, current.output, current.input)).rejects.toThrow(
+      'suite does not match',
+    );
   });
 });
