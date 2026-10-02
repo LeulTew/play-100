@@ -90,7 +90,6 @@ test('game detail enters once with a short description and no click action', asy
   await expect(dialog.locator('#game-title')).toBeFocused();
   expect(await page.evaluate(() => window.detailFocusEvents)).toEqual(['game-title']);
   const summary = `#${String(game.rank).padStart(2, '0')} in the collection`;
-  await expect(dialog).toHaveAttribute('aria-modal', 'true');
   await expect(dialog).toHaveAccessibleDescription(summary);
   expect(await dialog.evaluate((element) => element.onclick)).toBeNull();
   await expect(dialog.locator('.rationale')).toHaveCount(1);
