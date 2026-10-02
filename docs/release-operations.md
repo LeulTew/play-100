@@ -127,6 +127,38 @@ Guidepup types, and lints the whole folder with
 `SR_SMOKE_LINT=1 npx eslint scripts/screen-reader-smoke`; the reader jobs
 type-check again after their own `npm ci`.
 
+### TalkBack smoke (Android, exploratory)
+
+`.github/workflows/talkback-smoke.yml` runs TalkBack in an Android emulator on a Linux KVM runner and records its speech from logcat. Speech logging is at verbose level, and every `Actors: act() … action=SPEAK` line is kept. It drives Chrome with real `adb input` key events (Tab, Shift+Tab, Enter, Escape) and reads focus through a read-only CDP query.
+
+Dispatch:
+
+```
+gh workflow run talkback-smoke.yml --repo LeulTew/play-100 --ref leultew-r24-talkback -f target_origin=<origin>
+```
+
+Receipt from run [36975406748](https://github.com/LeulTew/play-100/actions/runs/36975406748) on production:
+
+- TalkBack 14.2.0.618048417, Chrome 113.0.5672.136;
+- emulator API 34 `google_apis` x86_64;
+- served `index.html` SHA-256 `1da5b6af…bd45e15`.
+
+Proven for (a):
+
+- the card is reached by Tab, and its name is spoken;
+- Enter opens the detail dialog, and the name and "heading 2" are spoken;
+- no "clickable", and no automatic body read;
+- Escape closes it, and focus and speech return to the card.
+
+Not proven:
+
+- **The dialog role:** TalkBack doesn't speak "dialog", and the native control page didn't load in that run, so it isn't known whether the omission is TalkBack's or the app's.
+- **(c):** Shift+Tab reached the Menu button, spoken as "collapsed, Menu, dialog pop up button", but the focus predicate didn't match, so the rest of (c) didn't run.
+
+This is supporting evidence, not a release gate.
+
+**VoiceOver on iPhone is blocked.** The iOS Simulator has no VoiceOver speech: VoiceOver isn't available in the Simulator ([Apple Developer Forums 83458](https://developer.apple.com/forums/thread/83458)), and [Accessibility Inspector](https://developer.apple.com/documentation/accessibility/accessibility-inspector) inspects without speaking. iPhone speech evidence needs a physical device. The XCUITest `performAccessibilityAudit()` substitute wasn't run.
+
 For consented Windows OS evidence, run
 `npm run release:pwa-os -- --url https://play-100-collection.vercel.app`
 and retain its redacted receipt and SHA-256. See
