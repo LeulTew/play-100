@@ -114,6 +114,22 @@ for i in $(seq 1 30); do
   # The first start plays an earcon but may speak nothing; a bound service with verbose pipeline logs is enough.
   if adb logcat -d | grep -qE ' talkback: (Actors|Pipeline): '; then started=1; sleep 10; break; fi
 done
+# The first start rewrites the preferences (dropping the seeded log level), so set it again and restart the
+# process once: the system rebinds a killed accessibility service by itself, keeping it enabled.
+prefs="$dir/shared_prefs/${TB}_preferences.xml"
+run adb shell "grep -o '<string name=\"pref_log_level\">[^<]*' $prefs"
+run adb shell "if grep -q 'name=\"pref_log_level\"' $prefs; then sed -i 's#<string name=\"pref_log_level\">[^<]*<#<string name=\"pref_log_level\">2<#' $prefs; else sed -i 's#</map>#    <string name=\"pref_log_level\">2</string>\n</map>#' $prefs; fi; grep -o '<string name=\"pref_log_level\">[^<]*' $prefs"
+old_pid=$(adb shell pidof $TB | tr -d '\r')
+adb logcat -c
+run adb shell kill -9 "$old_pid"
+started=0
+for i in $(seq 1 30); do
+  sleep 2
+  pid=$(adb shell pidof $TB | tr -d '\r')
+  if [ -n "$pid" ] && [ "$pid" != "$old_pid" ] && adb logcat -d | grep -qE ' talkback: (Actors|Pipeline): '; then started=1; break; fi
+done
+log "TalkBack pid $old_pid -> ${pid:-none}"
+sleep 15
 run adb shell 'dumpsys accessibility | grep -iE "bound services|enabled services" | head -4'
 adb logcat -d -v threadtime > "$out/talkback-start.txt"
 grep -oP 'action=SPEAK\s+text="\K[^"]*' "$out/talkback-start.txt" | tee "$out/talkback-start-speech.txt"
