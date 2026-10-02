@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import { googleOutboundEvidence, redactOAuthUrls } from './google.ts';
 import { productionOrigin } from './target.ts';
+import { assertTouchHold } from './touch.ts';
+import type { TouchEvidence } from './touch.ts';
 
 export interface WebElement {
   'element-6066-11e4-a52e-4f735466cecf': string;
@@ -92,7 +94,7 @@ async function queueReorder(context: SmokeContext) {
     const state = window.__iosDragEvidence = { events: [], changes: [] };
     state.types = ['pointerdown','pointermove','pointerup','pointercancel','touchstart','touchmove','touchend','touchcancel'];
     state.listener = event => {
-      if (state.events.length >= 100) return;
+      if (state.events.length >= 300) return;
       const point = event.changedTouches?.[0] || event;
       state.events.push({ type: event.type, trusted: event.isTrusted, atMs: performance.now(),
         x: point.clientX, y: point.clientY, pointerType: event.pointerType,
@@ -111,6 +113,7 @@ async function queueReorder(context: SmokeContext) {
     state.observer.observe(document.body, { subtree: true, attributes: true, childList: true, characterData: true });
   `);
   let gesture: unknown;
+  let touchEvents: TouchEvidence[] = [];
   try {
     gesture = await context.drag(from, to);
     await context.waitFor(
@@ -120,18 +123,20 @@ async function queueReorder(context: SmokeContext) {
       'touch drag swapped the first two queue rows',
     );
   } finally {
-    const touch = await context.execute(`
+    const touch = await context.execute<{ events: TouchEvidence[]; changes: unknown[] }>(`
       const state = window.__iosDragEvidence;
       state.observer.disconnect();
       for (const type of state.types) removeEventListener(type, state.listener, true);
       return { events: state.events, changes: state.changes };
     `);
+    touchEvents = touch.events;
     const observed = await context.execute<QueueRecord[]>(queueSnapshot);
     await context.artifact(
       '09-queue-observed.json',
       JSON.stringify({ before, expected, observed, gesture, touch }, null, 2),
     );
   }
+  const holdMs = assertTouchHold(touchEvents);
   const after = await context.execute<QueueRecord[]>(queueSnapshot);
   assert.deepEqual(after, expected);
   await context.capture('09-queue-after-drag');
@@ -146,7 +151,7 @@ async function queueReorder(context: SmokeContext) {
   );
   const persisted = await context.execute<QueueRecord[]>(queueSnapshot);
   assert.deepEqual(persisted, expected, 'The physical drag order must persist after a real reload.');
-  return { games, before, after, persisted, gesture };
+  return { games, before, after, persisted, gesture, holdMs };
 }
 
 async function nativeShare(context: SmokeContext) {
