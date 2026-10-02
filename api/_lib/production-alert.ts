@@ -47,8 +47,7 @@ const DEPLOYMENT = /^dpl_[A-Za-z0-9]{1,64}$/;
  * to lock it (alertStatus); the hourly workflow locks it.
  */
 export type AlertOutcome =
-  | { alert: 'created' | 'commented' | 'duplicate' | 'cooldown' }
-  | { alert: 'failed' | 'unlocked'; alertStatus: number };
+  { alert: 'created' | 'commented' | 'duplicate' | 'cooldown' } | { alert: 'failed' | 'unlocked'; alertStatus: number };
 /** Records one accepted report and returns the post it started, or null. The promise never rejects. */
 export type ReportAlert<T> = (report: T) => Promise<AlertOutcome> | null;
 
