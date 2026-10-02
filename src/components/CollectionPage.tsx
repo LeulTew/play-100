@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { useCollection } from '../hooks/useCollection';
 import { PAGE_SIZE, useCollectionView } from '../hooks/useCollectionView';
@@ -15,6 +15,8 @@ import { Icon } from './Icon';
 import Magnet from './bits/Magnet';
 import AnimatedContent from './bits/AnimatedContent';
 import { AfterFirstPaint } from './AfterFirstPaint';
+import { FIRST_PASS_CARDS, rendersAtOnce, scheduleSecondPass } from './landing-passes';
+import { navigationKind } from '../lib/navigation-kind';
 import { author } from '../lib/author';
 import { preloadCollectionExtras } from '../lib/collection-extras-preload';
 import './collection-films.css';
@@ -103,6 +105,18 @@ function CollectionPage({
   } = useCollectionView({ collection, state, filters, animate, onAction, onOpen, onPreview, notify });
   // A link to the films opens with them in place, for useCollectionView to scroll to and focus.
   const [filmsLinked] = useState(() => typeof location !== 'undefined' && location.hash === '#collection-films');
+  // On a constrained device the cards past the first pass and the showcase below them render after the first pass has
+  // painted (landing-passes.ts). When The 100 opened again on a 2 GB phone its commit ran as one task of over a second,
+  // and most of the elements that commit builds are cards below the fold.
+  const [secondPass, setSecondPass] = useState(() =>
+    rendersAtOnce({ constrained, navigation: navigationKind(), filmsLinked }),
+  );
+  const cardsReady = collection.status === 'ready';
+  useEffect(() => {
+    if (secondPass || !cardsReady) return;
+    return scheduleSecondPass(() => setSecondPass(true));
+  }, [secondPass, cardsReady]);
+  const showcaseReserve = <div className="first-paint-reserve" aria-hidden="true" />;
   return (
     <>
       {filters.view !== 'table' && (
@@ -252,24 +266,29 @@ function CollectionPage({
                     role="list"
                     aria-label="Games in this view"
                   >
-                    {results.slice(0, visibleCount).map((game, index) => (
-                      <CollectionCard
-                        key={game.slug}
-                        game={game}
-                        filters={filters}
-                        state={progress[game.slug]}
-                        ownership={ownership}
-                        pinnable={Boolean(onPin)}
-                        onOpen={onOpen}
-                        onToggle={toggle}
-                        onPreview={onPreview}
-                        eager={index < 4}
-                        selecting={selecting}
-                        selected={selected.has(game.slug)}
-                        onSelect={toggleSelection}
-                        busy={busy}
-                      />
-                    ))}
+                    {results.slice(0, visibleCount).map((game, index) =>
+                      secondPass || index < FIRST_PASS_CARDS ? (
+                        <CollectionCard
+                          key={game.slug}
+                          game={game}
+                          filters={filters}
+                          state={progress[game.slug]}
+                          ownership={ownership}
+                          pinnable={Boolean(onPin)}
+                          onOpen={onOpen}
+                          onToggle={toggle}
+                          onPreview={onPreview}
+                          eager={index < 4}
+                          selecting={selecting}
+                          selected={selected.has(game.slug)}
+                          onSelect={toggleSelection}
+                          busy={busy}
+                        />
+                      ) : (
+                        // Holds its card's place, at the card's estimated size, until the second pass renders it.
+                        <li key={game.slug} className="game-card-reserve" aria-hidden="true" />
+                      ),
+                    )}
                   </ul>
                 )}
                 <div className="collection-end">
@@ -381,63 +400,72 @@ function CollectionPage({
         )}
       </section>
       {/* The films and workbook start below the fold of every window (landing-loading-shift.spec.ts), so they wait for the
-          first paint, while the page keeps its scroll height. */}
-      <AfterFirstPaint now={filmsLinked} reserve={<div className="first-paint-reserve" aria-hidden="true" />}>
-        <DeferredCollection near input={{ kind: 'films', props: { postersReady: collection.status !== 'loading' } }} />
-        <AnimatedContent animate={animate} className="workbook-section">
-          <div className="workbook-art" aria-hidden="true">
-            <div className="workbook-sheet sheet-back" />
-            <div className="workbook-sheet">
-              <div className="sheet-head">
-                <span>PLAY 100</span>
-                <Icon name="grid" width="23" height="23" />
+          first paint, and on a constrained device for the second pass, while the page keeps its scroll height. */}
+      <AfterFirstPaint now={filmsLinked} reserve={showcaseReserve}>
+        {secondPass ? (
+          <>
+            <DeferredCollection
+              near
+              input={{ kind: 'films', props: { postersReady: collection.status !== 'loading' } }}
+            />
+            <AnimatedContent animate={animate} className="workbook-section">
+              <div className="workbook-art" aria-hidden="true">
+                <div className="workbook-sheet sheet-back" />
+                <div className="workbook-sheet">
+                  <div className="sheet-head">
+                    <span>PLAY 100</span>
+                    <Icon name="grid" width="23" height="23" />
+                  </div>
+                  <div className="sheet-rule" />
+                  <div className="sheet-row">
+                    <span>01</span>
+                    <span>Red Dead Redemption 2</span>
+                    <span>2018</span>
+                  </div>
+                  <div className="sheet-row">
+                    <span>02</span>
+                    <span>Mass Effect 2</span>
+                    <span>2010</span>
+                  </div>
+                  <div className="sheet-row">
+                    <span>03</span>
+                    <span>The Witcher 3</span>
+                    <span>2015</span>
+                  </div>
+                  <div className="sheet-lines" />
+                  <span className="sheet-footer">THE COMPLETE COLLECTION / .XLSX</span>
+                </div>
               </div>
-              <div className="sheet-rule" />
-              <div className="sheet-row">
-                <span>01</span>
-                <span>Red Dead Redemption 2</span>
-                <span>2018</span>
+              <div className="workbook-copy">
+                <h2>
+                  THE WORKBOOK.
+                  <br />
+                  ALL 100 TO KEEP.
+                </h2>
+                <p>
+                  Take all 100 with you. The enhanced workbook keeps the original order, complete score snapshots and
+                  notes in one filterable collection.
+                </p>
+                <a
+                  className="button button-dark"
+                  href="/downloads/Play-100-Collection.xlsx"
+                  download
+                  aria-label="Download the workbook, XLSX"
+                >
+                  <Icon name="download" width="19" height="19" />
+                  Download the workbook <span className="file-badge">XLSX</span>
+                </a>
+                <span className="download-note">The curated collection, not your personal progress.</span>
+                <a className="original-download" href="/downloads/AAA_games_u_have_to_play_list_top_100.xlsx" download>
+                  Or download the untouched original Excel
+                  <Icon name="download" width="14" height="14" />
+                </a>
               </div>
-              <div className="sheet-row">
-                <span>02</span>
-                <span>Mass Effect 2</span>
-                <span>2010</span>
-              </div>
-              <div className="sheet-row">
-                <span>03</span>
-                <span>The Witcher 3</span>
-                <span>2015</span>
-              </div>
-              <div className="sheet-lines" />
-              <span className="sheet-footer">THE COMPLETE COLLECTION / .XLSX</span>
-            </div>
-          </div>
-          <div className="workbook-copy">
-            <h2>
-              THE WORKBOOK.
-              <br />
-              ALL 100 TO KEEP.
-            </h2>
-            <p>
-              Take all 100 with you. The enhanced workbook keeps the original order, complete score snapshots and notes
-              in one filterable collection.
-            </p>
-            <a
-              className="button button-dark"
-              href="/downloads/Play-100-Collection.xlsx"
-              download
-              aria-label="Download the workbook, XLSX"
-            >
-              <Icon name="download" width="19" height="19" />
-              Download the workbook <span className="file-badge">XLSX</span>
-            </a>
-            <span className="download-note">The curated collection, not your personal progress.</span>
-            <a className="original-download" href="/downloads/AAA_games_u_have_to_play_list_top_100.xlsx" download>
-              Or download the untouched original Excel
-              <Icon name="download" width="14" height="14" />
-            </a>
-          </div>
-        </AnimatedContent>
+            </AnimatedContent>
+          </>
+        ) : (
+          showcaseReserve
+        )}
       </AfterFirstPaint>
     </>
   );
