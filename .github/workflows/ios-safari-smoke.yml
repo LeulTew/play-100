@@ -8,6 +8,10 @@ on:
         type: string
         required: true
         default: https://play-100-collection.vercel.app
+      legacy_comparison:
+        description: Diagnose with the previously green harness and current locked toolchain
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -126,7 +130,19 @@ jobs:
           ) > ios-safari-artifacts/appium.log 2>&1 &
           driver_pid=$!
           trap 'kill "$driver_pid" 2>/dev/null || true' EXIT
-          scripts/ios-safari-smoke/node_modules/.bin/tsx scripts/ios-safari-smoke/smoke.ts
+          if [[ "${{ inputs.legacy_comparison }}" == "true" ]]; then
+            revision=60231f583bedee01c5184048b46644d3714fd7e0
+            git fetch --no-tags --depth=1 https://github.com/LeulTew/play-100.git "$revision"
+            mkdir -p "$RUNNER_TEMP/legacy-ios"
+            for script in smoke coordinates target; do
+              git show "$revision:scripts/ios-safari-smoke/$script.mjs" > "$RUNNER_TEMP/legacy-ios/$script.mjs"
+            done
+            printf '{"mode":"legacy-comparison","revision":"%s"}\n' "$revision" > ios-safari-artifacts/harness.json
+            node "$RUNNER_TEMP/legacy-ios/smoke.mjs"
+          else
+            printf '{"mode":"typed","revision":"%s"}\n' "$GITHUB_SHA" > ios-safari-artifacts/harness.json
+            scripts/ios-safari-smoke/node_modules/.bin/tsx scripts/ios-safari-smoke/smoke.ts
+          fi
       - name: Capture simulator on failure
         if: failure() && env.IOS_UDID != ''
         run: xcrun simctl io "$IOS_UDID" screenshot ios-safari-artifacts/simulator-failure.png

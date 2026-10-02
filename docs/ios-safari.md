@@ -218,6 +218,13 @@ back to production. Production is the default.
 Set `IOS_TARGET_ORIGIN` for the same override when running the script on a Mac.
 The candidate must remain reachable for the entire matrix run.
 
+For a controlled harness comparison, the `legacy_comparison` dispatch input runs
+the previously green revision `60231f583bedee01c5184048b46644d3714fd7e0` from a
+temporary runner directory with the current Node and locked automation packages.
+It is off by default, never replaces the typed source or its gate, and records
+its revision in `harness.json`. Compare the same target HTML identity and native
+command payloads before attributing a difference to the script conversion.
+
 Inspect the device jobs and download the `ios-safari-*` artifacts. They are retained for
 30 days. To reproduce on a Mac, select an installed Xcode with
 `DEVELOPER_DIR`, create and boot a fresh simulator with `xcrun simctl`, run
