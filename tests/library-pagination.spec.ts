@@ -586,7 +586,7 @@ test('query changes and a workspace remount invalidate an awaited page change', 
   expect(await readLibrary(page)).toEqual(JSON.parse(JSON.stringify(libraryFixture())));
 });
 
-test('confirmed last-row deletion clamps the final page and focuses results; passive shrink never steals focus', async ({
+test('confirmed last-row deletion clamps the page without stealing Search focus; passive shrink also retains it', async ({
   page,
 }) => {
   await installGuestLibrary(page, libraryFixture(26));
@@ -607,8 +607,7 @@ test('confirmed last-row deletion clamps the final page and focuses results; pas
   await expect(pager(page)).toHaveCount(0);
   expect(new URL(page.url()).searchParams.has('page')).toBe(false);
   await expect(libraryRows(page)).toHaveCount(25);
-  await expect(results(page)).toBeFocused();
-
+  await expect(query(page)).toBeFocused();
   expect(await readLibrary(page)).toEqual(applyPersonalAction(before, { type: 'remove-records', ids: [id] }));
   await installGuestLibrary(page, libraryFixture(26));
   await selectPage(page, 2);
