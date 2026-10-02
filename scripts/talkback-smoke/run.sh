@@ -15,7 +15,15 @@ fails=0
 
 log() { echo "== $*" | tee -a "$out/run.txt"; }
 run() { log "\$ $*"; "$@" 2>&1 | tee -a "$out/run.txt"; }
-cdp() { node scripts/talkback-smoke/cdp.ts "$1" 2>>"$out/cdp-errors.txt"; }
+cdp() {
+  local i
+  for i in 1 2 3; do
+    adb forward tcp:$CDP_PORT localabstract:chrome_devtools_remote > /dev/null 2>&1
+    node scripts/talkback-smoke/cdp.ts "$1" 2>>"$out/cdp-errors.txt" && return 0
+    sleep 2
+  done
+  return 1
+}
 shot() { adb exec-out screencap -p > "$out/$1.png"; }
 lower() { tr '[:upper:]' '[:lower:]'; }
 
@@ -76,13 +84,17 @@ tab_until() {
 
 open_page() {
   local url="$1" ready="${2:-document.querySelectorAll("li.game-card[data-game]").length > 0}"
-  # A fresh Chrome process, so each journey starts from a newly loaded page with focus at the top.
-  run adb shell am force-stop com.android.chrome
-  sleep 2
-  run adb shell am start -a android.intent.action.VIEW -d "$url" com.android.chrome
+  # Chrome starts once from an intent; later journeys load their page fresh (setup only, no input) so focus
+  # starts at the top of a newly loaded document.
+  if [ "$(cdp 'true')" = true ]; then
+    log "load $url"
+    cdp "location.replace(\"$url\"); true" > /dev/null
+    sleep 3
+  else
+    run adb shell "am start -a android.intent.action.VIEW -d '$url' com.android.chrome"
+  fi
   for i in $(seq 1 40); do
     sleep 2
-    adb forward tcp:$CDP_PORT localabstract:chrome_devtools_remote > /dev/null 2>&1
     [ "$(cdp "($ready) && document.readyState === \"complete\"")" = true ] && break
   done
   sleep 3
@@ -166,7 +178,7 @@ if [ "$started" = 1 ]; then
   sleep 2
   run adb reverse tcp:8765 tcp:8765
   open_page 'http://127.0.0.1:8765/control.html' 'document.querySelector("#open") !== null'
-  control_dialog=0
+  control_dialog=-1
   if tab_until 'Tab to the control opener' '.text == "Open Control Game"' 5; then
     press 'open the control with Enter' 5 66
     heard=$(spoken)
@@ -192,7 +204,9 @@ if [ "$started" = 1 ]; then
     check a 'the dialog opened' "$([ "$(field .dialog)" = true ] && echo 1 || echo 0)" "$(field .dialogTitle)"
     check a 'the game name is spoken' "$(has "$heard" "$title")" "$title"
     # The role check follows the native control: required when TalkBack speaks "dialog" for the control.
-    if [ "$control_dialog" -gt 0 ]; then
+    if [ "$control_dialog" -lt 0 ]; then
+      check a 'the dialog role is spoken, or the control shows TalkBack omits it' 0 'the control was not measured'
+    elif [ "$control_dialog" -gt 0 ]; then
       check a 'the dialog role is spoken' "$(has "$heard" dialog)" "dialog (control: $control_dialog)"
     else
       echo "INFO	a	the dialog role is not spoken; the native control is not announced as a dialog either	control: 0" >> "$out/checks.tsv"
