@@ -376,7 +376,11 @@ describe('blocked library recovery', () => {
       await page.getByRole('button', { name: 'Add temporary game', exact: true }).click();
       await banner.getByRole('button', { name: 'Try again', exact: true }).click();
       await page.getByRole('button', { name: 'Discard tab changes and try again', exact: true }).click();
+      const priorRevision = await page.evaluate(() => window.libraryRetryFixture.state().revision);
       await page.evaluate(() => window.libraryRetryFixture.addTemporary());
+      await browserExpect
+        .poll(() => page.evaluate(() => window.libraryRetryFixture.state().revision))
+        .toBe(priorRevision + 1);
       const newer = await page.evaluate(() => window.libraryRetryFixture.state());
       await blocker.close();
       await page.getByRole('button', { name: 'Discard and try again', exact: true }).click();

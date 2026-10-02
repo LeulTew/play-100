@@ -191,6 +191,8 @@ for (const mobile of [false, true]) {
       await withPage(async (page) => {
         await browserExpect(page.locator('.game-card')).toHaveCount(24);
         await page.evaluate(() => document.fonts.ready);
+        const account = page.locator('.account-nav');
+        if (await account.count()) await browserExpect(account).toHaveAccessibleName('Account Device only');
         const input = page.getByRole('searchbox', { name: 'Search games, studios or genres', exact: true });
         await input.focus();
         const before = await page.evaluate(() => ({ ...window.dialogHostFixture.renders }));
