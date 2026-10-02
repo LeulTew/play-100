@@ -16,13 +16,17 @@
    on, and Chromium then skipped it for a frame, at a stale remembered size, if
    it had last seen the card off-screen. The cards after it jumped under the
    pointer between press and release, and the click was lost
-   (unified-search.spec.ts, after a reload). */
+   (unified-search.spec.ts, after a reload).
+   A reserve holds the place of a card the landing has yet to render (its second
+   pass on a constrained device, CollectionPage) at the card's estimated size. */
 @media screen {
-  .games-grid > .game-card:nth-child(n + 5) {
+  .games-grid > .game-card:nth-child(n + 5),
+  .games-grid > .game-card-reserve {
     content-visibility: auto;
     contain-intrinsic-block-size: 430px;
   }
-  .games-list > .game-card:nth-child(n + 5) {
+  .games-list > .game-card:nth-child(n + 5),
+  .games-list > .game-card-reserve {
     content-visibility: auto;
     contain-intrinsic-block-size: 170px;
   }
@@ -38,17 +42,23 @@
   .discovery-cards > .discovery-card[data-compare-dragging] {
     content-visibility: visible;
   }
+  .game-card-reserve {
+    contain: size;
+  }
 }
 @media screen and (min-width: 761px) and (max-width: 1150px) {
-  .games-grid > .game-card:nth-child(n + 5) {
+  .games-grid > .game-card:nth-child(n + 5),
+  .games-grid > .game-card-reserve {
     contain-intrinsic-block-size: 400px;
   }
 }
 @media screen and (max-width: 760px) {
-  .games-grid > .game-card:nth-child(n + 5) {
+  .games-grid > .game-card:nth-child(n + 5),
+  .games-grid > .game-card-reserve {
     contain-intrinsic-block-size: 370px;
   }
-  .games-list > .game-card:nth-child(n + 5) {
+  .games-list > .game-card:nth-child(n + 5),
+  .games-list > .game-card-reserve {
     contain-intrinsic-block-size: 240px;
   }
   .discovery-cards-grid > .discovery-card:nth-child(n + 6) {

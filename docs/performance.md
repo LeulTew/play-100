@@ -55,6 +55,12 @@ What changed for those phones (R24):
   landing's films, workbook and footer render once the first paint is out
   ([`AfterFirstPaint`](../src/components/AfterFirstPaint.tsx)); the collection's loading state, which the first-paint
   shell shares, stays in the first commit.
+- **The landing renders in two passes on a constrained device.** Whenever The 100's cards render for a load or an
+  app navigation, its first pass builds the first eight cards and holds every other card's place at the card's
+  estimated size; the rest, with the films and workbook, follow once that pass has painted, in a transition React
+  builds in slices ([`landing-passes.ts`](../src/components/landing-passes.ts)). On the Test Lab phone, opening The 100
+  again ran as one task of 1.2 s. A back or forward visit still renders everything at once, so the browser can restore
+  its scroll position into the cards.
 - **One style pass before the first paint.** With no tray to place, Compare's chrome heights are measured in the frame
   after the first paint instead of forcing a layout inside React's first commit and restyling the page for it
   (`scheduleTrayMetrics` in [`tray-metrics.ts`](../src/components/compare-tray/tray-metrics.ts)).
