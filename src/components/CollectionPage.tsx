@@ -24,7 +24,7 @@ import './catalog/discover.css';
 import { catalogActionRecord } from '../lib/catalog-identity';
 import { SavedCatalogCopies } from './catalog/SavedCatalogCopies';
 import type { MotionOriginHint } from '../motion';
-import { formatResultRange } from '../lib/local-pagination';
+import { formatResultRange } from '../lib/result-range';
 
 interface CollectionPageProps {
   collection: ReturnType<typeof useCollection>;

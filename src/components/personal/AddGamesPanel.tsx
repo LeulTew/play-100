@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { LibraryRecord } from '../../lib/personal-types';
 import { SOURCE_LABELS } from '../../lib/personal-types';
 import { searchText } from '../../lib/collection';
-import { catalogPickerChoices } from '../../lib/catalog-identity';
+import { catalogPickerChoices } from '../../lib/catalog-picker';
 import { Icon } from '../Icon';
 import ManualGameForm from './ManualGameForm';
 import type { ManualGameDraft } from './ManualGameForm';

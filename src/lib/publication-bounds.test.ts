@@ -6,9 +6,9 @@ import {
   applyPersonalAction,
   createLibraryBackup,
   emptyPersonalLibrary,
-  parseLibraryBackup,
   parsePersonalLibrary,
 } from './personal-library';
+import { parseLibraryBackup } from './backup-restore';
 import type { LibraryRecord } from './personal-types';
 
 const prefix = 'https://www.freetogame.com/';

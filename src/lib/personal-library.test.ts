@@ -2,19 +2,16 @@ import { describe, expect, it } from 'vitest';
 import {
   applyPersonalAction,
   applyPersonalActionWithin,
-  backupFileSizeError,
   createLibraryBackup,
-  describeLibraryBackup,
   emptyPersonalLibrary,
   exportLibraryBackup,
   formatBackupLimit,
   libraryBackupBytes,
   migrateLegacyLibrary,
-  parseLibraryBackup,
   parsePersonalLibrary,
-  readLibraryBackup,
   utf8Length,
 } from './personal-library';
+import { backupFileSizeError, describeLibraryBackup, parseLibraryBackup, readLibraryBackup } from './backup-restore';
 import { MAX_BACKUP_FILE_BYTES, MAX_LIBRARY_BACKUP_BYTES } from './personal-types';
 import type { GameSource, LibraryRecord, PersonalAction, PersonalLibraryState } from './personal-types';
 

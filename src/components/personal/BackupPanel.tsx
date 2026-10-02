@@ -1,10 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import {
-  backupFileSizeError,
-  describeLibraryBackup,
-  exportLibraryBackup,
-  readLibraryBackup,
-} from '../../lib/personal-library';
+import { exportLibraryBackup } from '../../lib/personal-library';
+import { backupFileSizeError, describeLibraryBackup, readLibraryBackup } from '../../lib/backup-restore';
 import type { PersonalLibraryState } from '../../lib/personal-types';
 import { Icon } from '../Icon';
 import { useLibraryMode } from '../../lib/library-mode';

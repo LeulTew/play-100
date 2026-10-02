@@ -8,12 +8,12 @@ import type { PersonalLibraryState } from '../lib/personal-types';
 import type { Game } from '../lib/types';
 import {
   catalogOwnership,
-  catalogPageRecords,
   catalogProgress,
   catalogSearchItems,
   collectionGameForId,
   resolveCatalogRecords,
 } from '../lib/catalog-identity';
+import { catalogPageRecords } from '../lib/catalog-matches';
 import { getLocalPage } from '../lib/local-pagination';
 import { matchesDiscoveryGenre } from '../lib/discovery-genres';
 import { discoveryScope } from '../lib/discovery-scope';
