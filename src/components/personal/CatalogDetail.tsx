@@ -17,6 +17,10 @@ import type { PublicCatalogLookup } from '../../hooks/useCatalogEnrichment';
 import { CatalogEnrichment, ExternalCatalogArtwork, ExternalCatalogArtworkCredit } from '../catalog/CatalogEnrichment';
 import './catalog-detail-motion.css';
 
+// The 100's game detail ships in this chunk, which a page warms before a detail opens (DialogHost), rather than in a
+// chunk of its own: the offline core is at its file limit.
+export { GameDetail } from '../GameDetail';
+
 export interface CatalogDetailProps {
   record: LibraryRecord;
   saved: boolean;
