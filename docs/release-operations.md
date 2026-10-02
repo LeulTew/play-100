@@ -875,7 +875,13 @@ The verifier uses Node fetch, manual redirects, 60-second request deadlines
 and an 8 MiB response cap. It does not execute JavaScript or certify UI/Auth.
 It ports the Release 2 HTTP checks, consolidating repeated requests/checks,
 and adds the current headers, removed Google asset, PWA version and shell
-guards. It is not itself the historical “42/42”: deployment/alias identity
+guards. Since R24 it also covers the auth area as Vercel itself serves it:
+each helper document reports CSP violations to `/api/csp-report`,
+`/__/auth/unknown` answers 404 with the full main document headers, and
+`/__/auth/handler.js` answers 200 JavaScript with its own rule's headers and
+none of the main document's. It also fails a CSP that lists
+`https://apis.google.com` in connect-src or `https://accounts.google.com` in
+frame-src. It is not itself the historical “42/42”: deployment/alias identity
 checks remain these operator readbacks. An omitted `--expect-index` is recorded
 as `compared: false`, not evidence of build identity. No raw bodies, cookies,
 nonce values or bypass credentials enter the receipt. A new `--json` path is

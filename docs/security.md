@@ -1056,6 +1056,23 @@ no-store rewrites; no configuration carries a static nonce any more. A direct
 `/api/auth-helper` request also receives the main rule. Whichever CSP wins there is
 either the fresh-nonce policy or the stricter main policy, which blocks the script.
 
+**On the deployment (R24).** Vercel compiles these sources with path-to-regexp,
+not a JavaScript `RegExp`, so neither those tests nor `check:csp` prove what
+production does. Plain `curl` GET and HEAD requests to production (Release 7,
+2026-10-02) did:
+- `/__/auth/unknown` answered 404 with the 404 page and the full main header
+  set, its CSP byte-identical to `/`'s.
+- `/__/auth/handler.js`, the external rewrite to Firebase Hosting, answered 200
+  `text/javascript` with its own rule's headers (nosniff, `no-referrer`,
+  SAMEORIGIN, `private, no-store, max-age=0`, `CDN-Cache-Control: no-store`,
+  Permissions-Policy, HSTS and its CSP) and none of the main rule's. Vercel does
+  apply header rules to that external rewrite, unlike the local production
+  emulation G12-SEC2 used. It does not send the two directives addressed to its
+  own CDN, `Vercel-CDN-Cache-Control` and `x-vercel-enable-rewrite-caching`.
+
+`release:verify` now checks both paths on every candidate and production
+deployment, against the rules in `vercel.json`.
+
 The application uses password reset/verification, not email-link sign-in:
 `sendSignInLinkToEmail` and `isSignInWithEmailLink` are absent, and the unused
 `/__/auth/links` paths stay removed. Every release since Release 1 ships

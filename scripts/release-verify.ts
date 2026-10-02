@@ -100,34 +100,62 @@ export function parseVerifyArguments(args: string[]): VerifyOptions {
   return { url: url.origin, bypassEnv, expectIndex: flags.get('--expect-index'), json: flags.get('--json') };
 }
 
+function declaredHeaders(entries: unknown[], kind: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const entry of entries) {
+    if (!object(entry) || typeof entry.key !== 'string' || typeof entry.value !== 'string') {
+      throw new Error(`Invalid ${kind} header entry.`);
+    }
+    const name = entry.key.toLowerCase();
+    if (Object.hasOwn(result, name)) throw new Error(`Duplicate ${kind} header declaration.`);
+    result[name] = entry.value;
+  }
+  return result;
+}
+
 export function expectedDocumentHeaders(config: unknown): Record<string, string> {
   if (!object(config) || !Array.isArray(config.headers)) throw new Error('Invalid Vercel header configuration.');
   const groups = config.headers.filter(isMainDocumentRule);
   if (groups.length !== 1 || !object(groups[0]) || !Array.isArray(groups[0].headers)) {
     throw new Error('Expected exactly one non-auth document header group.');
   }
-  const result: Record<string, string> = {};
-  for (const entry of groups[0].headers) {
-    if (!object(entry) || typeof entry.key !== 'string' || typeof entry.value !== 'string') {
-      throw new Error('Invalid document header entry.');
-    }
-    const name = entry.key.toLowerCase();
-    if (Object.hasOwn(result, name)) throw new Error('Duplicate document header declaration.');
-    result[name] = entry.value;
-  }
+  const result = declaredHeaders(groups[0].headers, 'document');
   if (securityHeaders.some((name) => !result[name])) throw new Error('A required security header is missing.');
   return result;
 }
 
-export function compareDocumentHeaders(actual: Headers, expected: Record<string, string>): Check[] {
-  const checks: Check[] = Object.entries(expected).map(([name, value]) => ({
-    name: `Document header ${name}`,
+const HELPER_SCRIPT_RULE = '/__/auth/(handler|iframe|experiments)\\.js';
+// Directives to Vercel's own CDN, which it applies and never sends on: production served /__/auth/handler.js with
+// every other header of its rule (capture 2026-10-02).
+const vercelOnlyHeaders = new Set(['vercel-cdn-cache-control', 'x-vercel-enable-rewrite-caching']);
+
+/** The headers the auth helper script rule makes Vercel send with /__/auth/handler.js, iframe.js and experiments.js. */
+export function expectedHelperScriptHeaders(config: unknown): Record<string, string> {
+  if (!object(config) || !Array.isArray(config.headers)) throw new Error('Invalid Vercel header configuration.');
+  const groups = config.headers.filter((group: unknown) => object(group) && group.source === HELPER_SCRIPT_RULE);
+  if (groups.length !== 1 || !object(groups[0]) || !Array.isArray(groups[0].headers)) {
+    throw new Error('Expected exactly one auth helper script header group.');
+  }
+  const declared = declaredHeaders(groups[0].headers, 'auth helper script');
+  const result = Object.fromEntries(Object.entries(declared).filter(([name]) => !vercelOnlyHeaders.has(name)));
+  if (['x-content-type-options', 'x-frame-options', 'cache-control'].some((name) => !result[name]))
+    throw new Error('A required auth helper script header is missing.');
+  return result;
+}
+
+function compareHeaders(actual: Headers, expected: Record<string, string>, label: string): Check[] {
+  return Object.entries(expected).map(([name, value]) => ({
+    name: `${label} header ${name}`,
     pass: actual.get(name) === value,
     measured: {
       expectedSha256: digest(value),
       actualSha256: actual.has(name) ? digest(actual.get(name)!) : null,
     },
   }));
+}
+
+export function compareDocumentHeaders(actual: Headers, expected: Record<string, string>): Check[] {
+  const checks = compareHeaders(actual, expected, 'Document');
   const csp = actual.get('content-security-policy') ?? '';
   checks.push({
     name: 'CSP excludes firebaseinstallations',
@@ -338,6 +366,7 @@ function jsonObject(sample: Sample | null): boolean {
 
 export async function verifyDeployment(options: VerifyOptions, config: unknown, secret?: string) {
   const expected = expectedDocumentHeaders(config);
+  const helperScriptHeaders = expectedHelperScriptHeaders(config);
   const expectedIndex = options.expectIndex ? digest(await readFile(options.expectIndex)) : null;
   const checks: Check[] = [];
   const startedAt = new Date().toISOString();
@@ -438,6 +467,29 @@ export async function verifyDeployment(options: VerifyOptions, config: unknown, 
     }
   }
   record('Four fresh auth-helper nonces', freshNonces(nonces), { requests: nonces.length });
+  // Vercel compiles header sources with path-to-regexp, so only the deployment proves the narrowed /__/auth/ exclusion:
+  // an unknown helper path gets the 404 page with the main document headers, and handler.js, an external rewrite to
+  // Firebase Hosting, gets its own rule's headers and none of the main document's.
+  const unknownAuth = await get('/__/auth/unknown', '/__/auth/unknown transport');
+  record('/__/auth/unknown 404', unknownAuth?.status === 404, {
+    status: unknownAuth?.status ?? null,
+    sha256: unknownAuth ? digest(unknownAuth.body) : null,
+  });
+  if (unknownAuth) checks.push(...compareHeaders(unknownAuth.headers, expected, '/__/auth/unknown'));
+  const helperScript = await get('/__/auth/handler.js', '/__/auth/handler.js transport');
+  record(
+    '/__/auth/handler.js 200 JavaScript',
+    helperScript?.status === 200 &&
+      /^(?:text|application)\/javascript\b/i.test(helperScript.headers.get('content-type') ?? ''),
+    { status: helperScript?.status ?? null, bytes: helperScript?.body.length ?? 0 },
+  );
+  if (helperScript) {
+    checks.push(...compareHeaders(helperScript.headers, helperScriptHeaders, '/__/auth/handler.js'));
+    record(
+      '/__/auth/handler.js without main document headers',
+      !helperScript.headers.has('cross-origin-opener-policy') && !helperScript.headers.has('reporting-endpoints'),
+    );
+  }
   for (const pathname of ['/__/auth/handler', '/api/catalog']) {
     const result = await get(pathname, `${pathname} POST transport`, 'POST');
     record(`POST ${pathname} 405`, result?.status === 405, { status: result?.status ?? null });

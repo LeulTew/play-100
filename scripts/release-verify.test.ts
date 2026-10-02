@@ -1,10 +1,11 @@
 import { readFile } from 'node:fs/promises';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { authHelperCsp } from '../api/auth-helper';
 import {
   compareDocumentHeaders,
   entryLiteralCounts,
   expectedDocumentHeaders,
+  expectedHelperScriptHeaders,
   exposurePaths,
   freshNonces,
   helperNonce,
@@ -13,6 +14,7 @@ import {
   reportsCspViolations,
   serializeReceipt,
   sourcemapNotServed,
+  verifyDeployment,
 } from './release-verify';
 
 const config: unknown = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
@@ -238,5 +240,138 @@ describe('deployed release verification, without network', () => {
       reflected: '[REDACTED]',
       encoded: '[REDACTED]',
     });
+  });
+});
+
+const helperScripts = expectedHelperScriptHeaders(config);
+
+type Answer = { status: number; headers?: Record<string, string>; body?: string };
+
+/** A deployment that answers every verifier request as production does, unless `overrides` answers it. */
+function fakeDeployment(overrides: Record<string, Answer> = {}) {
+  let nonces = 0;
+  const json = { 'content-type': 'application/json' };
+  const helperDocument = (): Answer => {
+    nonces += 1;
+    return {
+      status: 200,
+      headers: {
+        'content-security-policy': authHelperCsp(`${String(nonces).padStart(22, 'n')}==`),
+        'reporting-endpoints': 'csp="/api/csp-report"',
+        'x-frame-options': 'SAMEORIGIN',
+        'cache-control': 'private, no-store, max-age=0',
+      },
+      body: '<!doctype html>',
+    };
+  };
+  const answers: Record<string, () => Answer> = {
+    'GET /': () => ({ status: 200, headers: { ...policy, 'content-type': 'text/html' }, body: html }),
+    'GET /.well-known/security.txt': () => ({ status: 200, headers: { 'content-type': 'text/plain' }, body: 'x' }),
+    'GET /sw.js': () => ({ status: 200, body: 'self' }),
+    'GET /pwa-assets.json': () => ({ status: 200, headers: json, body: JSON.stringify({ version: 'a'.repeat(64) }) }),
+    'GET /__/auth/handler': helperDocument,
+    'GET /__/auth/iframe': helperDocument,
+    'POST /__/auth/handler': () => ({ status: 405, headers: { allow: 'GET, HEAD' } }),
+    'POST /api/catalog': () => ({ status: 405 }),
+    'GET /api/catalog?source=freetogame&q=zelda': () => ({ status: 200, headers: json, body: '{"items":[]}' }),
+    'GET /api/catalog?q=zelda': () => ({ status: 200, headers: json, body: '{"items":[{"id":"wikidata:Q42"}]}' }),
+    'GET /api/catalog-detail?id=wikidata%3AQ42': () => ({ status: 200, headers: json, body: '{"id":"wikidata:Q42"}' }),
+    'GET /assets/index-good.js': () => ({ status: 200, headers: { 'content-type': 'text/javascript' }, body: '0' }),
+    // As production answered both on 2026-10-02: the 404 page with the main headers, and Firebase's script with its
+    // rule's headers (Vercel keeps the two directives addressed to its own CDN) plus upstream ones.
+    'GET /__/auth/unknown': () => ({
+      status: 404,
+      headers: { ...policy, 'content-type': 'text/html; charset=utf-8' },
+      body: '<!doctype html>',
+    }),
+    'GET /__/auth/handler.js': () => ({
+      status: 200,
+      headers: { ...helperScripts, 'content-type': 'text/javascript; charset=utf-8', vary: 'accept-encoding' },
+      body: '/*! @license Firebase */',
+    }),
+  };
+  return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    const key = `${init?.method ?? 'GET'} ${url.pathname}${url.search}`;
+    const answer = overrides[key] ?? answers[key]?.() ?? { status: 404 };
+    return new Response(answer.body ?? null, { status: answer.status, headers: answer.headers });
+  });
+}
+
+const failing = (receipt: Awaited<ReturnType<typeof verifyDeployment>>) =>
+  receipt.checks.filter((check) => !check.pass).map((check) => check.name);
+
+describe('deployed release verification of the auth helper paths', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('expects the helper script rule headers except the directives addressed to Vercel itself', () => {
+    const rule = (
+      config as { headers: Array<{ source: string; headers: Array<{ key: string; value: string }> }> }
+    ).headers.find((group) => group.source === '/__/auth/(handler|iframe|experiments)\\.js')!;
+    const declared = Object.fromEntries(rule.headers.map(({ key, value }) => [key.toLowerCase(), value]));
+    const vercelOnly = ['vercel-cdn-cache-control', 'x-vercel-enable-rewrite-caching'];
+    for (const name of vercelOnly) expect(declared[name]).toBeDefined();
+    expect(helperScripts).toEqual(
+      Object.fromEntries(Object.entries(declared).filter(([name]) => !vercelOnly.includes(name))),
+    );
+    expect(helperScripts).toMatchObject({
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'SAMEORIGIN',
+      'cache-control': 'private, no-store, max-age=0',
+      'cdn-cache-control': 'no-store',
+    });
+    expect(() => expectedHelperScriptHeaders({ headers: [] })).toThrow();
+  });
+
+  it('passes a deployment that serves both auth helper paths as production does', async () => {
+    vi.stubGlobal('fetch', fakeDeployment());
+    const receipt = await verifyDeployment({ url: 'https://candidate.example.test' }, config);
+    expect(failing(receipt)).toEqual([]);
+    const names = receipt.checks.map((check) => check.name);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        '/__/auth/unknown 404',
+        ...Object.keys(policy).map((name) => `/__/auth/unknown header ${name}`),
+        '/__/auth/handler.js 200 JavaScript',
+        ...Object.keys(helperScripts).map((name) => `/__/auth/handler.js header ${name}`),
+        '/__/auth/handler.js without main document headers',
+      ]),
+    );
+    expect(names).not.toContain('/__/auth/handler.js header vercel-cdn-cache-control');
+  });
+
+  it.each([
+    [
+      'an unknown auth path with the helper script headers',
+      { 'GET /__/auth/unknown': { status: 404, headers: helperScripts } },
+      ['/__/auth/unknown header x-frame-options', '/__/auth/unknown header content-security-policy'],
+    ],
+    [
+      'an unknown auth path that is served',
+      { 'GET /__/auth/unknown': { status: 200, headers: policy } },
+      ['/__/auth/unknown 404'],
+    ],
+    [
+      'handler.js with the main document headers',
+      { 'GET /__/auth/handler.js': { status: 200, headers: { ...policy, 'content-type': 'text/javascript' } } },
+      ['/__/auth/handler.js header x-frame-options', '/__/auth/handler.js without main document headers'],
+    ],
+    [
+      'handler.js with upstream headers only',
+      { 'GET /__/auth/handler.js': { status: 200, headers: { 'content-type': 'text/javascript' } } },
+      ['/__/auth/handler.js header x-content-type-options', '/__/auth/handler.js header cache-control'],
+    ],
+    [
+      'handler.js answered with HTML',
+      { 'GET /__/auth/handler.js': { status: 200, headers: { ...helperScripts, 'content-type': 'text/html' } } },
+      ['/__/auth/handler.js 200 JavaScript'],
+    ],
+  ])('fails %s', async (_label, overrides, expected) => {
+    vi.stubGlobal('fetch', fakeDeployment(overrides));
+    const receipt = await verifyDeployment({ url: 'https://candidate.example.test' }, config);
+    expect(receipt.passed).toBe(false);
+    expect(failing(receipt)).toEqual(expect.arrayContaining(expected));
   });
 });
