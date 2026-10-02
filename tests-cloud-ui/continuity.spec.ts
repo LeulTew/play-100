@@ -121,7 +121,7 @@ test('Data use opens separately without starting private storage or losing the c
     await expect(policy).toHaveURL(/\/data-use$/);
     await expect(policy.getByRole('heading', { name: 'Data use', exact: true })).toBeVisible();
     const result = await policy.evaluate(() => ({
-      databaseOpens: Object.getOwnPropertyDescriptor(window, '__policyDbOpens')?.value,
+      databaseOpens: Object.getOwnPropertyDescriptor(window, '__policyDbOpens')?.value as unknown,
       onlineResources: performance
         .getEntriesByType('resource')
         .map((row) => row.name)

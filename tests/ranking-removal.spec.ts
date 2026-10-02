@@ -49,7 +49,7 @@ async function seed(page: Page) {
       new Promise<void>((resolve, reject) => {
         const open = indexedDB.open(name, version);
         open.onupgradeneeded = () => open.result.createObjectStore(store);
-        open.onerror = () => reject(open.error);
+        open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
         open.onsuccess = () => {
           const db = open.result;
           const tx = db.transaction(store, 'readwrite');
@@ -60,7 +60,7 @@ async function seed(page: Page) {
           };
           tx.onabort = () => {
             db.close();
-            reject(tx.error);
+            reject(tx.error ?? new Error('IndexedDB operation failed'));
           };
         };
       }),
@@ -95,7 +95,7 @@ async function holdPendingEditor(page: Page) {
       .map((entry) => entry.name)
       .findLast((value) => new URL(value).pathname === path);
     if (!loaded) throw new Error('The active app editor registry was not loaded.');
-    const { registerPendingEditor }: typeof import('../src/hooks/useExitSave') = await import(loaded);
+    const { registerPendingEditor } = (await import(loaded)) as typeof import('../src/hooks/useExitSave');
     let dirty = true;
     let finish: (saved: boolean) => void = () => {
       throw new Error('Pending editor is not initialized.');
@@ -135,7 +135,7 @@ async function finishPendingEditor(page: Page) {
           .map((entry) => entry.name)
           .findLast((value) => new URL(value).pathname === path);
         if (!loaded) throw new Error('The active app editor registry was not loaded.');
-        const { hasPendingEdits }: typeof import('../src/hooks/useExitSave') = await import(loaded);
+        const { hasPendingEdits } = (await import(loaded)) as typeof import('../src/hooks/useExitSave');
         return hasPendingEdits();
       }),
     )
@@ -382,13 +382,13 @@ test('a removed then re-added target cannot be deleted by a stale pending confir
   await expect(confirmation(page).getByRole('button', { name: 'Checking edits…', exact: true })).toBeDisabled();
   await page.evaluate(async (id) => {
     const path = '/src/lib/personal-db.ts';
-    const { commitPersonalAction }: typeof import('../src/lib/personal-db') = await import(path);
+    const { commitPersonalAction } = (await import(path)) as typeof import('../src/lib/personal-db');
     await commitPersonalAction({ type: 'remove-ranking', ids: [id] });
   }, canonical.id);
   await expect(confirmation(page)).toHaveCount(0);
   await page.evaluate(async (record) => {
     const path = '/src/lib/personal-db.ts';
-    const { commitPersonalAction }: typeof import('../src/lib/personal-db') = await import(path);
+    const { commitPersonalAction } = (await import(path)) as typeof import('../src/lib/personal-db');
     await commitPersonalAction({ type: 'rate-game', record, score: 6.5 });
   }, canonical);
   const replacement = await readLibrary(page);

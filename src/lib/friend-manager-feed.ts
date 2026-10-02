@@ -33,7 +33,7 @@ export interface FriendManagerSnapshot<Cursor = FriendCursor> {
   loading: boolean;
   active: boolean;
   changed: boolean;
-  error: unknown | null;
+  error: unknown;
 }
 
 /** Explicit pages stay stable. The head stream signals refresh; loaded pair streams revoke rows immediately. */
@@ -209,7 +209,7 @@ export class FriendManagerFeed<Cursor = FriendCursor> {
             },
           });
         })
-        .catch((cause) => {
+        .catch((cause: unknown) => {
           if (!valid()) return;
           const denied = cause && typeof cause === 'object' && 'code' in cause && cause.code === 'permission-denied';
           this.update({

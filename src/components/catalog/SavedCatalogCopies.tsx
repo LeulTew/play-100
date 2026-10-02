@@ -1,5 +1,6 @@
 import type { LibraryRecord } from '../../lib/personal-types';
 import { SOURCE_LABELS } from '../../lib/personal-types';
+import type { MotionOriginHint } from '../../motion';
 
 export function SavedCatalogCopies({
   canonicalId,
@@ -8,7 +9,7 @@ export function SavedCatalogCopies({
 }: {
   canonicalId: string;
   copies?: readonly LibraryRecord[];
-  onOpen?: (record: LibraryRecord) => void;
+  onOpen?: (record: LibraryRecord, origin?: MotionOriginHint, opener?: HTMLElement) => void;
 }) {
   const legacy = copies.filter((copy) => copy.id !== canonicalId);
   if (!legacy.length) return null;
@@ -24,7 +25,7 @@ export function SavedCatalogCopies({
           key={copy.id}
           className="text-button"
           disabled={!onOpen}
-          onClick={() => onOpen?.(copy)}
+          onClick={(event) => onOpen?.(copy, undefined, event.currentTarget)}
           aria-label={`Open saved copy (${SOURCE_LABELS[copy.source]}) of ${copy.title}`}
         >
           Open saved copy{legacy.length > 1 ? ` (${SOURCE_LABELS[copy.source]})` : ''}

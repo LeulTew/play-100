@@ -1,6 +1,7 @@
 import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
 import type { LibraryRecord } from './personal-types';
 import { canonicalCatalogId } from './catalog-identity';
+import { dictionary } from './guards';
 
 export const COMPARE_TRAY_LIMIT = 6;
 export const COMPARE_TRAY_MAX_BYTES = 24_576;
@@ -28,7 +29,7 @@ export function compareTrayStorageKey(scope: string): string {
 function records(value: unknown): LibraryRecord[] {
   if (!Array.isArray(value) || value.length > COMPARE_TRAY_LIMIT)
     throw new Error('Pin up to six games for comparison.');
-  const input: Record<string, unknown> = Object.create(null);
+  const input = dictionary();
   const ids: string[] = [];
   const length = value.length;
   for (let index = 0; index < length; index += 1) {
@@ -166,23 +167,23 @@ export function createCompareTrayStore(
   return {
     currentScope: scope,
     getSnapshot: () => snapshot,
-    subscribe(listener: () => void) {
+    subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
       };
     },
     reload,
-    setDragging(dragging: boolean) {
+    setDragging: (dragging: boolean) => {
       if (isCurrent()) publish({ ...snapshot, dragging });
     },
-    reportError(error: string) {
+    reportError: (error: string) => {
       if (isCurrent()) publish({ ...snapshot, error, status: error });
     },
-    dismissError() {
+    dismissError: () => {
       if (isCurrent()) publish({ ...snapshot, error: null, status: '' });
     },
-    pin(record: LibraryRecord): boolean {
+    pin: (record: LibraryRecord): boolean => {
       if (!isCurrent()) return false;
       let valid: LibraryRecord;
       try {
@@ -208,7 +209,7 @@ export function createCompareTrayStore(
         `${valid.title} pinned for comparison. ${snapshot.items.length + 1} of 6 games.`,
       );
     },
-    unpin(id: string): boolean {
+    unpin: (id: string): boolean => {
       if (!isCurrent()) return false;
       const record =
         snapshot.items.find((item) => item.id === id) ??
@@ -219,7 +220,7 @@ export function createCompareTrayStore(
         `${record.title} unpinned from comparison.`,
       );
     },
-    clear(status = 'Compare tray cleared. Your library is unchanged.'): boolean {
+    clear: (status = 'Compare tray cleared. Your library is unchanged.'): boolean => {
       if (!isCurrent()) return false;
       let warning: string | null = null;
       let persistent = true;

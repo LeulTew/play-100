@@ -1,5 +1,5 @@
 import { createElement, isValidElement } from 'react';
-import type { ErrorInfo, ReactElement, ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { reportClientError } from '../../lib/client-error-report';
 import { ChunkBoundary } from '../ChunkBoundary';
@@ -55,7 +55,7 @@ describe('route-level error boundary (REL-04)', () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
     const boundary = new RouteBoundary({ children });
     const bug = new Error('Invalid render state');
-    boundary.componentDidCatch(bug, { componentStack: '\n    at Page' } as ErrorInfo);
+    boundary.componentDidCatch(bug, { componentStack: '\n    at Page' });
     expect(log).toHaveBeenCalledWith(
       'A page could not render. The rest of Play 100 is still available.',
       'Invalid render state',

@@ -20,6 +20,7 @@ interface MenuDialogProps {
   onOffline?: () => void;
   onAbout: () => void;
   onClose: () => void;
+  getOpener?: () => HTMLElement | null;
   captureFocusGuard: () => () => boolean;
   status?: string;
   statusError?: boolean;
@@ -37,6 +38,7 @@ export function MenuDialog({
   onOffline,
   onAbout,
   onClose,
+  getOpener,
   captureFocusGuard,
   status = '',
   statusError = false,
@@ -132,6 +134,7 @@ export function MenuDialog({
       open
       titleId="menu-title"
       onClose={close}
+      getOpener={getOpener}
       className="menu-dialog"
       getReturnFocus={getReturnFocus}
       motion={{ preset: 'dialog', enterMs: 180 }}

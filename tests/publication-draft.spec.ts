@@ -96,10 +96,10 @@ async function mount(page: Page, options: { existing?: boolean; holdControl?: bo
       );
       if (!reactUrl || !domUrl)
         throw new Error('The current app React runtime is required for this controlled component fixture.');
-      const { default: React }: { default: typeof import('react') } = await import(reactUrl);
-      const { default: ReactDom }: { default: typeof import('react-dom/client') } = await import(domUrl);
+      const { default: React } = (await import(reactUrl)) as { default: typeof import('react') };
+      const { default: ReactDom } = (await import(domUrl)) as { default: typeof import('react-dom/client') };
       const componentPath = '/src/cloud/PublishPage.tsx';
-      const { PublishPage }: { PublishPage: ComponentType<PanelProps> } = await import(componentPath);
+      const { PublishPage } = (await import(componentPath)) as { PublishPage: ComponentType<PanelProps> };
       const container = document.createElement('div');
       container.id = 'publication-draft-fixture';
       document.body.append(container);

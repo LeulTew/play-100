@@ -24,39 +24,39 @@ type Library = ReturnType<typeof useLibrary>;
  * never re-renders a memoised child. Never call one during render.
  */
 export interface AppCommands {
-  navigate(next: AppPage, patch?: Partial<Filters>): void;
-  navigateLink(
+  navigate: (next: AppPage, patch?: Partial<Filters>) => void;
+  navigateLink: (
     event: MouseEvent<HTMLAnchorElement>,
     next: AppPage,
     patch?: Partial<Filters>,
     commit?: () => void,
-  ): Promise<void> | undefined;
-  guardedNavigation(commit: () => void): Promise<void>;
-  accountEntry(invocation?: AccountInvocation): Promise<void>;
-  closeAccountSheet(): void;
-  browse(): void;
-  shareView(slug?: string | null): void;
-  share(title: string, url: string, privateFilter: boolean): void;
-  toggle(id: string, key: 'later' | 'completed' | 'played', value?: boolean): void;
-  rankSelected(): void;
-  compareGames(records: LibraryRecord[]): Promise<void>;
-  perform(action: PersonalAction, announce?: boolean): Promise<boolean>;
-  performDetailAction(action: PersonalAction): Promise<boolean>;
-  enablePublicDetails(): Promise<void>;
-  applyPwaUpdate(): ReturnType<ReturnType<typeof usePwa>['applyUpdate']>;
-  setPanel(next: AppPanel): void;
-  openSettings(offline?: boolean): void;
-  dismissPanelMessage(): void;
-  closeManualLink(): void;
-  onDevice(): void;
-  onFailedChange(failed: boolean): void;
-  onDeviceOnly(): void;
-  onBridge(bridge: OnlineBridge | null): void;
-  onCompareSignIn(uid: string, pins: LibraryRecord[], signedIn: () => boolean): void;
-  setCompareTrayVisible(visible: boolean): void;
+  ) => Promise<void> | undefined;
+  guardedNavigation: (commit: () => void) => Promise<void>;
+  accountEntry: (invocation?: AccountInvocation) => Promise<void>;
+  closeAccountSheet: () => void;
+  browse: () => void;
+  shareView: (slug?: string | null) => void;
+  share: (title: string, url: string, privateFilter: boolean) => void;
+  toggle: (id: string, key: 'later' | 'completed' | 'played', value?: boolean) => void;
+  rankSelected: () => void;
+  compareGames: (records: LibraryRecord[]) => Promise<void>;
+  perform: (action: PersonalAction, announce?: boolean) => Promise<boolean>;
+  performDetailAction: (action: PersonalAction) => Promise<boolean>;
+  enablePublicDetails: () => Promise<void>;
+  applyPwaUpdate: () => ReturnType<ReturnType<typeof usePwa>['applyUpdate']>;
+  setPanel: (next: AppPanel, opener?: HTMLElement) => void;
+  openSettings: (offline?: boolean, opener?: HTMLElement) => void;
+  dismissPanelMessage: () => void;
+  closeManualLink: () => void;
+  onDevice: () => void;
+  onFailedChange: (failed: boolean) => void;
+  onDeviceOnly: () => void;
+  onBridge: (bridge: OnlineBridge | null) => void;
+  onCompareSignIn: (uid: string, pins: LibraryRecord[], signedIn: () => boolean) => void;
+  setCompareTrayVisible: (visible: boolean) => void;
   /** False while the account opens or before the library shows the current scope. */
-  pinAllowed(): boolean;
-  retryLibraryOpening(discardRevision?: number): Promise<boolean>;
+  pinAllowed: () => boolean;
+  retryLibraryOpening: (discardRevision?: number) => Promise<boolean>;
   resetLibrary: Library['reset'];
   restoreLibrary: Library['restore'];
 }
@@ -70,6 +70,8 @@ export interface AppModel {
   selectedSlug: string | null;
   publicHandle: string;
   openGame: UrlState['openGame'];
+  getGameOpener: UrlState['getGameOpener'];
+  getPanelOpener: () => HTMLElement | null;
   closeGame: UrlState['closeGame'];
   openProfile: UrlState['openProfile'];
   updateFilters: UrlState['updateFilters'];

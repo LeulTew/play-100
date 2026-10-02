@@ -1,6 +1,7 @@
 import { ServerResponse, createServer, request as createRequest } from 'node:http';
 import type { IncomingMessage, Server } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { CatalogEnrichment } from './catalog-enrichment';
 import { listenOnFetchSafePort } from './test-server-ports';
 
 const nativeFetch = globalThis.fetch;
@@ -94,7 +95,7 @@ describe('public-only catalog detail endpoint', () => {
     });
     vi.stubGlobal('fetch', upstream);
     const response = await nativeFetch(`${base}/api/catalog-detail?id=wikidata%3AQ90000001`);
-    const data = await response.json();
+    const data = (await response.json()) as CatalogEnrichment;
     expect(response.status).toBe(200);
     expect(data.ratings[0]).toMatchObject({
       publisher: 'Example critic',
@@ -128,7 +129,7 @@ describe('public-only catalog detail endpoint', () => {
     });
     vi.stubGlobal('fetch', upstream);
     const response = await nativeFetch(`${base}/api/catalog-detail?id=wikidata%3AQ90000001`);
-    const data = await response.json();
+    const data = (await response.json()) as CatalogEnrichment;
     expect(data.ratings).toHaveLength(1);
     expect(data.sources).toContainEqual(
       expect.objectContaining({ source: 'steam', status: 'error', code: 'rate-limited', retryAfter: 3 }),
@@ -144,7 +145,7 @@ describe('public-only catalog detail endpoint', () => {
     const upstream = vi.fn().mockResolvedValue(json({ entities: { Q90000001: entity('Q90000002') } }));
     vi.stubGlobal('fetch', upstream);
     const response = await nativeFetch(`${base}/api/catalog-detail?id=wikidata%3AQ90000001`);
-    const data = await response.json();
+    const data = (await response.json()) as CatalogEnrichment;
     expect(data.ratings).toEqual([]);
     expect(data.sources[0]).toMatchObject({ source: 'wikidata', status: 'error', code: 'invalid' });
     expect(upstream).toHaveBeenCalledOnce();
@@ -228,13 +229,15 @@ describe('public-only catalog detail endpoint', () => {
       const paid = (index: number) =>
         `${base}/api/catalog-detail?id=wikidata%3AQ92000${String(index).padStart(3, '0')}`;
       const limitedSource = { source: 'wikidata', status: 'error', code: 'rate-limited', retryAfter: 3 };
-      expect((await (await nativeFetch(paid(1))).json()).sources[0]).toMatchObject(limitedSource);
+      expect(((await (await nativeFetch(paid(1))).json()) as CatalogEnrichment).sources[0]).toMatchObject(
+        limitedSource,
+      );
       expect(upstream).toHaveBeenCalledOnce();
       // More new lookups than the window admits, all during the cooldown: none fetches and none takes a slot.
       for (let index = 2; index <= 32; index += 1) {
         const response = await nativeFetch(paid(index));
         expect(response.status).toBe(200);
-        expect((await response.json()).sources[0]).toMatchObject(limitedSource);
+        expect(((await response.json()) as CatalogEnrichment).sources[0]).toMatchObject(limitedSource);
       }
       expect(upstream).toHaveBeenCalledOnce();
       limited = false;

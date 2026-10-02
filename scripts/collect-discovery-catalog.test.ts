@@ -374,7 +374,7 @@ describe('raster and atomic snapshot output', () => {
       ]),
     );
     const fetcher: typeof fetch = async (url) => {
-      const parsed = new URL(String(url));
+      const parsed = new URL(typeof url === 'string' || url instanceof URL ? url : url.url);
       if (parsed.hostname === 'www.freetogame.com')
         return json(Array.from({ length: 500 }, (_, index) => freeRow(index + 1)));
       if (parsed.hostname === 'commons.wikimedia.org')

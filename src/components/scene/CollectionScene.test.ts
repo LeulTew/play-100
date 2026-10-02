@@ -178,7 +178,7 @@ describe('resting artifact continuity', () => {
           (child) => child instanceof THREE.Mesh && child.geometry instanceof THREE.PlaneGeometry,
         );
         if (!(cover instanceof THREE.Mesh) || !target) throw new Error('A sleeve cover is missing.');
-        const actual = projected(cover, camera, width, height);
+        const actual = projected(cover as THREE.Mesh, camera, width, height);
         for (const side of ['left', 'right', 'top', 'bottom'] as const) {
           expect(Math.abs(actual[side] - target[side])).toBeLessThanOrEqual(0.5);
         }
@@ -195,7 +195,7 @@ describe('resting artifact continuity', () => {
         (child) => child instanceof THREE.Mesh && child.geometry instanceof THREE.PlaneGeometry,
       );
       if (!(plate instanceof THREE.Mesh)) throw new Error('The printed guide must remain in the scene.');
-      const guide = projected(plate, camera, width, height);
+      const guide = projected(plate as THREE.Mesh, camera, width, height);
       const scale = Math.min(width / 600, height / 360);
       expect(guide.right - guide.left).toBeCloseTo(600 * scale, 4);
       expect(guide.bottom - guide.top).toBeCloseTo(360 * scale, 4);

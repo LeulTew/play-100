@@ -59,7 +59,7 @@ async function stored(write?: { value: unknown }): Promise<unknown> {
   const connection = await new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => reject(request.error ?? new Error('IndexedDB operation failed'));
   });
   return new Promise((resolve, reject) => {
     const tx = connection.transaction(STORE_NAME, write ? 'readwrite' : 'readonly');
@@ -75,7 +75,7 @@ async function stored(write?: { value: unknown }): Promise<unknown> {
     };
     tx.onabort = () => {
       connection.close();
-      reject(tx.error);
+      reject(tx.error ?? new Error('IndexedDB operation failed'));
     };
   });
 }

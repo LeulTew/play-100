@@ -51,6 +51,8 @@ import type {
   RunTransaction,
 } from './fixtures/modular-firestore';
 
+type Stored<T> = Record<string, unknown> & T;
+
 // prepareFriendIdentity checks the app's auth singleton; each race test points it at the fixture acting now.
 const signedIn = vi.hoisted(() => ({ currentUser: null as { uid: string } | null }));
 vi.mock('../src/cloud/firebase-client', () => ({ cloudAuth: signedIn, cloudDb: {} }));
@@ -64,7 +66,13 @@ vi.mock('firebase/firestore', async (original) => {
     getDocFromServer: vi.fn(actual.getDocFromServer),
   };
 });
-const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8188').split(':');
+const { host, port } = emulatorAddress();
+
+function emulatorAddress() {
+  const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8188').split(':');
+  if (!host || !port) throw new Error('FIRESTORE_EMULATOR_HOST must be host:port.');
+  return { host, port };
+}
 const authAddress = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9199';
 const projectId = 'demo-play100';
 const source = { syncEpoch: 1, remoteRevision: 0 };
@@ -282,7 +290,7 @@ async function heaviestSave(a: Client) {
         tx.get(doc(a.db, 'accounts', a.uid, 'generations', ids.next)),
         ...['games', 'ranking'].map((kind) => tx.get(doc(a.db, 'friendAllHeads', a.uid, 'views', kind))),
       ]);
-      const before = head.data();
+      const before = head.data() as Stored<{ epoch: number; revision: number; current: unknown }> | undefined;
       if (!before) throw new Error('The seeded head is missing.');
       tx.set(headRef, {
         ...before,
@@ -304,7 +312,7 @@ async function heaviestSave(a: Client) {
         epoch: before.epoch,
         revision: before.revision + 1,
         current: ranking.next,
-        previous: summary.data()?.current ?? null,
+        previous: (summary.data()?.current as unknown) ?? null,
         updatedAt: serverTimestamp(),
       });
       tx.update(doc(a.db, 'members', a.uid), { rankCount: 10000, gameCount: 10000, updatedAt: serverTimestamp() });
@@ -445,7 +453,7 @@ describe('All-sharing bounded SDK transport', () => {
     if (!fresh) throw new Error('The next policy is missing.');
     const headRef = doc(a.db, 'friendAllHeads', a.uid, 'views', 'games');
     const jobRef = doc(a.db, 'friendAllJobs', a.uid, 'views', 'games');
-    const oldHead = (await getDocFromServer(headRef)).data()!;
+    const oldHead = (await getDocFromServer(headRef)).data() as Stored<{ revision: number }>;
     const oldJob = (await getDocFromServer(jobRef)).data()!;
     const token = crypto.randomUUID();
     const reset = writeBatch(a.db);
@@ -963,7 +971,7 @@ describe('All-sharing bounded SDK transport', () => {
     const policy = await enable(a);
     await a.all.publish(a.uid, 'games', games(1), policy, source, () => true);
     const row = doc(a.db, 'friendAllGames', a.uid, 'entries', 'wikidata:Q1');
-    const original = (await getDocFromServer(row)).data()!;
+    const original = (await getDocFromServer(row)).data() as Stored<{ entry: Record<string, unknown> }>;
     const job = doc(a.db, 'friendAllJobs', a.uid, 'views', 'games');
     await assertFails(setDoc(row, { ...original, entry: { ...original.entry, note: 'not allowed' } }));
     await assertFails(setDoc(row, { ...original, entry: { ...original.entry, title: 'x'.repeat(100000) } }));
@@ -1039,7 +1047,7 @@ describe('All-sharing bounded SDK transport', () => {
       code: 'resource-exhausted',
     });
     const jobRef = doc(a.db, 'friendAllJobs', a.uid, 'views', 'ranking');
-    const pending = (await getDocFromServer(jobRef)).data()!;
+    const pending = (await getDocFromServer(jobRef)).data() as Stored<{ token: string }>;
     expect(pending).toMatchObject({ applied: 1, total: 6, count: 1 });
     expect(await a.all.progress(a.uid, 'games')).toMatchObject({ ready: true, targetCount: 6 });
     expect(await a.all.progress(a.uid, 'ranking')).toMatchObject({ ready: false, applied: 1, total: 6 });

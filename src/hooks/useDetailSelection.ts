@@ -109,7 +109,7 @@ export function useDetailSelection({
         if (previous.scope === libraryScope && known?.record === record && known.authority === authority)
           return previous;
         const next = new Map([
-          ...(previous.scope === libraryScope ? previous.records : new Map()),
+          ...(previous.scope === libraryScope ? previous.records : []),
           [record.id, { record, authority }],
         ]);
         if (next.size > 64) {

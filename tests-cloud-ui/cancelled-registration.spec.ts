@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import type { RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { candidateRules, live270fRules } from '../tests-cloud/fixtures/migration-rules';
-import { authOrigin, emailFor, firestoreOrigin, password, signIn } from './helpers';
+import { type AuthLookup, type RestDocument, authOrigin, emailFor, firestoreOrigin, password, signIn } from './helpers';
 import { EMULATOR_RULES_TAG, requireOnlyWorker } from './emulator-rules';
 
 for (const policy of ['candidate', 'live-270f'] as const)
@@ -102,7 +102,7 @@ for (const policy of ['candidate', 'live-270f'] as const)
             data: { localId: [uid] },
           },
         );
-        expect((await result.json()).users ?? []).toEqual([]);
+        expect(((await result.json()) as AuthLookup).users ?? []).toEqual([]);
         for (const collection of ['members', 'syncHeads', 'publicControls']) {
           const content = await request.get(
             `${firestoreOrigin}/v1/projects/demo-play100/databases/(default)/documents/${collection}/${uid}`,
@@ -113,7 +113,7 @@ for (const policy of ['candidate', 'live-270f'] as const)
           expect(content.status()).toBe(404);
         }
         const marker = await request.get(document, { headers: { Authorization: 'Bearer owner' } });
-        expect((await marker.json()).fields.state.stringValue).toBe('cancelled');
+        expect(((await marker.json()) as RestDocument<'state'>).fields.state.stringValue).toBe('cancelled');
       } finally {
         await request.post(`${authOrigin}/identitytoolkit.googleapis.com/v1/accounts:delete?key=demo-play100-key`, {
           headers: { Authorization: 'Bearer owner' },

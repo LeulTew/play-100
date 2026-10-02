@@ -99,7 +99,7 @@ test('bulk selection updates queue, completion and own ranking without changing 
   await page.getByRole('button', { name: 'Add to my ranking', exact: true }).click();
   await expect.poll(async () => (await readLibrary(page)).ranking.length).toBe(3);
   const original = await page.request.get('/data/collection.json');
-  expect((await original.json()).games[0].rank).toBe(1);
+  expect(((await original.json()) as { games: [{ rank: number }, ...unknown[]] }).games[0].rank).toBe(1);
   await page.goto('/my-library?list=completed');
   await expect(page.locator('.my-games-editor:visible .personal-row')).toHaveCount(3);
   await page.getByRole('button', { name: 'Select games', exact: true }).click();
@@ -259,7 +259,10 @@ test('backup export and validated replacement restore queue and private rankings
   const path = await download.path();
   if (!path) throw new Error('Backup download missing.');
   const bytes = await readFile(path);
-  const backup = JSON.parse(bytes.toString('utf8'));
+  const backup = JSON.parse(bytes.toString('utf8')) as {
+    formatVersion: number;
+    library: { queueOrder: string[]; ranking: [{ id: string }, ...unknown[]] };
+  };
   // The file is the compact JSON the 20 MiB library budget measures.
   expect(bytes.toString('utf8')).toBe(JSON.stringify(backup));
   expect(backup.formatVersion).toBe(3);
@@ -462,7 +465,7 @@ test('catalog endpoint rejects writes and arbitrary proxy targets', async ({ req
   ]) {
     const response = await request.get(`/api/catalog?${query}`);
     expect(response.status()).toBe(400);
-    expect((await response.json()).error).toContain('supported source');
+    expect(((await response.json()) as { error: string }).error).toContain('supported source');
   }
 });
 

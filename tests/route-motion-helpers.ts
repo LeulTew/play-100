@@ -49,10 +49,12 @@ export async function mountMotionFixture(page: Page, workspace = false) {
         (url) => new URL(url).pathname === '/node_modules/.vite/deps/react-dom_client.js',
       );
       if (!reactUrl || !domUrl) throw new Error('Use the application Vite React modules for this mounted fixture.');
-      const { default: React }: { default: typeof import('react') } = await import(reactUrl);
-      const { default: ReactDom }: { default: typeof import('react-dom/client') } = await import(domUrl);
+      const { default: React } = (await import(reactUrl)) as { default: typeof import('react') };
+      const { default: ReactDom } = (await import(domUrl)) as { default: typeof import('react-dom/client') };
       const myGamesPath = '/src/components/personal/MyGamesPage.tsx';
-      const { default: MyGames }: typeof import('../src/components/personal/MyGamesPage') = await import(myGamesPath);
+      const { default: MyGames } = (await import(
+        myGamesPath
+      )) as typeof import('../src/components/personal/MyGamesPage');
       const motionPath = performance
         .getEntriesByType('resource')
         .findLast((entry) => new URL(entry.name).pathname === '/src/motion/index.ts')?.name;
@@ -61,16 +63,16 @@ export async function mountMotionFixture(page: Page, workspace = false) {
         .findLast((entry) => new URL(entry.name).pathname === '/src/hooks/useExitSave.ts')?.name;
       if (!motionPath || !exitPath)
         throw new Error('The actual mounted motion and editor modules must be loaded first.');
-      const { MotionProvider, useMotionPolicy }: typeof import('../src/motion') = await import(motionPath);
-      const { registerPendingEditor, flushPendingEdits }: typeof import('../src/hooks/useExitSave') = await import(
+      const { MotionProvider, useMotionPolicy } = (await import(motionPath)) as typeof import('../src/motion');
+      const { registerPendingEditor, flushPendingEdits } = (await import(
         exitPath
-      );
+      )) as typeof import('../src/hooks/useExitSave');
       const capabilitiesPath = '/src/hooks/useCapabilities.ts';
-      const { useCapabilities }: typeof import('../src/hooks/useCapabilities') = await import(capabilitiesPath);
+      const { useCapabilities } = (await import(capabilitiesPath)) as typeof import('../src/hooks/useCapabilities');
       const libraryPath = '/src/hooks/useLibrary.ts';
-      const { useLibrary }: typeof import('../src/hooks/useLibrary') = await import(libraryPath);
+      const { useLibrary } = (await import(libraryPath)) as typeof import('../src/hooks/useLibrary');
       const routePath = '/src/hooks/useRouteArrival.ts';
-      const { useRouteArrival }: typeof import('../src/hooks/useRouteArrival') = await import(routePath);
+      const { useRouteArrival } = (await import(routePath)) as typeof import('../src/hooks/useRouteArrival');
       const container = document.createElement('div');
       container.id = 'route-motion-fixture';
       document.body.append(container);

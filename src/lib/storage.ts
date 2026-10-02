@@ -21,7 +21,7 @@ export function parseLibrary(raw: string | null): LibraryState {
     throw new Error('Saved device data has an unsupported format.');
   }
   const progress: Progress = {};
-  for (const [slug, state] of Object.entries(value.progress)) {
+  for (const [slug, state] of Object.entries(value.progress as Record<string, unknown>)) {
     if (
       !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) ||
       slug === '__proto__' ||

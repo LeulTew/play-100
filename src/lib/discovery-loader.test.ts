@@ -230,7 +230,7 @@ describe('lazy bounded public seed loading', () => {
     expect(transport?.aborted).toBe(false);
     await vi.advanceTimersByTimeAsync(1);
     expect(transport?.aborted).toBe(true);
-    expect(transport?.reason.kind).toBe('timeout');
+    expect((transport?.reason as { kind?: unknown } | undefined)?.kind).toBe('timeout');
     expect(await load(signal())).toEqual(catalogFixture);
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
@@ -255,7 +255,10 @@ describe('lazy bounded public seed loading', () => {
       vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(catalogFixture)))),
     );
     const load = createDiscoveryLoader();
-    const errors = await Promise.all([load(signal()).catch((error) => error), load(signal()).catch((error) => error)]);
+    const errors = await Promise.all([
+      load(signal()).catch((error: unknown) => error),
+      load(signal()).catch((error: unknown) => error),
+    ]);
     const error = errors[0];
     expect(errors[1]).toBe(error);
     expect(error).toBeInstanceOf(ModuleLoadFailure);

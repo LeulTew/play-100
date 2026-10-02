@@ -90,7 +90,8 @@ export function pwaDocumentPolicy(configuration: unknown): PwaDocumentPolicy {
   ) {
     throw new Error('The deployment security-header configuration is missing.');
   }
-  const matches = configuration.headers.filter(
+  const rules: unknown[] = configuration.headers;
+  const matches = rules.filter(
     (rule) =>
       rule &&
       typeof rule === 'object' &&
@@ -109,7 +110,8 @@ export function pwaDocumentPolicy(configuration: unknown): PwaDocumentPolicy {
   }
   const headers: Array<{ name: string; value: string }> = [];
   for (const name of PWA_DOCUMENT_HEADERS) {
-    const entries = rule.headers.filter(
+    const ruleHeaders: unknown[] = rule.headers;
+    const entries = ruleHeaders.filter(
       (entry) =>
         entry &&
         typeof entry === 'object' &&

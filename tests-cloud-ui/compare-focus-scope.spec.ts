@@ -22,7 +22,7 @@ test('a real emulator identity transition invalidates the guest Compare focus or
     },
   );
   expect(created.ok()).toBe(true);
-  const uid: unknown = (await created.json()).localId;
+  const uid = ((await created.json()) as { localId?: unknown }).localId;
   if (typeof uid !== 'string') throw new Error('The isolated identity fixture was not created.');
   await installGuestLibrary(page, libraryFixture(3));
   const before = await readLibrary(page);
@@ -56,13 +56,13 @@ test('a real emulator identity transition invalidates the guest Compare focus or
   await page.evaluate(
     async (credentials) => {
       const clientPath = '/src/cloud/firebase-client.ts';
-      const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
+      const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
       if (client.firebaseApp.options.projectId !== 'demo-play100')
         throw new Error('Never use a production identity for a scope fixture.');
       const scopePath = '/src/lib/cloud-types.ts';
-      const { accountScope }: typeof import('../src/lib/cloud-types') = await import(scopePath);
+      const { accountScope } = (await import(scopePath)) as typeof import('../src/lib/cloud-types');
       const libraryPath = '/src/lib/scoped-library.ts';
-      const scoped: typeof import('../src/lib/scoped-library') = await import(libraryPath);
+      const scoped = (await import(libraryPath)) as typeof import('../src/lib/scoped-library');
       const scope = accountScope(credentials.uid, 'demo-play100');
       const current = await scoped.loadScopedLibrary(scope);
       await scoped.connectScopedLibrary(
@@ -92,7 +92,7 @@ test('a real emulator identity transition invalidates the guest Compare focus or
         .map((item) => item.name)
         .find((value) => new URL(value).pathname === '/node_modules/.vite/deps/firebase_auth.js');
       if (!sdkPath) throw new Error('The active local Auth SDK module is missing.');
-      const sdk: typeof import('firebase/auth') = await import(sdkPath);
+      const sdk = (await import(sdkPath)) as typeof import('firebase/auth');
       await sdk.signInWithEmailAndPassword(client.cloudAuth, credentials.email, credentials.password);
     },
     { email, password, uid },

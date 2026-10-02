@@ -9,7 +9,24 @@
 // shows the shell, at once otherwise. When the app cannot start, it shows the failure notice that
 // index.html keeps hidden in #root instead.
 (function () {
-  var accept = function () {
+  // One of our modules the engine cannot parse reports a SyntaxError here, and it can only mean an engine below the
+  // floor (README.md, Browser support); so does a missing Object.hasOwn (Chromium 93). Either picks the notice's
+  // outdated-browser copy. Only a parse error counts: it is reported for an /assets/ script that never ran, so its
+  // stack names no frame in that file (Chromium, Firefox and WebKit). A SyntaxError thrown at runtime (JSON.parse,
+  // RegExp, URL) has a stack frame in the script that threw it, and other files are not ours.
+  var old = !Object.hasOwn;
+  window.addEventListener('error', function (event) {
+    var file = event.filename;
+    var error = event.error;
+    if (typeof file !== 'string' || file.indexOf(window.location.origin + '/assets/') !== 0) return;
+    if (error ? error instanceof SyntaxError && String(error.stack || '').indexOf(file) < 0 : /SyntaxError/.test(event.message)) old = true;
+  });
+
+  var webFonts = ['800 1px "Barlow Condensed"', '700 1px "Barlow Condensed"', '1px "Hanken Grotesk Variable"'];
+
+  // With web, the probes measure the web fonts instead (.p100-probe-web), once they have loaded. Fails with 0
+  // when only the probes fail.
+  var accept = function (web) {
     var root = document.documentElement;
     var url = window.location;
     var params = new window.URLSearchParams(url.search);
@@ -49,9 +66,15 @@
       ['p100-probe-sans', 'Find your next world.', 923.1, 941.7, 130],
       ['p100-probe-sans-bold', 'GOOD THINGS, COLLECTED.', 1291, 1313.3, 130],
     ];
+    // The web fonts are what React's first commit renders in, so they only need to be in use: document.fonts has
+    // them loaded, and each box sits within 2.5% of the expected width, which still rejects any local fallback
+    // (Roboto's display string measures 11% wide). Android lays glyphs out on whole device pixels, so a long
+    // string's width drifts by about 1% at fractional ratios: on the Galaxy A03s (DPR 1.75) the web display
+    // and sans strings measure 600.6 and 948.9, outside the fallback faces' strict ranges.
+    if (web && !webFonts.every(function (font) { return document.fonts.check(font); })) return 0;
     var spans = probes.map(function (probe) {
       var span = document.createElement('span');
-      span.className = 'p100-probe ' + probe[0];
+      span.className = 'p100-probe ' + probe[0] + (web ? ' p100-probe-web' : '');
       span.textContent = probe[1];
       return root.appendChild(span);
     });
@@ -60,7 +83,10 @@
     for (var index = 0; index < probes.length; index += 1) {
       var probe = probes[index];
       var box = boxes[index];
-      if (!(box.width >= probe[2] && box.width <= probe[3] && Math.abs(box.height - probe[4]) <= 2)) return false;
+      var middle = (probe[2] + probe[3]) / 2;
+      var low = web ? middle * 0.975 : probe[2];
+      var high = web ? middle * 1.025 : probe[3];
+      if (!(box.width >= low && box.width <= high && Math.abs(box.height - probe[4]) <= 2)) return 0;
     }
 
     root.setAttribute('data-boot-art', art);
@@ -84,6 +110,16 @@
     if (!notice || !notice.hidden || document.documentElement.hasAttribute('data-app-started')) return;
     var shell = document.querySelector('.first-paint-shell');
     if (shell) shell.parentNode.removeChild(shell);
+    if (old) {
+      var nav = window.navigator;
+      var os = /Android/.test(nav.userAgent) ? 'android'
+        : /iPhone|iPad|iPod/.test(nav.userAgent) || (/Macintosh/.test(nav.userAgent) && nav.maxTouchPoints > 1) ? 'ios'
+          : 'other';
+      var alerts = notice.querySelectorAll('[role=alert]');
+      alerts[0].hidden = true;
+      alerts[1].hidden = false;
+      notice.querySelectorAll('[data-os]').forEach(function (copy) { copy.hidden = copy.getAttribute('data-os') !== os; });
+    }
     notice.hidden = false;
     notice.querySelector('button').addEventListener('click', function () { window.location.reload(); });
   };
@@ -122,10 +158,35 @@
     };
     var settle = function () {
       pending -= 1;
-      if (!pending) add('script', 'module', 'src');
+      if (pending) return;
+      var done = false;
+      var go = function () {
+        if (done) return;
+        done = true;
+        if (timer) window.clearTimeout(timer);
+        add('script', 'module', 'src');
+      };
+      if (!retry) return go();
+      // The fallback faces failed the probes, so the shell is hidden. The entry stylesheet has now brought the web
+      // fonts' @font-face rules, and the preloads have requested their files: wait up to 1.5 s for them, and when
+      // they measure as expected, show the shell, which then renders in the fonts React's first commit uses. The
+      // entry is added only after the next frame (or when the wait ends, if frames are throttled), so the shell
+      // paints before the entry runs and never appears after React's first commit.
+      var timer = window.setTimeout(go, 1500);
+      try {
+        var fonts = document.fonts;
+        Promise.all(webFonts.map(function (font) { return fonts.load(font); }))
+          .then(function () {
+            var notice = document.getElementById('p100-boot-error');
+            if (done || !(notice && notice.hidden && accept(true))) return go();
+            window.requestAnimationFrame(function () { window.setTimeout(go); });
+          })
+          .then(null, go);
+      } catch {
+        go();
+      }
     };
-    // The Data use page reads no collection data (src/main.tsx), and a prepared worker refuses
-    // versioned data to that network-only document, so it starts without the fetch preloads.
+    // The Data use page reads no collection data (src/main.tsx), so it starts without the fetch preloads.
     var dataUse = /^\/data-use\/?$/.test(window.location.pathname);
     for (var index = 0; index < tags.length; index += 1) {
       var tag = tags[index];
@@ -167,8 +228,11 @@
   };
 
   var deferred;
+  var retry;
   try {
-    deferred = accept() && afterPaint();
+    var accepted = accept();
+    deferred = accepted && afterPaint();
+    retry = accepted === 0 && !old;
   } catch {
     // Fail closed: without data-boot the shell keeps its hidden attribute, and the app starts now.
   }

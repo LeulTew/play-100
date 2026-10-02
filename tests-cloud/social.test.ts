@@ -30,6 +30,8 @@ import { CloudStore } from '../src/cloud/cloud-store';
 import { ensureAccountActivity } from '../src/cloud/account-lifecycle';
 import type { AvatarValue, PublicEntry } from '../src/lib/community';
 
+type Registry = Record<string, unknown> & { ids: string[]; revision: number };
+
 let environment: RulesTestEnvironment;
 const apps: FirebaseApp[] = [];
 const avatar: AvatarValue = { version: 1, seed: 'b'.repeat(32), palette: 'moss' };
@@ -108,7 +110,7 @@ function publication(handle: string, listed = false, entries = [entry]) {
 async function handleOwner(handle: string): Promise<string | undefined> {
   let owner: string | undefined;
   await environment.withSecurityRulesDisabled(async (context) => {
-    owner = (await context.firestore().doc(`handles/${handle}`).get()).data()?.uid;
+    owner = ((await context.firestore().doc(`handles/${handle}`).get()).data() as { uid?: string } | undefined)?.uid;
   });
   return owner;
 }
@@ -118,8 +120,8 @@ async function stageGeneration(owner: Awaited<ReturnType<typeof client>>, ref: R
   const batch = writeBatch(owner.db);
   batch.set(ref, { epoch: 0, count: 1, uploaded: 0, status: 'staging', createdAt: serverTimestamp() });
   batch.set(registryRef, {
-    ids: [...(registry.exists() ? registry.data().ids : []), ref.id],
-    revision: registry.exists() ? registry.data().revision + 1 : 1,
+    ids: [...(registry.exists() ? (registry.data() as Registry).ids : []), ref.id],
+    revision: registry.exists() ? (registry.data() as Registry).revision + 1 : 1,
   });
   await batch.commit();
 }

@@ -45,7 +45,7 @@ async function prepare(page: Page, request: APIRequestContext, entry: 'dock' | '
   await page.evaluate(
     async ({ uid, records }) => {
       const clientPath = '/src/cloud/firebase-client.ts';
-      const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
+      const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
       const user = client.cloudAuth.currentUser;
       if (
         client.firebaseApp.options.projectId !== 'demo-play100' ||
@@ -55,7 +55,7 @@ async function prepare(page: Page, request: APIRequestContext, entry: 'dock' | '
       )
         throw new Error('The recovery fixture needs its verified emulator identity.');
       const libraryPath = '/src/lib/scoped-library.ts';
-      const scoped: typeof import('../src/lib/scoped-library') = await import(libraryPath);
+      const scoped = (await import(libraryPath)) as typeof import('../src/lib/scoped-library');
       const scope = `account:demo-play100:${uid}` as const;
       const before = await scoped.loadScopedLibrary(scope);
       if (!before.sync.enabled) throw new Error('Online-saving consent must already be enabled.');
@@ -80,7 +80,7 @@ async function prepare(page: Page, request: APIRequestContext, entry: 'dock' | '
   // Warm the actual comparison tools, not a replacement callback, so Compare reaches the held editor directly.
   await page.evaluate(async () => {
     const toolsPath = '/src/lib/app-tool-preload.ts';
-    const tools: typeof import('../src/lib/app-tool-preload') = await import(toolsPath);
+    const tools = (await import(toolsPath)) as typeof import('../src/lib/app-tool-preload');
     await tools.loadComparisonTools();
   });
   return uid;
@@ -100,7 +100,7 @@ async function holdRejectedRating(page: Page, uid: string) {
       let finish: (() => void) | null = null;
       const state = { attempts: 0, held: false, released: false };
       IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
-        const value: Partial<ScopedLibrary> | null | undefined = args[0];
+        const value = args[0] as Partial<ScopedLibrary> | null | undefined;
         if (
           this.transaction.db.name === 'play100-personal' &&
           this.name === 'library' &&

@@ -5,6 +5,15 @@ import { readFirebaseConfiguration } from '../src/lib/online-config';
 import { expectEqualColumns, readNavigationColumns } from './mobile-nav-helpers';
 import { adoptTextSpacing } from './readability-helpers';
 
+type Box = Omit<DOMRectReadOnly, 'toJSON'>;
+
+interface ChromeSettings {
+  settingsPrivate: {
+    getDefaultZoom: (callback: (zoom: number) => void) => void;
+    setDefaultZoom: (zoom: number, callback: () => void) => void;
+  };
+}
+
 const mode = process.env.PLAY100_TEST_BUILD === 'development' ? 'development' : 'production';
 const environment = { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env };
 const online = readFirebaseConfiguration(environment);
@@ -24,7 +33,7 @@ async function readNavigation(page: Page) {
       dpr: devicePixelRatio,
       scale: visualViewport?.scale,
       overflow: document.documentElement.scrollWidth > innerWidth,
-      nav: bounds.toJSON(),
+      nav: bounds.toJSON() as Box,
       compareReserved: Boolean(document.querySelector('.compare-tray-reserve')),
       dockTop: dock?.top ?? null,
       dockBottom: dock?.bottom ?? null,
@@ -286,9 +295,13 @@ test('desktop stays unchanged and native 200 percent browser zoom keeps the five
     await expect(page.getByRole('navigation', { name: 'Main navigation', exact: true })).toBeVisible();
     const settings = await context.newPage();
     await settings.goto('chrome://settings/appearance');
-    await settings.waitForFunction(() => Boolean(Reflect.get(globalThis, 'chrome')?.settingsPrivate?.setDefaultZoom));
+    await settings.waitForFunction(() =>
+      Boolean(
+        (Reflect.get(globalThis, 'chrome') as Partial<ChromeSettings> | undefined)?.settingsPrivate?.setDefaultZoom,
+      ),
+    );
     const zoom = await settings.evaluate(async () => {
-      const api = Reflect.get(globalThis, 'chrome').settingsPrivate;
+      const api = (Reflect.get(globalThis, 'chrome') as ChromeSettings).settingsPrivate;
       const before = await new Promise<number>((resolve) => api.getDefaultZoom(resolve));
       await new Promise<void>((resolve) => api.setDefaultZoom(2, resolve));
       const after = await new Promise<number>((resolve) => api.getDefaultZoom(resolve));
@@ -314,7 +327,9 @@ test('desktop stays unchanged and native 200 percent browser zoom keeps the five
     });
     await settings.evaluate(
       () =>
-        new Promise<void>((resolve) => Reflect.get(globalThis, 'chrome').settingsPrivate.setDefaultZoom(1, resolve)),
+        new Promise<void>((resolve) =>
+          (Reflect.get(globalThis, 'chrome') as ChromeSettings).settingsPrivate.setDefaultZoom(1, resolve),
+        ),
     );
   } finally {
     await context.close();

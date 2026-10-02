@@ -6,7 +6,7 @@ import type { OwnFriendIdentity } from './friend-page-actions';
 import type { FriendSettings } from '../lib/friend-types';
 
 const auth = vi.hoisted(() => ({ currentUser: { uid: 'alice' } }));
-const startDefault = vi.hoisted(() => vi.fn());
+const startDefault = vi.hoisted(() => vi.fn<(uid: string, isCurrent: () => boolean) => Promise<unknown>>());
 vi.mock('./firebase-client', () => ({ cloudAuth: auth, cloudDb: {} }));
 vi.mock('./friend-store', () => ({
   FriendStore: class {

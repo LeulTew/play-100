@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecord, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 import { textSpacingCSS } from './readability-helpers';
 
@@ -75,7 +75,7 @@ for (const rejection of ['invalid value', 'rejected storage write'] as const) {
   test(`detail Previous and Next preserve and focus a rating with ${rejection}`, async ({ page }) => {
     await page.setViewportSize({ width: 393, height: 851 });
     await installGuestLibrary(page, libraryFixture(3));
-    const game = libraryRecords[1]!;
+    const game = libraryRecord(1);
     await page.goto(`/?game=${game.id}&catalogs=off`);
     const input = page.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true });
     await expect(input).toBeEnabled();
@@ -120,7 +120,7 @@ for (const rejection of ['invalid value', 'rejected storage write'] as const) {
       .poll(async () => (await readLibrary(page)).ranking.find((entry) => entry.id === game.id)?.score)
       .toBe(9.1);
     await page.getByRole('button', { name: 'Next game', exact: true }).click();
-    await expect(page).toHaveURL((url) => url.searchParams.get('game') === libraryRecords[2]!.id);
+    await expect(page).toHaveURL((url) => url.searchParams.get('game') === libraryRecord(2).id);
   });
 }
 
@@ -137,7 +137,7 @@ test('a blocked mobile Ranking tab change returns focus and viewport to the reje
   await views(page)
     .getByRole('button', { name: /^Ranking,/ })
     .click();
-  const game = libraryRecords[19]!;
+  const game = libraryRecord(19);
   const input = page.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true });
   await input.fill('11');
   await input.press('Tab');

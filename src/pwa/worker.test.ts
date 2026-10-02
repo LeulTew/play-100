@@ -119,7 +119,7 @@ function workerFixture(active = false, chosen: PwaBuildManifest = manifest) {
           : 'application/json';
     return new Response(fixtureBytes.slice(), { headers: { 'Content-Type': mime } });
   });
-  const on = vi.fn();
+  const on = vi.fn<(type: string, handler: (event: unknown) => void) => void>();
   const host: PwaWorkerHost = {
     location: { origin },
     caches,
@@ -216,7 +216,8 @@ describe('PWA positive cache boundaries', () => {
     expect(
       isPwaShellNavigation(new URL('/discover?genreFamily=role-playing&include100=on&code=private', origin), origin),
     ).toBe(false);
-    for (const url of ['/account', '/?code=oauth', '/?access_token=token', '/?returnTo=private', '/data-use']) {
+    expect(isPwaShellNavigation(new URL('/data-use', origin), origin)).toBe(true);
+    for (const url of ['/account', '/?code=oauth', '/?access_token=token', '/?returnTo=private', '/data-use?next=x']) {
       expect(isPwaShellNavigation(new URL(url, origin), origin)).toBe(false);
     }
   });
@@ -477,6 +478,19 @@ describe('version-bound offline security headers', () => {
     }
     expect(isPwaNotFoundNavigation(new URL('https://elsewhere.test/settings'), origin)).toBe(false);
     expect(isPwaNotFoundNavigation(new URL(`${origin}/robots.txt`), origin)).toBe(false);
+  });
+  it('serves Data use offline from the app shell, without writing its path to the cache (UX-019)', async () => {
+    const fixture = workerFixture();
+    await fixture.lifetime('install');
+    fixture.fetch.mockClear().mockRejectedValue(new Error('Offline'));
+    const page = await fixture.response(navigation(`${origin}/data-use`));
+    expect(page?.status).toBe(200);
+    expect(await page?.text()).toBe('public fixture');
+    for (const header of policy.headers) expect(page?.headers.get(header.name)).toBe(header.value);
+    expect(fixture.fetch).not.toHaveBeenCalled();
+    for (const cache of fixture.stores.values()) {
+      expect([...cache.entries.keys()].some((key) => key.includes('data-use'))).toBe(false);
+    }
   });
   it('serves a paged Library offline without caching the query or allowing a private query key', async () => {
     const fixture = workerFixture();
@@ -1173,7 +1187,7 @@ describe('native worker install, offline and update lifetime', () => {
       resume.resolve();
       expect(await activation).toMatchObject({ accepted: false, reason: 'other-tabs' });
       expect(fixture.host.skipWaiting).not.toHaveBeenCalled();
-      const bindings = await (await cache.match(`${origin}/pwa/__clients__`))?.json();
+      const bindings = (await (await cache.match(`${origin}/pwa/__clients__`))?.json()) as Record<string, unknown>;
       expect(bindings).toHaveProperty('one');
       expect(bindings).not.toHaveProperty('network-newcomer');
     } finally {
@@ -1205,9 +1219,9 @@ describe('native worker install, offline and update lifetime', () => {
       'old metadata',
     );
     expect((await fixture.response(new Request(`${origin}/data/collection.json`), 'late-window'))?.status).toBe(503);
-    const bindings = await (
+    const bindings = (await (
       await (await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${version}`)).match(`${origin}/pwa/__clients__`)
-    )?.json();
+    )?.json()) as Record<string, unknown>;
     expect(bindings).not.toHaveProperty('late-window');
     skip.mockRestore();
   });
@@ -1234,7 +1248,7 @@ describe('native worker install, offline and update lifetime', () => {
       expect(
         await (await fixture.response(navigation(`${origin}/my-games?tab=ranking`), 'one', 'reserved-two'))?.text(),
       ).toBe('public fixture');
-      const reservations = await (await match(`${origin}/pwa/__clients__`))?.json();
+      const reservations = (await (await match(`${origin}/pwa/__clients__`))?.json()) as Record<string, unknown>;
       expect(reservations).toHaveProperty('reserved-one');
       expect(reservations).toHaveProperty('reserved-two');
       resume.resolve();
@@ -1261,7 +1275,7 @@ describe('native worker install, offline and update lifetime', () => {
     }
     expect((await fixture.response(navigation(`${origin}/`), 'one', 'extra-reservation'))?.status).toBe(503);
     const cache = await fixture.caches.open(`${PWA_CACHE_PREFIX}core-${version}`);
-    const bindings = await (await cache.match(`${origin}/pwa/__clients__`))?.json();
+    const bindings = (await (await cache.match(`${origin}/pwa/__clients__`))?.json()) as Record<string, unknown>;
     expect(Object.keys(bindings)).toHaveLength(PWA_BUDGET.clients);
     expect(bindings).toHaveProperty('reserved-0');
     expect(bindings).not.toHaveProperty('extra-reservation');
@@ -1328,7 +1342,7 @@ describe('native worker install, offline and update lifetime', () => {
       await fixture.response(navigation(`${origin}/discover`), 'one', 'abandoned-page');
       clock.mockReturnValue(121001);
       await fixture.response(navigation(`${origin}/my-games`), 'one', 'fresh-page');
-      const bindings = await (await match(`${origin}/pwa/__clients__`))?.json();
+      const bindings = (await (await match(`${origin}/pwa/__clients__`))?.json()) as Record<string, unknown>;
       expect(bindings).toHaveProperty('held-page');
       expect(bindings).not.toHaveProperty('abandoned-page');
       resume.resolve();
@@ -1377,13 +1391,13 @@ describe('native worker install, offline and update lifetime', () => {
       installPwaWorker(fixture.host, manifest);
       clock.mockReturnValue(241000);
       await fixture.response(navigation(`${origin}/discover`), 'one', 'before-grace-end');
-      const during = await (await match(`${origin}/pwa/__clients__`))?.json();
+      const during = (await (await match(`${origin}/pwa/__clients__`))?.json()) as Record<string, unknown>;
       expect(during).toHaveProperty('post-response-page');
       expect(during['post-response-page']).toMatchObject({ version, observed: false });
 
       clock.mockReturnValue(241002);
       await fixture.response(navigation(`${origin}/my-games`), 'one', 'after-grace-end');
-      const after = await (await match(`${origin}/pwa/__clients__`))?.json();
+      const after = (await (await match(`${origin}/pwa/__clients__`))?.json()) as Record<string, unknown>;
       expect(after).not.toHaveProperty('post-response-page');
       expect(Object.keys(after).length).toBeLessThanOrEqual(PWA_BUDGET.clients);
     } finally {

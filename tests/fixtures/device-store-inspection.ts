@@ -17,7 +17,7 @@ function withStore(mode: IDBTransactionMode, work: (store: IDBObjectStore) => ID
     };
     open.onerror = () => {
       if (absent) empty();
-      else reject(open.error);
+      else reject(open.error ?? new Error('IndexedDB operation failed'));
     };
     open.onblocked = () => {
       settled = true;
@@ -44,7 +44,7 @@ function withStore(mode: IDBTransactionMode, work: (store: IDBObjectStore) => ID
         };
         tx.onabort = () => {
           db.close();
-          reject(tx?.error);
+          reject(tx?.error ?? new Error('IndexedDB operation failed'));
         };
       } catch (cause) {
         tx?.abort();

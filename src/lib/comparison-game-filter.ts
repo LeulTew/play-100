@@ -2,6 +2,8 @@ import type { LibraryScope } from './cloud-types';
 import { scopeUid } from './cloud-types';
 import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library';
 import type { LibraryRecord } from './personal-types';
+import { dictionary, isRecord, isUnknownArray } from './guards';
+import { historyState } from './history-state';
 
 export const COMPARISON_GAMES_KEY = 'play100.comparison-games.v1';
 export const COMPARISON_GAMES_EVENT = 'play100:comparison-games';
@@ -16,9 +18,9 @@ export function createComparisonGameFilter(
   records: readonly LibraryRecord[],
 ): ComparisonGameFilter {
   scopeUid(scope);
-  if (!Array.isArray(records) || records.length < 1 || records.length > 6)
+  if (!isUnknownArray(records) || records.length < 1 || records.length > 6)
     throw new Error('Choose between one and six games for comparison.');
-  const selected: Record<string, unknown> = Object.create(null);
+  const selected = dictionary<LibraryRecord>();
   const order: string[] = [];
   for (let index = 0; index < records.length; index += 1) {
     const record = records[index];
@@ -49,9 +51,9 @@ export function readComparisonGameFilter(scope: LibraryScope): {
 } {
   if (scope === 'guest') return { value: null, warning: null };
   try {
-    const stored = history.state?.play100ComparisonGames;
+    const stored = historyState().play100ComparisonGames;
     if (
-      stored &&
+      isRecord(stored) &&
       stored.scope === scope &&
       stored.version === 1 &&
       stored.cleared === true &&
@@ -88,8 +90,12 @@ export function rememberComparisonGameFilter(filter: ComparisonGameFilter): stri
   return warning;
 }
 
+function scopeOf(value: unknown): unknown {
+  return isRecord(value) ? value.scope : undefined;
+}
+
 export function clearComparisonGameFilter(scope: LibraryScope): string | null {
-  if (location.pathname === '/compare' || history.state?.play100ComparisonGames?.scope === scope) {
+  if (location.pathname === '/compare' || scopeOf(historyState().play100ComparisonGames) === scope) {
     history.replaceState(
       { ...history.state, play100ComparisonGames: { version: 1, scope, cleared: true } },
       '',
@@ -99,7 +105,7 @@ export function clearComparisonGameFilter(scope: LibraryScope): string | null {
   let warning: string | null = null;
   try {
     const raw = sessionStorage.getItem(COMPARISON_GAMES_KEY);
-    if (raw && JSON.parse(raw)?.scope === scope) sessionStorage.removeItem(COMPARISON_GAMES_KEY);
+    if (raw && scopeOf(JSON.parse(raw)) === scope) sessionStorage.removeItem(COMPARISON_GAMES_KEY);
   } catch (cause) {
     console.warn('The comparison game filter could not be cleared from tab storage.', cause);
     warning =

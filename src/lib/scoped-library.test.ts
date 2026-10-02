@@ -85,7 +85,7 @@ describe('explicit account scopes in the existing local database', () => {
     const descriptor = Object.getOwnPropertyDescriptor;
     const revisions: number[] = [];
     const validation = vi.spyOn(Object, 'getOwnPropertyDescriptor').mockImplementation((value, key) => {
-      const revision = key === 'records' ? descriptor(value, 'revision')?.value : undefined;
+      const revision: unknown = key === 'records' ? descriptor(value, 'revision')?.value : undefined;
       if (typeof revision === 'number') revisions.push(revision);
       return descriptor(value, key);
     });
@@ -113,7 +113,7 @@ describe('explicit account scopes in the existing local database', () => {
     const descriptor = Object.getOwnPropertyDescriptor;
     const revisions: number[] = [];
     const validation = vi.spyOn(Object, 'getOwnPropertyDescriptor').mockImplementation((value, key) => {
-      const revision = key === 'records' ? descriptor(value, 'revision')?.value : undefined;
+      const revision: unknown = key === 'records' ? descriptor(value, 'revision')?.value : undefined;
       if (typeof revision === 'number') revisions.push(revision);
       return descriptor(value, key);
     });

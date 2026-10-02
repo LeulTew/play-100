@@ -33,11 +33,11 @@ export interface CompareSourceOptions<T extends HTMLElement> {
 export interface CompareDragSourceProps {
   record: LibraryRecord | undefined;
   disabled?: boolean;
-  children(
+  children: (
     binding: CompareSourceBinding<HTMLDivElement> & {
       sourceRef: RefObject<HTMLDivElement | null>;
     },
-  ): ReactNode;
+  ) => ReactNode;
 }
 
 export interface CompareInteractionGate {

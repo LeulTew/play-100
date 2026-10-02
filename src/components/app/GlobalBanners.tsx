@@ -20,7 +20,7 @@ function DeferredRecovery(props: GlobalBannersProps) {
         ) : (
           <span role="status">Loading recovery controls…</span>
         )}
-        <button className="text-button" onClick={props.onSettings}>
+        <button className="text-button" onClick={(event) => props.onSettings(event.currentTarget)}>
           Settings
           <Icon name="arrow" width="18" height="18" />
         </button>
@@ -74,7 +74,7 @@ export function GlobalBanners(props: GlobalBannersProps) {
                 {warning}
                 {sharedDenial && ` ${accountChoice}`}
               </p>
-              <button className="text-button" onClick={onSettings}>
+              <button className="text-button" onClick={(event) => onSettings(event.currentTarget)}>
                 Settings
                 <Icon name="arrow" width="18" height="18" />
               </button>

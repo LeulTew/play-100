@@ -4,6 +4,8 @@ import { parseHandle, parseAvatar, PUBLIC_LIMIT } from '../lib/community';
 import type { AvatarValue, Member, PublicControl, PublicEntry, PublicProfile } from '../lib/community';
 import { displayNameProblem } from '../lib/text-controls';
 import { createMemoizedModule } from '../lib/memoized-module';
+import { isInteger, isSafeInteger, isStringArray } from '../lib/guards';
+import type { JsonObject } from '../lib/guards';
 import { ensureAccountActivity } from './account-lifecycle';
 import type { SocialPublication } from './social-publication';
 
@@ -11,7 +13,7 @@ export function timestamp(value: unknown): number {
   if (!(value instanceof Timestamp)) throw new Error('An online profile has an invalid update time.');
   return value.toMillis();
 }
-export function parseMember(value: DocumentData): Member {
+export function parseMember(value: JsonObject): Member {
   if (
     Object.keys(value).sort().join() !==
       'avatar,consentVersion,createdAt,displayName,gameCount,rankCount,uid,updatedAt' ||
@@ -20,10 +22,10 @@ export function parseMember(value: DocumentData): Member {
     value.displayName.length < 1 ||
     value.displayName.length > 60 ||
     value.consentVersion !== 1 ||
-    !Number.isInteger(value.rankCount) ||
+    !isInteger(value.rankCount) ||
     value.rankCount < 0 ||
     value.rankCount > 10000 ||
-    !Number.isInteger(value.gameCount) ||
+    !isInteger(value.gameCount) ||
     value.gameCount < 0 ||
     value.gameCount > 10000
   )
@@ -39,7 +41,7 @@ export function parseMember(value: DocumentData): Member {
     updatedAt: timestamp(value.updatedAt),
   };
 }
-export function parseProfile(value: DocumentData): PublicProfile {
+export function parseProfile(value: JsonObject): PublicProfile {
   if (
     Object.keys(value).sort().join() !==
       'avatar,count,creator,displayName,epoch,generation,handle,hidden,listed,preview,published,title,uid,updatedAt' ||
@@ -52,13 +54,13 @@ export function parseProfile(value: DocumentData): PublicProfile {
     typeof value.title !== 'string' ||
     value.title.length < 1 ||
     value.title.length > 80 ||
-    !Number.isInteger(value.count) ||
+    !isInteger(value.count) ||
     value.count < 1 ||
     value.count > PUBLIC_LIMIT ||
-    !Array.isArray(value.preview) ||
+    !isStringArray(value.preview) ||
     value.preview.length > 3 ||
-    !value.preview.every((title: unknown) => typeof title === 'string' && title.length <= 200) ||
-    !Number.isSafeInteger(value.epoch) ||
+    !value.preview.every((title) => title.length <= 200) ||
+    !isSafeInteger(value.epoch) ||
     value.epoch < 1 ||
     typeof value.generation !== 'string' ||
     !/^[a-f0-9-]{36}$/.test(value.generation) ||

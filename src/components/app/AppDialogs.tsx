@@ -44,6 +44,7 @@ export function AppDialogs({
     <DialogHost
       page={page}
       scope={libraryScope}
+      getGameOpener={app.getGameOpener}
       game={
         selectedGame && selectedPersonalRecord && !onlineOpening
           ? {
@@ -60,6 +61,7 @@ export function AppDialogs({
                 motionOrigin: origin,
                 state: library.state.progress[selectedPersonalRecord.id],
                 onClose: closeGame,
+                getOpener: app.getGameOpener,
                 onOpen: openGame,
                 onToggle: commands.toggle,
                 onShare: () => commands.shareView(selectedGame.slug),
@@ -76,7 +78,7 @@ export function AppDialogs({
                   <SavedCatalogCopies
                     canonicalId={selectedGame.slug}
                     copies={app.ownership.get(selectedGame.slug)}
-                    onOpen={(record) => openGame(record.id)}
+                    onOpen={(record, _origin, opener) => openGame(record.id, opener)}
                   />
                 ),
               },
@@ -100,6 +102,7 @@ export function AppDialogs({
                 rating: library.state.ranking.find((entry) => entry.id === selectedRecord.id)?.score ?? null,
                 busy: libraryBusy,
                 onClose: closeGame,
+                getOpener: app.getGameOpener,
                 onAction: commands.performDetailAction,
                 onRankings: () => void commands.guardedNavigation(() => commands.navigate('rankings')),
               },
@@ -144,6 +147,7 @@ export function AppDialogs({
                 onOffline: pwaEnabled ? () => commands.openSettings(true) : undefined,
                 onAbout: () => commands.setPanel('about'),
                 onClose: closePanel,
+                getOpener: app.getPanelOpener,
                 captureFocusGuard: app.captureFocusGuard,
                 status: panelMessage,
                 statusError: panelMessageError,
@@ -154,7 +158,11 @@ export function AppDialogs({
       }
       about={
         panel === 'about'
-          ? { onClose: closePanel, getReturnFocus: panelFromMenu ? visibleMenuTrigger : undefined }
+          ? {
+              onClose: closePanel,
+              getOpener: app.getPanelOpener,
+              getReturnFocus: panelFromMenu ? visibleMenuTrigger : undefined,
+            }
           : null
       }
       settings={
@@ -181,6 +189,7 @@ export function AppDialogs({
                     }
                   : undefined,
                 onClose: closePanel,
+                getOpener: app.getPanelOpener,
                 status: panelMessage,
                 statusError: panelMessageError,
                 recovery: panelRecovery,

@@ -44,9 +44,10 @@ test('Menu keeps guest, Alpha and Beta drafts in their own scopes through real e
   await page.goto(`/?game=${game.id}&catalogs=off`);
   const emulator = await page.evaluate(async () => {
     const path = '/src/lib/online-availability.ts';
-    const source: { EMULATOR_MODE: boolean; firebaseConfiguration: () => { projectId: string } | null } = await import(
-      path
-    );
+    const source = (await import(path)) as {
+      EMULATOR_MODE: boolean;
+      firebaseConfiguration: () => { projectId: string } | null;
+    };
     return { enabled: source.EMULATOR_MODE, project: source.firebaseConfiguration()?.projectId };
   });
   expect(emulator).toEqual({ enabled: true, project: 'demo-play100' });

@@ -15,6 +15,24 @@ textarea {
   font: inherit;
   color: inherit;
 }
+/* Safari zooms into any text field under 16px and keeps the zoom after Done, so on touch
+   screens this wins over every component size, including lazily loaded route styles. */
+@media (pointer: coarse) {
+  input:is(
+    :not([type]),
+    [type='text'],
+    [type='search'],
+    [type='email'],
+    [type='url'],
+    [type='tel'],
+    [type='password'],
+    [type='number']
+  ),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
 button,
 a,
 input,

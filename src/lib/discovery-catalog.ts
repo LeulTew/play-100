@@ -1,6 +1,6 @@
 import { emptyPersonalLibrary, parsePersonalLibrary } from './personal-library.js';
 import { hasAsciiControl } from './text-controls.js';
-import { requireObject, requireText } from './guards.js';
+import { dictionary, requireObject, requireText } from './guards.js';
 
 import { DISCOVERY_LIMITS } from './discovery-catalog-shared.js';
 import type { CatalogArtwork, DiscoveryCatalog, DiscoveryItem } from './discovery-catalog-shared.js';
@@ -137,7 +137,7 @@ export function parseDiscoveryCatalog(value: unknown): DiscoveryCatalog {
   )
     return invalid('unsupported version or item count.');
   const generatedAt = timestamp(root.generatedAt);
-  const records: Record<string, unknown> = Object.create(null);
+  const records = dictionary();
   const pending = root.items.map((value: unknown) => {
     const row = shape(value, ['record', 'aliases', 'artwork', 'provenance']);
     const record = shape(row.record, [

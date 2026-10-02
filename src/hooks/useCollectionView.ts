@@ -23,8 +23,8 @@ interface CollectionViewOptions {
   filters: Filters;
   animate: boolean;
   onAction: (action: PersonalAction) => Promise<boolean>;
-  onOpen: (id: string, origin?: MotionOriginHint) => void;
-  onPreview: (record: LibraryRecord, origin?: MotionOriginHint) => void;
+  onOpen: (id: string, origin?: MotionOriginHint, opener?: HTMLElement) => void;
+  onPreview: (record: LibraryRecord, origin?: MotionOriginHint, opener?: HTMLElement) => void;
   notify: (message: string) => void;
 }
 
@@ -154,11 +154,11 @@ export function useCollectionView({
     const change = selectionOperation(action, records);
     if (await onAction(change)) setSelected(new Set());
   };
-  const pick = () => {
+  const pick = (opener?: HTMLElement) => {
     const candidates = pickCandidates(resultRecords, progress, filters);
     const chosen = candidates[Math.floor(Math.random() * candidates.length)];
-    if (chosen && chosen.collectionRank !== null) onOpen(chosen.id);
-    else if (chosen) onPreview(chosen);
+    if (chosen && chosen.collectionRank !== null) onOpen(chosen.id, undefined, opener);
+    else if (chosen) onPreview(chosen, undefined, opener);
     else
       notify(
         resultRecords.length

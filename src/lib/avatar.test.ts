@@ -80,8 +80,8 @@ describe('avatar descriptor boundary', () => {
   ])('rejects malformed or expanded metadata %# without replacement', (value) => {
     expect(isAvatarDescriptor(value)).toBe(false);
     expect(() => parseAvatarDescriptor(value)).toThrow(TypeError);
-    expect(() => Reflect.apply(generateAvatarSvg, undefined, [value])).toThrow(TypeError);
-    expect(() => Reflect.apply(generateAvatarDataUri, undefined, [value])).toThrow(TypeError);
+    expect((): unknown => Reflect.apply(generateAvatarSvg, undefined, [value])).toThrow(TypeError);
+    expect((): unknown => Reflect.apply(generateAvatarDataUri, undefined, [value])).toThrow(TypeError);
   });
 
   it('rejects hidden keys and accessor properties without evaluating them', () => {
@@ -121,7 +121,9 @@ describe('private random seeds', () => {
   });
 
   it('fails explicitly for invalid palettes or unavailable crypto', () => {
-    expect(() => Reflect.apply(createAvatarDescriptor, undefined, ['unknown'])).toThrow('Unsupported avatar palette');
+    expect((): unknown => Reflect.apply(createAvatarDescriptor, undefined, ['unknown'])).toThrow(
+      'Unsupported avatar palette',
+    );
     vi.stubGlobal('crypto', undefined);
     expect(() => createAvatarDescriptor()).toThrow('Secure randomness is unavailable');
     expect(generateAvatarSvg(original)).toContain('<svg ');
@@ -130,7 +132,9 @@ describe('private random seeds', () => {
 
 describe('frozen local Critters recipe', () => {
   it('pins the exact packages, single definition, license metadata and core notice', () => {
-    const manifest = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+    const manifest = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+      dependencies: Record<string, string>;
+    };
     expect(manifest.dependencies['@dicebear/core']).toBe('10.7.0');
     expect(manifest.dependencies['@dicebear/styles']).toBe('10.6.0');
     const raw = readFileSync(

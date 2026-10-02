@@ -37,7 +37,7 @@ const context = (current = () => true) => ({ captureFocusGuard: () => current, n
 
 describe('enterAccount', () => {
   it('opens the account once the open edits save', async () => {
-    const open = vi.fn();
+    const open = vi.fn<Parameters<typeof enterAccount>[0]['open']>();
     await enterAccount({ ...context(), open }, 'compare');
     expect(open).toHaveBeenCalledWith('compare', expect.any(Function));
     expect(open.mock.calls[0]?.[1]()).toBe(true);

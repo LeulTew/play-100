@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecord, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 
 const compare = (page: Page) => page.locator('.compare-tray-expand');
@@ -41,8 +41,8 @@ test.beforeEach(async ({ page, baseURL }) => {
     'Requires the centrally configured online build; remote account requests remain blocked.',
   );
   const pin = page
-    .locator(`.personal-row-static[data-record-id="${libraryRecords[0].id}"]`)
-    .getByRole('button', { name: `Pin for comparison: ${libraryRecords[0].title}`, exact: true })
+    .locator(`.personal-row-static[data-record-id="${libraryRecord(0).id}"]`)
+    .getByRole('button', { name: `Pin for comparison: ${libraryRecord(0).title}`, exact: true })
     .and(page.locator('button[aria-pressed]'));
   await pin.focus();
   await page.keyboard.press('Space');

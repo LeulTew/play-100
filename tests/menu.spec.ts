@@ -62,7 +62,7 @@ test.beforeEach(async ({ context, page, baseURL }) => {
 });
 
 for (const width of [390, 1280]) {
-  test(`secondary dialogs restore the visible Menu at ${width}px; direct game links restore the heading`, async ({
+  test(`secondary dialogs restore the visible Menu at ${width}px; direct game links restore the rendered card`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 });
@@ -78,7 +78,7 @@ for (const width of [390, 1280]) {
     await page.goto(`/?game=${first.id}&catalogs=off`);
     await expect(page.locator('#game-title')).toBeFocused();
     await page.keyboard.press('Escape');
-    await expect(page.locator('#collection-title')).toBeFocused();
+    await expect(page.locator(`[data-game="${first.id}"] .game-link`)).toBeFocused();
     const footer = page.locator('.site-footer').getByRole('button', { name: 'About & credits', exact: true });
     await footer.click();
     await expect(page.locator('#about-title')).toBeFocused();
@@ -202,7 +202,7 @@ test('Settings, credits, Data use and both actual workbook downloads retain thei
     expect(download.suggestedFilename()).toBe(file);
     const path = await download.path();
     expect(path).not.toBeNull();
-    expect(readFileSync(path!)).toEqual(readFileSync(new URL(`../public/downloads/${file}`, import.meta.url)));
+    expect(readFileSync(path)).toEqual(readFileSync(new URL(`../public/downloads/${file}`, import.meta.url)));
   }
 });
 
@@ -458,7 +458,7 @@ test('Escape cancels an in-flight Menu transition even when the pending save fin
       .map((entry) => entry.name)
       .findLast((value) => new URL(value).pathname === path);
     if (!loaded) throw new Error('The active app editor registry was not loaded.');
-    const { registerPendingEditor }: typeof import('../src/hooks/useExitSave') = await import(loaded);
+    const { registerPendingEditor } = (await import(loaded)) as typeof import('../src/hooks/useExitSave');
     let pending = true;
     const saved = new Promise<boolean>((resolve) =>
       window.addEventListener(

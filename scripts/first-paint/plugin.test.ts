@@ -77,6 +77,7 @@ const TEMPLATE_CONTENT =
 /** Runs a script as its own function, as the browser runs a classic script, and returns what it stored on `out`. */
 function run(script: string): unknown {
   const out: { value?: unknown } = {};
+  // eslint-disable-next-line @typescript-eslint/no-implied-eval -- the test runs the emitted classic script text itself.
   new Function('out', script)(out);
   return out.value;
 }

@@ -4,6 +4,10 @@ import { reportClientError } from './client-error-report';
 import { CLIENT_ERROR_AREAS, clientErrorCounts, reportRouteTemplate } from './client-error-schema';
 import type { ClientErrorArea } from './client-error-schema';
 
+interface ReportBody {
+  counts: { count: number; errorClass: string }[];
+}
+
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllEnvs();
@@ -32,7 +36,7 @@ describe('anonymous client error counts', () => {
     const reporter = fixture();
     reporter.report('TypeError', area);
     reporter.flush();
-    const body = JSON.parse(await reporter.sendBeacon.mock.calls[0]![1].text());
+    const body: unknown = JSON.parse(await reporter.sendBeacon.mock.calls[0]![1].text());
     expect(clientErrorCounts(body)).toEqual({ buildVersion, counts: [{ ...row, area }] });
     expect(reporter.warn).not.toHaveBeenCalled();
   });
@@ -79,7 +83,7 @@ describe('anonymous client error counts', () => {
     const reporter = fixture();
     for (let i = 0; i < 30; i++) reporter.report('TypeError', 'app');
     reporter.flush();
-    expect(JSON.parse(await reporter.sendBeacon.mock.calls[0]![1].text()).counts[0].count).toBe(20);
+    expect((JSON.parse(await reporter.sendBeacon.mock.calls[0]![1].text()) as ReportBody).counts[0]?.count).toBe(20);
     reporter.report('Error', 'app');
     reporter.flush();
     expect(reporter.sendBeacon).toHaveBeenCalledOnce();
@@ -157,7 +161,7 @@ describe('anonymous client error counts', () => {
     windowEvents.dispatchEvent(new Event('pagehide'));
     await vi.runAllTimersAsync();
     expect(sendBeacon).toHaveBeenCalledOnce();
-    const blob: Blob = vi.mocked(sendBeacon).mock.calls[0]![1]!;
+    const blob: Blob = vi.mocked(sendBeacon).mock.calls[0]![1];
     expect(JSON.parse(await blob.text())).toEqual({
       buildVersion,
       counts: [
@@ -201,7 +205,9 @@ describe('anonymous client error counts', () => {
     const reporter = fixture();
     reporter.report('visitor-unique-error', 'chunk');
     reporter.flush();
-    expect(JSON.parse(await reporter.sendBeacon.mock.calls[0]![1].text()).counts[0].errorClass).toBe('other');
+    expect((JSON.parse(await reporter.sendBeacon.mock.calls[0]![1].text()) as ReportBody).counts[0]?.errorClass).toBe(
+      'other',
+    );
     expect(reporter.warn).not.toHaveBeenCalled();
   });
 });

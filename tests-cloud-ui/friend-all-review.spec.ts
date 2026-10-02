@@ -31,9 +31,9 @@ async function mount(
   await page.goto('/data-use');
   await page.evaluate(async (options) => {
     const modulePath = '/src/cloud/useFriendAll.ts';
-    const hook: typeof import('../src/cloud/useFriendAll') = await import(modulePath);
+    const hook = (await import(modulePath)) as typeof import('../src/cloud/useFriendAll');
     const clientPath = '/src/cloud/firebase-client.ts';
-    const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
+    const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
     await client.cloudAuth.authStateReady();
     // Typed string, not narrowed: the harness's hoisted functions below don't keep a narrowing.
     const uid = client.cloudAuth.currentUser?.uid ?? '';
@@ -46,30 +46,30 @@ async function mount(
       if (!url) throw new Error(`Loaded dependency missing: ${pathname}`);
       return url;
     };
-    const { default: React }: { default: typeof import('react') } = await import(
-      loaded('/node_modules/.vite/deps/react.js')
-    );
-    const { default: DOM }: { default: typeof import('react-dom/client') } = await import(
-      loaded('/node_modules/.vite/deps/react-dom_client.js')
-    );
-    const storeModule: typeof import('../src/cloud/friend-all-store') = await import(
+    const { default: React } = (await import(loaded('/node_modules/.vite/deps/react.js'))) as {
+      default: typeof import('react');
+    };
+    const { default: DOM } = (await import(loaded('/node_modules/.vite/deps/react-dom_client.js'))) as {
+      default: typeof import('react-dom/client');
+    };
+    const storeModule = (await import(
       loaded('/src/cloud/friend-all-store.ts')
-    );
+    )) as typeof import('../src/cloud/friend-all-store');
     const scopedPath = '/src/lib/scoped-library.ts';
-    const scoped: typeof import('../src/lib/scoped-library') = await import(scopedPath);
+    const scoped = (await import(scopedPath)) as typeof import('../src/lib/scoped-library');
     const parserPath = '/src/lib/collection.ts';
-    const parser: typeof import('../src/lib/collection') = await import(parserPath);
+    const parser = (await import(parserPath)) as typeof import('../src/lib/collection');
     const summaryPath = '/src/components/FriendSharingSummary.tsx';
-    const summary: typeof import('../src/components/FriendSharingSummary') = await import(summaryPath);
+    const summary = (await import(summaryPath)) as typeof import('../src/components/FriendSharingSummary');
     const cloudPath = '/src/cloud/cloud-store.ts';
-    const cloud: typeof import('../src/cloud/cloud-store') = await import(cloudPath);
+    const cloud = (await import(cloudPath)) as typeof import('../src/cloud/cloud-store');
     const games = parser.parseCollection(await (await fetch('/data/collection.json')).json()).games;
     const scope = `account:demo-play100:${uid}` as const;
     const initial = await scoped.loadScopedLibrary(scope);
     const store = new storeModule.FriendAllStore(client.cloudDb);
     if (options.quota) {
       const cooldownPath = '/src/lib/friend-all-work.ts';
-      const cooldown: typeof import('../src/lib/friend-all-work') = await import(cooldownPath);
+      const cooldown = (await import(cooldownPath)) as typeof import('../src/lib/friend-all-work');
       const policy = await store.policy(uid);
       if (!policy) throw new Error('Expected active fixture policy.');
       // The retry state belongs to the device copy this page opened, as the hook's own writes do.
@@ -256,7 +256,7 @@ async function mount(
             },
             score: 8.5,
           });
-          const privateStore = new cloud.CloudStore(client.cloudDb, uid!);
+          const privateStore = new cloud.CloudStore(client.cloudDb, uid);
           const head = await privateStore.head();
           if (!head) throw new Error('Fixture private source missing.');
           const saved = await privateStore.upload(local.state, head);

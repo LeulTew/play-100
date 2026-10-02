@@ -28,6 +28,7 @@ function render() {
           window.avatarTest.calls.push({ identityKey: identity, descriptor: structuredClone(next) });
           if (mode === 'throw') throw new Error('Synthetic synchronous failure.');
           if (mode === 'failure') return Promise.reject(new Error('Synthetic save failure.'));
+          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- the fixture proves non-Error failures are handled.
           if (mode === 'opaque') return Promise.reject({ code: 'synthetic-non-error' });
           if (mode === 'deferred') return new Promise((resolve, reject) => pending.push({ resolve, reject }));
           return Promise.resolve();

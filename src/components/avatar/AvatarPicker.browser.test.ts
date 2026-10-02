@@ -350,8 +350,8 @@ describe('AvatarPicker in a real browser', () => {
   it.each([320, 393, 1280])('keeps a 3x2 grid, usable targets and no overflow at %ipx', async (width) => {
     await page.setViewportSize({ width, height: 851 });
     const layout = await page.evaluate(() => {
-      const candidates = [...document.querySelectorAll('.avatar-picker__candidate')].map((item) =>
-        item.getBoundingClientRect().toJSON(),
+      const candidates = [...document.querySelectorAll('.avatar-picker__candidate')].map(
+        (item) => item.getBoundingClientRect().toJSON() as Pick<DOMRect, 'x' | 'y'>,
       );
       const targets = [...document.querySelectorAll('.avatar-picker input, .avatar-picker button')].map((item) =>
         item.getBoundingClientRect(),

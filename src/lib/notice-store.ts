@@ -5,13 +5,13 @@ import { createValueStore } from './value-store';
  * the toast and an open detail, never the header, the route or its cards.
  */
 export interface NoticeStore {
-  get(): string;
-  subscribe(listener: () => void): () => void;
+  get: () => string;
+  subscribe: (listener: () => void) => () => void;
   /** Shows a message, replacing any other, until `duration` passes. */
-  notify(message: string): void;
-  clear(): void;
+  notify: (message: string) => void;
+  clear: () => void;
   /** Stops the pending expiry; the store stays usable. */
-  dispose(): void;
+  dispose: () => void;
 }
 
 export const NOTICE_DURATION = 6500;

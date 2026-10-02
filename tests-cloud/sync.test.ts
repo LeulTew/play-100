@@ -32,6 +32,8 @@ import type { LibraryRecord } from '../src/lib/personal-types';
 import { untilSignInNewerThan } from './fixtures/auth-time';
 import type { RunTransaction } from './fixtures/modular-firestore';
 
+type HeadDoc = Record<string, unknown> & { epoch: number; revision: number; updatedAt: { toMillis(): number } };
+
 // A pass-through, so one test can hold a transaction between its reads and its commit.
 vi.mock('firebase/firestore', async (original) => {
   const actual = await original<typeof import('firebase/firestore')>();
@@ -355,7 +357,7 @@ describe('real Auth and Firestore snapshot transactions', () => {
     // This session signed in before the deletion. Its raw pause would clear the deleted marker, so that a later resume
     // skipped the fresh sign-in; the rules refuse it.
     const headRef = doc(first.db, 'syncHeads', first.user.uid);
-    const stored = (await getDocFromServer(headRef)).data();
+    const stored = (await getDocFromServer(headRef)).data() as HeadDoc | undefined;
     if (!stored) throw new Error('The deleted head is missing.');
     await assertFails(
       setDoc(headRef, {

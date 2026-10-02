@@ -33,7 +33,7 @@ export interface DiscoveryCardProps {
   selected?: boolean;
   pinned?: boolean;
   onSelect?: (id: string) => void;
-  onPreview?: (record: LibraryRecord, origin?: MotionOriginHint) => void;
+  onPreview?: (record: LibraryRecord, origin?: MotionOriginHint, opener?: HTMLElement) => void;
   onPin?: (record: LibraryRecord) => void;
   onAction: (action: PersonalAction) => Promise<boolean>;
 }
@@ -100,7 +100,7 @@ export function DiscoveryCard({
             visual,
           }) ?? undefined;
     }
-    onPreview(record, origin);
+    onPreview(record, origin, event.currentTarget);
   };
   return (
     <li
@@ -188,13 +188,7 @@ export function DiscoveryCard({
             <ComparePinButton record={actionRecord} pinned={pinned} onPin={onPin} disabled={Boolean(selecting)} />
           )}
         </div>
-        {game && (
-          <SavedCatalogCopies
-            canonicalId={record.id}
-            copies={ownedCopies}
-            onOpen={onPreview ? (copy) => onPreview(copy) : undefined}
-          />
-        )}
+        {game && <SavedCatalogCopies canonicalId={record.id} copies={ownedCopies} onOpen={onPreview} />}
         <details className="discovery-card-details">
           <summary aria-label={`More actions for ${record.title}`}>More actions</summary>
           <div className="discovery-card-secondary">

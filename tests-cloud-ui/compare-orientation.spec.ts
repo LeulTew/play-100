@@ -6,6 +6,8 @@ import type { FriendGroup } from '../src/lib/friend-types';
 import { compareFixtureGate } from '../scripts/playwright-env';
 import { password } from './helpers';
 
+type Box = Omit<DOMRectReadOnly, 'toJSON'>;
+
 interface Actor {
   label: string;
   email: string;
@@ -42,7 +44,9 @@ declare global {
 
 const gate = compareFixtureGate(process.env);
 const fixturePath = process.env.PLAY100_COMPARE_FIXTURE;
-const manifest: FixtureManifest | null = fixturePath ? JSON.parse(readFileSync(fixturePath, 'utf8')) : null;
+const manifest: FixtureManifest | null = fixturePath
+  ? (JSON.parse(readFileSync(fixturePath, 'utf8')) as FixtureManifest)
+  : null;
 const lane = manifest?.lanes.find((item) => item.lane === 'B');
 const origin = process.env.PLAY100_COMPARE_ORIGIN ?? manifest?.origin ?? 'http://127.0.0.1:4199';
 // Allocate the fixture with playwright.compare-fixture.config.ts; the release gate fails here instead of skipping.
@@ -82,12 +86,12 @@ async function guard(context: BrowserContext) {
     blocked.push(url.origin);
     return route.abort('blockedbyclient');
   });
-  await context.routeWebSocket('**/*', (route) => {
+  await context.routeWebSocket('**/*', async (route) => {
     const url = new URL(route.url());
     if (allowed(url)) route.connectToServer();
     else {
       blocked.push(url.origin);
-      route.close();
+      await route.close();
     }
   });
   await context.addInitScript(() => {
@@ -107,7 +111,7 @@ async function login(page: Page, actor = fixture().owner) {
   );
   const config = await page.evaluate(async () => {
     const path = '/src/cloud/firebase-client.ts';
-    const client: typeof import('../src/cloud/firebase-client') = await import(path);
+    const client = (await import(path)) as typeof import('../src/cloud/firebase-client');
     return {
       project: client.firebaseApp.options.projectId,
       host: client.cloudAuth.emulatorConfig?.host,
@@ -136,9 +140,9 @@ async function installProbe(page: Page) {
     const storePath = '/src/cloud/friend-store.ts';
     const allPath = '/src/cloud/friend-all-store.ts';
     const shelfPath = '/src/cloud/friend-shelf-store.ts';
-    const { FriendStore }: typeof import('../src/cloud/friend-store') = await import(storePath);
-    const { FriendAllStore }: typeof import('../src/cloud/friend-all-store') = await import(allPath);
-    const { FriendShelfStore }: typeof import('../src/cloud/friend-shelf-store') = await import(shelfPath);
+    const { FriendStore } = (await import(storePath)) as typeof import('../src/cloud/friend-store');
+    const { FriendAllStore } = (await import(allPath)) as typeof import('../src/cloud/friend-all-store');
+    const { FriendShelfStore } = (await import(shelfPath)) as typeof import('../src/cloud/friend-shelf-store');
     type Pair = import('../src/lib/friend-types').FriendPair;
     type Person = import('../src/lib/friend-types').FriendIdentity;
     type Head = import('../src/lib/friend-all-transport').FriendAllHead;
@@ -516,7 +520,7 @@ test('late groups respect early disclosure intent and cannot replace a newer cho
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
   // Sign-out finishes asynchronously and lands on the home page; navigating earlier can abort it.
   await expect(page).toHaveURL(/\/$/);
-  await login(page, fixture().peers[0]!);
+  await login(page, fixture().peers[0]);
   await page.goto('/compare');
   await expect(page.locator('.compare-people input:checked')).toHaveCount(1);
   await expect(people(page)).toHaveAttribute('open', '');
@@ -615,9 +619,9 @@ test('exact-six game filters keep bounded exact reads and unknown whole-cohort t
     const filterPath = '/src/lib/comparison-game-filter.ts';
     const collectionPath = '/src/lib/collection.ts';
     const recordPath = '/src/lib/personal-types.ts';
-    const filters: typeof import('../src/lib/comparison-game-filter') = await import(filterPath);
-    const collection: typeof import('../src/lib/collection') = await import(collectionPath);
-    const records: typeof import('../src/lib/personal-types') = await import(recordPath);
+    const filters = (await import(filterPath)) as typeof import('../src/lib/comparison-game-filter');
+    const collection = (await import(collectionPath)) as typeof import('../src/lib/collection');
+    const records = (await import(recordPath)) as typeof import('../src/lib/personal-types');
     const games = collection
       .parseCollection(await (await fetch('/data/collection.json')).json())
       .games.slice(0, 6)
@@ -672,7 +676,7 @@ test('the same saved six-person table fits normal banners at desktop390/320 and 
       await expect(people(page)).not.toHaveAttribute('open');
       await expect(coverage(page)).not.toHaveAttribute('open');
       const before = await page.evaluate(() => {
-        const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().toJSON();
+        const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().toJSON() as Box;
         return {
           width: innerWidth,
           height: innerHeight,
@@ -737,10 +741,10 @@ test('the same saved six-person table fits normal banners at desktop390/320 and 
         const header = document.querySelector('.friend-matrix thead th:nth-child(4)')!;
         const row = document.querySelector('.friend-matrix tbody tr:nth-child(6) th')!;
         return {
-          region: region.getBoundingClientRect().toJSON(),
-          corner: corner.getBoundingClientRect().toJSON(),
-          header: header.getBoundingClientRect().toJSON(),
-          row: row.getBoundingClientRect().toJSON(),
+          region: region.getBoundingClientRect().toJSON() as Box,
+          corner: corner.getBoundingClientRect().toJSON() as Box,
+          header: header.getBoundingClientRect().toJSON() as Box,
+          row: row.getBoundingClientRect().toJSON() as Box,
           scrollTop: region.scrollTop,
           scrollLeft: region.scrollLeft,
         };

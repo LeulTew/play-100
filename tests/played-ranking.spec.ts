@@ -80,7 +80,7 @@ test('unmarking played visibly confirms completion loss and keeps the replay que
   await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(8.5);
   await page.evaluate(async (id) => {
     const modulePath = '/src/lib/personal-db.ts';
-    const source: typeof import('../src/lib/personal-db') = await import(modulePath);
+    const source = (await import(modulePath)) as typeof import('../src/lib/personal-db');
     await source.commitPersonalAction({ type: 'edit-ranking', id, note: 'Keep this replay note.' });
   }, a.id);
   const before = await readLibrary(page);
@@ -142,7 +142,7 @@ test('older IndexedDB rankings keep their saved order until automatic sorting is
       new Promise<void>((resolve, reject) => {
         const open = indexedDB.open('play100-personal', 1);
         open.onupgradeneeded = () => open.result.createObjectStore('library');
-        open.onerror = () => reject(open.error);
+        open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
         open.onsuccess = () => {
           const db = open.result;
           const tx = db.transaction('library', 'readwrite');
@@ -165,7 +165,7 @@ test('older IndexedDB rankings keep their saved order until automatic sorting is
             db.close();
             resolve();
           };
-          tx.onabort = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
         };
       }),
     { records, a: a.id, b: b.id },

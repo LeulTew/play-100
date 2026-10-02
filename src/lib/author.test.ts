@@ -6,7 +6,12 @@ import { defaultFilters } from './url';
 import { recordFromGame } from './personal-types';
 import { applyPersonalAction, emptyPersonalLibrary } from './personal-library';
 
-const raw = JSON.parse(readFileSync(new URL('../../data/collection.json', import.meta.url), 'utf8'));
+interface RawCollection {
+  collection: { authorRatingsAreOriginal?: boolean };
+  games: { authorRating?: { value: number }; rankIndex: number }[];
+}
+
+const raw = JSON.parse(readFileSync(new URL('../../data/collection.json', import.meta.url), 'utf8')) as RawCollection;
 const collection = parseCollection(raw);
 
 describe('public creator ratings stay separate from visitor opinions', () => {
@@ -55,10 +60,10 @@ describe('public creator ratings stay separate from visitor opinions', () => {
   });
   it('rejects a new collection claiming original ratings when a value is missing or inconsistent', () => {
     const missing = structuredClone(raw);
-    delete missing.games[0].authorRating;
+    delete missing.games[0]!.authorRating;
     expect(() => parseCollection(missing)).toThrow(/author rating/);
     const wrong = structuredClone(raw);
-    wrong.games[2].authorRating.value = wrong.games[2].rankIndex;
+    wrong.games[2]!.authorRating!.value = wrong.games[2]!.rankIndex;
     expect(() => parseCollection(wrong)).toThrow(/author rating/);
   });
   it('uses only the verified public identity links', () => {

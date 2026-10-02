@@ -19,6 +19,8 @@ import { creatorRanks, MAX_RANKING_SNAPSHOT_BYTES } from '../lib/cloud-types';
 import { MAX_LIBRARY_RECORDS, MAX_LIBRARY_TITLE_CHARACTERS } from '../lib/personal-types';
 import type { CreatorRank, SnapshotChunk, SnapshotManifest, SyncHead } from '../lib/cloud-types';
 import { packLibrary, packSnapshot, parseManifest, unpackLibrary, unpackSnapshot } from '../lib/snapshot-transport';
+import { isSafeInteger, isUnknownArray } from '../lib/guards';
+import type { JsonObject } from '../lib/guards';
 import { ensureAccountActivity } from './account-lifecycle';
 import { parseFriendAllHead } from '../lib/friend-all-transport';
 import { PRIVATE_RELEASE_BATCH, runPayloadCleanup } from './generation-cleanup';
@@ -81,20 +83,24 @@ export class SyncRevoked extends Error {
   }
 }
 
-export function parseHead(value: DocumentData): SyncHead {
+export function parseHead(value: JsonObject): SyncHead {
   const fields = ['format', 'epoch', 'revision', 'enabled', 'deleted', 'current', 'previous', 'updatedAt'];
-  if ('cleanupEpoch' in value) fields.push('cleanupEpoch');
+  const hasCleanup = 'cleanupEpoch' in value;
+  if (hasCleanup) fields.push('cleanupEpoch');
+  // An absent cleanupEpoch stands in as 1 so the one check below covers both shapes.
+  const cleanupEpoch = hasCleanup ? value.cleanupEpoch : 1;
   if (
     Object.keys(value).sort().join() !== fields.sort().join() ||
     value.format !== 1 ||
-    !Number.isSafeInteger(value.epoch) ||
+    !isSafeInteger(value.epoch) ||
     value.epoch < 1 ||
-    !Number.isSafeInteger(value.revision) ||
+    !isSafeInteger(value.revision) ||
     value.revision < 0 ||
     typeof value.enabled !== 'boolean' ||
     typeof value.deleted !== 'boolean' ||
     !(value.updatedAt instanceof Timestamp) ||
-    ('cleanupEpoch' in value && (!Number.isSafeInteger(value.cleanupEpoch) || value.cleanupEpoch < 1))
+    !isSafeInteger(cleanupEpoch) ||
+    cleanupEpoch < 1
   )
     throw new Error('The online copy uses an unsupported format. Your local data has not been replaced.');
   return {
@@ -106,7 +112,7 @@ export function parseHead(value: DocumentData): SyncHead {
     current: value.current === null ? null : parseManifest(value.current),
     previous: value.previous === null ? null : parseManifest(value.previous),
     updatedAt: value.updatedAt.toMillis(),
-    ...('cleanupEpoch' in value ? { cleanupEpoch: value.cleanupEpoch } : {}),
+    ...(hasCleanup ? { cleanupEpoch } : {}),
   };
 }
 
@@ -164,14 +170,9 @@ export class CloudStore {
         getDocsFromServer(query(collection(this.db, 'creatorRanks', this.uid, 'chunks'), limit(1))),
         getDocFromServer(doc(this.db, 'publicProfiles', this.uid)),
       ]);
-      if (registry.exists() && !Array.isArray(registry.data().ids))
-        throw new Error('The deletion check could not read its saved state.');
-      return !library.empty ||
-        !ranking.empty ||
-        profile.exists() ||
-        (registry.exists() && registry.data().ids.length > 0)
-        ? 'incomplete'
-        : 'unknown';
+      const ids: unknown = registry.exists() ? registry.data().ids : [];
+      if (!isUnknownArray(ids)) throw new Error('The deletion check could not read its saved state.');
+      return !library.empty || !ranking.empty || profile.exists() || ids.length > 0 ? 'incomplete' : 'unknown';
     } catch (cause) {
       console.warn(
         'The online-copy deletion check could not finish.',
@@ -296,8 +297,8 @@ export class CloudStore {
       const [head, registry] = await Promise.all([tx.get(this.headRef()), tx.get(this.registryRef())]);
       if (!head.exists()) throw new SyncRevoked();
       sameHead(parseHead(head.data()), expected);
-      const ids: string[] = registry.exists() ? registry.data().ids : [];
-      if (!Array.isArray(ids) || ids.length >= 8)
+      const ids: unknown = registry.exists() ? registry.data().ids : [];
+      if (!isUnknownArray(ids) || ids.length >= 8)
         throw new Error(
           'Eight older saved copies are still stored online. Wait for cleanup or run it from Account, then retry. Local edits are safe.',
         );
@@ -310,7 +311,7 @@ export class CloudStore {
       });
       tx.set(this.registryRef(), {
         ids: [...ids, manifest.generation],
-        revision: registry.exists() ? registry.data().revision + 1 : 1,
+        revision: registry.exists() ? (registry.data().revision as number) + 1 : 1,
       });
     });
   }
@@ -320,12 +321,12 @@ export class CloudStore {
     await runTransaction(this.db, async (tx) => {
       const current = await tx.get(ref);
       if (current.exists()) {
-        const saved = current.data();
+        const saved: JsonObject = current.data();
         if (
           saved.data !== chunk.data ||
           saved.bytes !== chunk.bytes ||
           saved.digest !== chunk.digest ||
-          !Array.isArray(saved.holders)
+          !isUnknownArray(saved.holders)
         )
           throw new Error('A previously stored online chunk failed validation. Your local copy is retained.');
         if (!saved.holders.includes(generation))
@@ -463,7 +464,7 @@ export class CloudStore {
           epoch: next.epoch,
           revision: next.revision,
           current: summary.manifest,
-          previous: previousSummary.exists() ? previousSummary.data().current : null,
+          previous: previousSummary.exists() ? (previousSummary.data().current as unknown) : null,
           updatedAt: serverTimestamp(),
         });
         tx.update(doc(this.db, 'members', this.uid), {
@@ -550,7 +551,7 @@ export class CloudStore {
             throw new Error('The signed-in account changed. Return to the same account before continuing.');
           const chunks = await getDocsFromServer(
             query(collection(this.db, kind === 'private' ? 'accounts' : 'creatorRanks', this.uid, 'chunks'), limit(20)),
-          ).catch(async (cause) => {
+          ).catch(async (cause: unknown) => {
             if (
               confirmed === 0 &&
               cause &&
@@ -757,8 +758,8 @@ export class CloudStore {
         if (retained.has(id)) throw new Error('A saved copy changed. Refresh the page before continuing.');
         if (current.exists())
           tx.update(this.registryRef(), {
-            ids: current.data().ids.filter((value: string) => value !== id),
-            revision: current.data().revision + 1,
+            ids: (current.data().ids as string[]).filter((value) => value !== id),
+            revision: (current.data().revision as number) + 1,
           });
         tx.delete(this.generationRef(id));
       });
@@ -776,7 +777,8 @@ export class CloudStore {
           throw new Error('The account or online saving state changed. Refresh the page before continuing.');
         }
         if (registry.exists()) {
-          if (!Array.isArray(registry.data().ids) || registry.data().ids.length)
+          const ids: unknown = registry.data().ids;
+          if (!isUnknownArray(ids) || ids.length)
             throw new Error("There's more to delete. Choose Finish deleting to continue.");
           tx.delete(this.registryRef());
         }

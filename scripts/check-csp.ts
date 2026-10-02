@@ -1,3 +1,9 @@
+/**
+ * Read-only acceptance gate for a finished build (docs/first-paint-shell.md): every HTML document
+ * in dist must work under the main-document policy in vercel.json, and dist/pwa-assets.json must
+ * embed that same policy for the documents the service worker serves. It prints every inline
+ * <script> and <style> with its CSP hash so two builds can be compared.
+ */
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,7 +34,7 @@ export function authHeaderCoverageProblems(configuration: unknown): string[] {
     if (matches(pathname).length) problems.push(`${pathname} must keep its function-owned nonce headers only.`);
   for (const name of ['handler', 'iframe', 'experiments']) {
     const rules = matches(`/__/auth/${name}.js`);
-    if (rules.length !== 1 || rules[0].source !== '/__/auth/(handler|iframe|experiments)\\.js')
+    if (rules.length !== 1 || rules[0]?.source !== '/__/auth/(handler|iframe|experiments)\\.js')
       problems.push(`/__/auth/${name}.js must keep only the helper script headers.`);
   }
   return problems;
@@ -43,13 +49,6 @@ export function reportingProblems(configuration: unknown): string[] {
     ? []
     : ['CSP reports must use the first-party csp endpoint and report-uri fallback.'];
 }
-
-/**
- * Read-only acceptance gate for a finished build (docs/first-paint-shell.md): every HTML document
- * in dist must work under the main-document policy in vercel.json, and dist/pwa-assets.json must
- * embed that same policy for the documents the service worker serves. It prints every inline
- * <script> and <style> with its CSP hash so two builds can be compared.
- */
 
 async function htmlDocuments(root: string, relative = ''): Promise<string[]> {
   const files: string[] = [];

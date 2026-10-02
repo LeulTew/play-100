@@ -23,7 +23,7 @@ function parts(entry: string): [number, number, number] {
 const atLeast = ([major, minor, patch]: [number, number, number], [a, b, c]: [number, number, number]) =>
   major !== a ? major > a : minor !== b ? minor > b : patch >= c;
 
-// Dev-only advisories closed by the root overrides in package.json (docs/security.md).
+// Advisories closed by the root overrides in package.json (docs/security.md).
 describe('dependency advisories fixed by overrides', () => {
   it('resolves no uuid inside GHSA-w5hq-g745-h8pq (patched in 11.1.1, 12.0.1 and 13.0.1)', () => {
     const found = versions('uuid');
@@ -38,5 +38,22 @@ describe('dependency advisories fixed by overrides', () => {
 
   it('resolves no @opentelemetry/core inside GHSA-8988-4f7v-96qf (patched in 2.8.0)', () => {
     expect(versions('@opentelemetry/core').filter((entry) => !atLeast(parts(entry), [2, 8, 0]))).toEqual([]);
+  });
+
+  it('resolves no @grpc/grpc-js inside GHSA-m9gg-hp2v-232j or GHSA-f596-whhp-79r4 (patched in 1.13.6 and 1.14.5)', () => {
+    const found = versions('@grpc/grpc-js');
+    expect(found.length).toBeGreaterThan(0);
+    const vulnerable = found.filter((entry) => {
+      const version = parts(entry);
+      const [major, minor] = version;
+      return !atLeast(version, [1, 13, 6]) || (major === 1 && minor === 14 && !atLeast(version, [1, 14, 5]));
+    });
+    expect(vulnerable).toEqual([]);
+  });
+
+  it('resolves no basic-ftp inside GHSA-c475-qrg2-pj4r (patched in 6.2.1)', () => {
+    const found = versions('basic-ftp');
+    expect(found.length).toBeGreaterThan(0);
+    expect(found.filter((entry) => !atLeast(parts(entry), [6, 2, 1]))).toEqual([]);
   });
 });

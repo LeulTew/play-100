@@ -83,7 +83,7 @@ describe('parser-derived creator ranking envelope', () => {
           collectionRank: null,
         };
         input.progress[id] = { later: index % 4 === 0, played: index % 3 === 0, completed: false };
-        if (input.progress[id]!.later) input.queueOrder.push(id);
+        if (input.progress[id].later) input.queueOrder.push(id);
         input.ranking.push({
           id,
           score: index % 5 ? 8 : null,

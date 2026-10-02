@@ -10,10 +10,10 @@
     "pwaCoreFiles": 51,
     "largestLazyRawBytes": 577308,
     "largestLazyGzipBytes": 146441,
-    "indexHtmlRawBytes": 33104,
-    "indexHtmlGzipBytes": 9386,
+    "indexHtmlRawBytes": 34694,
+    "indexHtmlGzipBytes": 10034,
     "inlineStyleRawBytes": 18527,
-    "inlineScriptRawBytes": 3585,
+    "inlineScriptRawBytes": 4700,
     "largestRouteGzipBytes": 282025
   },
   "baseline": {
@@ -88,5 +88,21 @@
       "largestRouteGzipBytes": 282025
     }
   },
-  "raises": []
+  "raises": [
+    {
+      "metric": "inlineScriptRawBytes",
+      "measured": 4564,
+      "reason": "R24 boot script (configured build of cf3be893): when the fallback-font probes fail, as on a Galaxy A03s, it waits up to 1.5 s for the web fonts and re-probes them before revealing the shell, instead of leaving the first visit blank; it also recognises engines below the floor (no Object.hasOwn, or an entry SyntaxError) to show the update-your-browser notice."
+    },
+    {
+      "metric": "indexHtmlRawBytes",
+      "measured": 34486,
+      "reason": "R24: the larger boot script above plus the second failure-notice copy for outdated browsers, with its per-OS update lines."
+    },
+    {
+      "metric": "indexHtmlGzipBytes",
+      "measured": 9833,
+      "reason": "R24: the same boot script and outdated-browser notice growth as indexHtmlRawBytes."
+    }
+  ]
 }

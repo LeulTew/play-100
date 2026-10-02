@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { Children, createElement, isValidElement } from 'react';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { emptySources } from '../../lib/catalog-search-session';
@@ -103,7 +103,7 @@ describe('Discover control composition', () => {
   it('keeps remote pagination behind the same guarded change callback and focus request', () => {
     const props = sourceProps();
     const tree = DiscoverSources(props);
-    const status = Children.toArray(tree.props.children).find(
+    const status = Children.toArray((tree.props as { children?: ReactNode }).children).find(
       (node) => isValidElement(node) && node.type === CatalogSourceStatus,
     );
     if (!isValidElement<ComponentProps<typeof CatalogSourceStatus>>(status))

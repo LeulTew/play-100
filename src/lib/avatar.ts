@@ -70,7 +70,7 @@ export function isAvatarPalette(value: unknown): value is AvatarPalette {
 
 export function isAvatarDescriptor(value: unknown): value is AvatarDescriptor {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
+  const prototype: unknown = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) return false;
   const keys = Reflect.ownKeys(value);
   if (

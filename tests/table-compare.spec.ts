@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecord, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 
 // Whether each visible row's Your list cell lies whole inside the table's scrollport and is drawn at both inner edges,
@@ -63,7 +63,8 @@ test('at 1440px the table fits its scrollport, and with selection its Your list 
   expect(await port.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
   expect(await yourListInView(page)).toEqual({ whole: true, pinOnTop: true });
   const pin = page.locator('.ratings-table tbody tr').first().locator('.compare-pin');
-  const title = libraryRecords[0].title;
+  const title = libraryRecords[0]?.title;
+  if (!title) throw new Error('The table fixture must have a first record.');
   await expect(pin).toHaveAccessibleName(`Pin for comparison: ${title}`);
   await expect(pin).toHaveText('');
   const pinBox = await pin.boundingBox();
@@ -176,7 +177,7 @@ test('table rows expose the same bounded metadata-only comparison path', async (
   await expect(page.locator('.compare-tray-dock .compare-tray-error')).toContainText('six games');
   const remove = page
     .locator('.ratings-table')
-    .getByRole('button', { name: `Pinned for comparison: ${libraryRecords[0].title}`, exact: true });
+    .getByRole('button', { name: `Pinned for comparison: ${libraryRecord(0).title}`, exact: true });
   await expect(remove).toHaveAttribute('aria-pressed', 'true');
   await remove.focus();
   await remove.press('Enter');
@@ -184,7 +185,7 @@ test('table rows expose the same bounded metadata-only comparison path', async (
   await expect(page.locator('.compare-tray-dock')).toContainText('5 games');
   await page
     .locator('.ratings-table')
-    .getByRole('button', { name: `Pin for comparison: ${libraryRecords[6].title}`, exact: true })
+    .getByRole('button', { name: `Pin for comparison: ${libraryRecord(6).title}`, exact: true })
     .click();
   await expect(page.locator('.compare-tray-dock')).toContainText('6 games');
   expect(await readLibrary(page)).toEqual(before);

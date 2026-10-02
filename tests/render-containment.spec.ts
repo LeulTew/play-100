@@ -107,7 +107,7 @@ test('offscreen content remains findable, focusable and printable without contai
       if (!('find' in window) || typeof window.find !== 'function') {
         throw new Error('This proof requires the native Chromium find implementation.');
       }
-      return window.find(text);
+      return (window as Window & { find(text: string): boolean }).find(text);
     }, title),
   ).toBe(true);
   await page.evaluate(() => document.getElementById('collection-films')?.scrollIntoView({ behavior: 'instant' }));

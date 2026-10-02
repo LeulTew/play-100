@@ -252,11 +252,11 @@ test('quota-limited offline preparation never claims ready and retries without h
   const before = await readLibrary(page);
   const response = await page.request.get('/pwa-assets.json');
   expect(response.ok()).toBe(true);
-  const manifest: {
+  const manifest = (await response.json()) as {
     version: string;
     coreBytes: number;
     core: { url: string; bytes: number }[];
-  } = await response.json();
+  };
   expect(manifest.version).toMatch(/^[a-f0-9]{64}$/);
   expect(manifest.coreBytes).toBe(manifest.core.reduce((total, asset) => total + asset.bytes, 0));
   expect(manifest.coreBytes).toBeGreaterThan(512 * 1024);

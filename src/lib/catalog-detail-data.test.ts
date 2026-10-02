@@ -40,11 +40,13 @@ describe('literal Wikidata game and review claims', () => {
     };
     const game = entity({ P444: [review] });
     const labels = Object.fromEntries(
-      [
-        ['Q100', 'Review site'],
-        ['Q200', 'PC'],
-        ['Q300', 'User average'],
-      ].map(([id, value]) => [id, { labels: { en: { value } } }]),
+      (
+        [
+          ['Q100', 'Review site'],
+          ['Q200', 'PC'],
+          ['Q300', 'User average'],
+        ] as const
+      ).map(([id, value]) => [id, { labels: { en: { value } } }] as const),
     );
     expect(reviewLabelIds(game)).toEqual(['Q100', 'Q200', 'Q300']);
     expect(wikidataRatings(game, labels, now)[0]).toMatchObject({

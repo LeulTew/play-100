@@ -23,8 +23,8 @@ export function useInputGeneration(enabled = true): RefObject<number> {
 }
 
 interface PwaUpdateGuardOptions {
-  isCurrent(): boolean;
-  busy(): boolean;
+  isCurrent: () => boolean;
+  busy: () => boolean;
   inputGeneration: RefObject<number>;
 }
 

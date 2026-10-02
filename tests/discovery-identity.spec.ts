@@ -11,7 +11,13 @@ import { DB_NAME, DB_VERSION, STATE_KEY, STORE_NAME } from '../src/lib/personal-
 import { readLibrary } from './library-helpers';
 import { openBrowsingFilters } from './browsing-helpers';
 
-const collection = JSON.parse(readFileSync(new URL('../public/data/collection.json', import.meta.url), 'utf8'));
+interface StoredTray {
+  items: LibraryRecord[];
+}
+
+const collection: unknown = JSON.parse(
+  readFileSync(new URL('../public/data/collection.json', import.meta.url), 'utf8'),
+);
 const games = parseCollection(collection).games;
 const seed = parseDiscoveryCatalog(
   JSON.parse(readFileSync(new URL('../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8')),
@@ -36,7 +42,7 @@ async function installLibrary(page: Page, state: PersonalLibraryState) {
       new Promise<void>((resolve, reject) => {
         const open = indexedDB.open(name, version);
         open.onupgradeneeded = () => open.result.createObjectStore(store);
-        open.onerror = () => reject(open.error);
+        open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
         open.onsuccess = () => {
           const db = open.result;
           const tx = db.transaction(store, 'readwrite');
@@ -45,7 +51,7 @@ async function installLibrary(page: Page, state: PersonalLibraryState) {
             db.close();
             resolve();
           };
-          tx.onerror = () => reject(tx.error);
+          tx.onerror = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
         };
       }),
     { name: DB_NAME, version: DB_VERSION, store: STORE_NAME, key: STATE_KEY, state },
@@ -141,7 +147,9 @@ test('fresh Discover canonical facts, all personal actions, details and main ali
   await page.reload();
   await expect(card).toBeVisible();
   expect(Object.keys((await readLibrary(page)).records)).toEqual([canonical.id]);
-  const tray = await page.evaluate(() => JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? '{}'));
+  const tray = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? '{}') as StoredTray,
+  );
   expect(tray.items.map((item: LibraryRecord) => item.id)).toEqual([canonical.id]);
   await page.goto('/?q=RDR2&catalogs=off');
   await expect(page.locator('[data-game="red-dead-redemption-2"]')).toHaveCount(1);
@@ -230,7 +238,7 @@ test('Back and Forward clear a Discover selection when results change, but a det
     const url = new URL(location.href);
     url.searchParams.set('game', 'mass-effect-2');
     history.pushState(history.state, '', `${url.pathname}${url.search}`);
-    dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
+    dispatchEvent(new PopStateEvent('popstate', { state: history.state as unknown }));
   });
   // The detail may make the results inert, so the selection is read once it closes.
   await expect(page).toHaveURL((url) => new URL(url).searchParams.get('game') === 'mass-effect-2');
@@ -332,7 +340,7 @@ test('a legacy-only saved copy stays Saved and owns every implicit create path, 
   expect(actual.progress[canonical.id]).toBeUndefined();
   expect(
     await page.evaluate(() =>
-      JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? '{}').items.map(
+      (JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? '{}') as StoredTray).items.map(
         (item: LibraryRecord) => item.id,
       ),
     ),
@@ -402,7 +410,9 @@ test('both owned copies keep conflicting opinions and manual names remain separa
     .click();
   await expect
     .poll(async () =>
-      page.evaluate(() => JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? '{}').items),
+      page.evaluate(
+        () => (JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? '{}') as StoredTray).items,
+      ),
     )
     .toEqual([]);
   const actual = await readLibrary(page);

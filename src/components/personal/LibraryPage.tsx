@@ -20,7 +20,7 @@ export interface LibraryPageProps {
   animate: boolean;
   onFilters: (patch: Partial<Filters>, method?: 'push' | 'replace') => void;
   onAction: (action: PersonalAction) => Promise<boolean>;
-  onOpen: (id: string) => void;
+  onOpen: (id: string, opener?: HTMLElement) => void;
   onDiscover: () => void;
   onBrowse: () => void;
   onPresentationChange: (commit: () => void) => Promise<boolean>;

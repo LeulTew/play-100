@@ -17,9 +17,9 @@ interface CollectionCardProps {
   state: PersonalProgress | undefined;
   ownership: CatalogOwnership;
   pinnable: boolean;
-  onOpen: (id: string, origin?: MotionOriginHint) => void;
+  onOpen: (id: string, origin?: MotionOriginHint, opener?: HTMLElement) => void;
   onToggle: (id: string, key: ProgressKey, value?: boolean) => void;
-  onPreview: (record: LibraryRecord, origin?: MotionOriginHint) => void;
+  onPreview: (record: LibraryRecord, origin?: MotionOriginHint, opener?: HTMLElement) => void;
   eager: boolean;
   selecting: boolean;
   selected: boolean;

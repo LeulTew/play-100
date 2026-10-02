@@ -8,6 +8,21 @@ previews and account state. It composes `MotionProvider`, `AppMotionBindings`,
 [RouteHost](../src/components/app/RouteHost.tsx) selects page content and loads
 the online controller lazily. [DialogHost](../src/components/app/DialogHost.tsx)
 renders the selected detail or utility dialog without owning its saved data.
+Dialog activation carries its actual link or button separately from motion
+origins and DOM focus. A screen reader's browse-mode click need not focus that
+element first. Detail navigation retains the original opener through Next and
+Previous; URL-based openings use a matching rendered card when available.
+Settings, About and Menu retain their initial trigger through delayed loads.
+Closing prefers the recorded opener without scrolling, while a missing opener
+uses the existing visible, scoped fallback and reveal behavior.
+
+The intended initial heading or safe action has native `autofocus` before
+`showModal()`. A fallback focus call runs only if the browser did not focus it,
+avoiding the former transient Close-button focus followed by heading focus.
+Multi-paragraph game details keep only their heading as the accessible dialog
+name, without a body-text description. Their rationale and source notes remain
+in the reading order exactly once; optional short descriptions for other dialog
+types remain supported.
 Collection search publishes its current matches to a shell-local value store,
 not shell state. Only a mounted canonical detail subscribes, selecting the
 current query's records; typing and background matches do not repaint the
@@ -534,6 +549,9 @@ guard also checks the current Settings panel, busy state and new input events.
 | Typing during an update defers its reload; a later request reloads. | [Update input guard](../src/pwa/update-guard.browser.test.ts) |
 | An App command that can write a library saves to the library it was rendered with. | [Command binding](../src/app-command-binding.test.ts), [real App detail save](../src/components/app/AppDetailSave.browser.test.ts) |
 | Router, offline worker, error reports and `vercel.json` rewrites share one route list. | [Route manifest](../src/lib/routes.test.ts), [offline worker](../scripts/pwa-build.test.ts) |
+| No `any` value reaches production code; Firestore documents are read through runtime guards. | `eslint . --max-warnings 0`, with every `no-unsafe-*` rule on |
+
+The `no-unsafe-*` rules have two test-only exceptions in `eslint.config.js`. Sixteen unit test files put Vitest's asymmetric matchers (`expect.any`, `expect.stringContaining`), which are typed `any`, inside expected object literals, so `no-unsafe-assignment` is off for those files only. The two first-paint tests run the generated inline boot script through `new Function`, so `no-unsafe-call` is off for those two files only.
 
 The controller tests exercise supplied update guards. The mounted guard test runs
 the App's input-generation hook and `createPwaUpdateGuard` through the real

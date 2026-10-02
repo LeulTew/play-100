@@ -181,7 +181,7 @@ test('the save hold delays an already-registered completion receiver until one e
         const root = document.documentElement;
         root.dataset.rootProbeCompletions = '0';
         const request = indexedDB.open('play100-personal');
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(request.error ?? new Error('IndexedDB operation failed'));
         request.onsuccess = () => {
           const database = request.result;
           const transaction = database.transaction('library', 'readwrite');
@@ -196,14 +196,14 @@ test('the save hold delays an already-registered completion receiver until one e
           };
           transaction.onabort = () => {
             database.close();
-            reject(transaction.error);
+            reject(transaction.error ?? new Error('IndexedDB operation failed'));
           };
           const store = transaction.objectStore('library');
           const read = store.get('state');
-          read.onerror = () => reject(read.error);
+          read.onerror = () => reject(read.error ?? new Error('IndexedDB operation failed'));
           read.onsuccess = () => {
             const write = store.put(read.result, 'state');
-            write.onerror = () => reject(write.error);
+            write.onerror = () => reject(write.error ?? new Error('IndexedDB operation failed'));
             write.onsuccess = () => resolve();
           };
         };

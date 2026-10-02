@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useRef, useSyncExternalStore } from 'react';
 import { createSearch, PAGE_PATHS, pageFromPath, parseUrl } from '../lib/url';
 import type { AppPage, Filters } from '../lib/types';
 import {
@@ -10,8 +10,15 @@ import {
 } from '../lib/my-games-navigation';
 import type { MyGamesTab } from '../lib/my-games-navigation';
 import { pageDestination } from '../lib/page-navigation';
+import { isRecord, type JsonObject } from '../lib/guards';
 
 const NAVIGATION_EVENT = 'play100:navigate';
+
+// history.state is typed any; entries the app did not write read as absent.
+function historyState(): JsonObject {
+  const state: unknown = window.history.state;
+  return isRecord(state) ? state : {};
+}
 
 function subscribe(listener: () => void): () => void {
   window.addEventListener('popstate', listener);
@@ -27,6 +34,7 @@ function getSnapshot(): string {
 }
 
 export function useUrlState() {
+  const gameOpener = useRef<{ target: HTMLElement; path: string } | null>(null);
   const location = useSyncExternalStore(subscribe, getSnapshot, () => '/');
   const queryAt = location.indexOf('?');
   const path = queryAt < 0 ? location : location.slice(0, queryAt);
@@ -42,12 +50,7 @@ export function useUrlState() {
   const game = parsed.game;
 
   const navigate = useCallback(
-    (
-      nextSearch: string,
-      method: 'push' | 'replace',
-      state: object | null = null,
-      nextPath = window.location.pathname,
-    ) => {
+    (nextSearch: string, method: 'push' | 'replace', state: unknown = null, nextPath = window.location.pathname) => {
       if (nextSearch === window.location.search && nextPath === window.location.pathname) return;
       window.history[method === 'push' ? 'pushState' : 'replaceState'](state, '', `${nextPath}${nextSearch}`);
       window.dispatchEvent(new Event(NAVIGATION_EVENT));
@@ -72,18 +75,25 @@ export function useUrlState() {
   );
 
   const openGame = useCallback(
-    (slug: string) => {
+    (slug: string, opener?: HTMLElement) => {
       const current = parseUrl(window.location.search);
+      if (!current.game) gameOpener.current = opener ? { target: opener, path: window.location.pathname } : null;
+      const state = historyState();
       navigate(gameDetailSearch(window.location.search, slug), current.game ? 'replace' : 'push', {
-        ...window.history.state,
-        play100Dialog: current.game ? window.history.state?.play100Dialog === true : true,
+        ...state,
+        play100Dialog: current.game ? state.play100Dialog === true : true,
       });
     },
     [navigate],
   );
 
+  const getGameOpener = useCallback(
+    () => (gameOpener.current?.path === window.location.pathname ? gameOpener.current.target : null),
+    [],
+  );
+
   const closeGame = useCallback(() => {
-    if (window.history.state?.play100Dialog === true) {
+    if (historyState().play100Dialog === true) {
       window.history.back();
     } else {
       navigate(gameDetailSearch(window.location.search, null), 'replace', window.history.state);
@@ -141,6 +151,7 @@ export function useUrlState() {
     publicHandle: page === 'profile' ? (path.split('/')[2] ?? '') : '',
     updateFilters,
     openGame,
+    getGameOpener,
     closeGame,
     goToPage,
     openProfile,

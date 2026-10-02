@@ -461,9 +461,21 @@ records, invite slots and the current handle. Platform document/index ceilings
 still supply a finite fallback if the detailed index inventory is unavailable,
 but that much looser bound is not a useful promise about Spark capacity.
 
-### STORAGE-02 candidate accounting, not a deployed saving
+### STORAGE-02 accounting (deployed 2026-10-01)
 
-This candidate changes only 13 exact single-field overrides: `entries.token`,
+**Deployed** 2026-10-01 between 20:53 and 20:55Z: the parent added the 13
+overrides below one by one with `gcloud firestore indexes fields update
+--disable-indexes`, changing no composite and no other override. All 18 field
+operations finished SUCCESSFUL by 21:03Z. Readback: the ten composites are
+READY and the 18 overrides equal `firestore.indexes.json` exactly. A read-only
+production query smoke on empty parent paths passed 13/13: ten client query
+shapes, including the format-2 rollback pages, returned results without an
+index error, and three negative controls on exempted fields (`entries.token`,
+`chunks.holder`, `generations.ranking`) were refused with
+`FAILED_PRECONDITION`. The figures below remain calculations, not measured
+storage.
+
+This change covers only 13 exact single-field overrides: `entries.token`,
 `entries.step`; `chunks.digest`, `bytes`, `createdAt`, `holder`, `holders`;
 `generations.private`, `generations.ranking`; `syncHeads.current`, `previous`;
 and `creatorRanks.current`, `previous`. There are no wildcard overrides or
@@ -1048,6 +1060,35 @@ uuid 11 still exports) and `@google-cloud/pubsub` gets `@opentelemetry/core@^2.8
 keeps). `scripts/dependency-overrides.test.ts` fails if the lock resolves a
 vulnerable version again. Remove an override once its consumer depends on the
 patched version itself.
+
+A third scoped override closes the grpc-js advisories GHSA-m9gg-hp2v-232j
+(high) and GHSA-f596-whhp-79r4 (low), fixed in 1.13.6 and 1.14.5. The newest
+`@firebase/firestore` (4.17.2, in firebase 12.19.0) still pins
+`@grpc/grpc-js` to `~1.9.0`, and 1.9.16 is the last 1.9 release, so
+`@firebase/firestore` gets `@grpc/grpc-js@^1.14.5`. The lock then holds a single
+grpc-js 1.14.5, which the emulator tree's google-gax and Cloud SQL connector
+already accept within their own ranges. Both advisories concern grpc-js servers
+(peer certificates from `getAuthContext`, handler errors in status messages);
+Play 100 only uses grpc-js as a Firestore client, and only in Node. The browser
+bundle never loads it, because Firestore's browser build uses WebChannel, and
+no API function imports Firestore. It runs only for the Firestore Node SDK under
+Vitest's Node environment and `tests-cloud`, and in the emulator tooling.
+grpc-js keeps its 1.x API, and Firestore still loads its protos with its own
+`@grpc/proto-loader` 0.7. The `tests-cloud` emulator run is the end-to-end
+check of that path. Remove the override once `@firebase/firestore` depends on a
+patched grpc-js itself.
+
+A fourth scoped override closes basic-ftp GHSA-c475-qrg2-pj4r (high, published
+2026-10-01: quadratic-time parsing of a Unix directory listing in
+`Client.list()`), fixed only in 6.2.1. basic-ftp is dev-only, reached through
+firebase-tools' proxy support (`proxy-agent`, `pac-proxy-agent`, then
+`get-uri` 6.0.5, which declares `^5.0.2`), and even the newest get-uri (8.0.1)
+stays on 5.x, so `get-uri` gets `basic-ftp@^6.2.1`. get-uri only calls
+`access`, `lastMod`, `list`, `downloadTo` and `close`, which 6.x keeps; the only
+breaking change in 6.0.0 refuses a separate data-transfer host unless a client
+allows it, as protection against FTP bounce attacks. The code runs only if the
+emulator tooling fetches a proxy auto-configuration file from an `ftp://` URL.
+Remove the override once get-uri depends on a patched basic-ftp.
 
 **Install scripts (R9).** `package.json` `allowScripts` records the reviewed
 dependency lifecycle scripts at their exact locked versions. Only npm 12 and

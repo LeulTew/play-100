@@ -9,7 +9,7 @@ export interface GlobalBannersProps {
   offlineReady: boolean;
   hintError: string;
   hintBlocked?: boolean;
-  onSettings: () => void;
+  onSettings: (opener?: HTMLElement) => void;
   onAccount: () => void;
   onDeviceOnly: () => void;
   onRetryLibrary?: () => Promise<boolean>;
@@ -87,7 +87,7 @@ export default function StorageRecovery({
                 Try again
               </button>
             )}
-            <button className="text-button" onClick={onSettings}>
+            <button className="text-button" onClick={(event) => onSettings(event.currentTarget)}>
               Settings
               <Icon name="arrow" width="18" height="18" />
             </button>

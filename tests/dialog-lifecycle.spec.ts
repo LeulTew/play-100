@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 import { enrichmentIdentity, parseCatalogEnrichment } from '../src/lib/catalog-enrichment';
 import { parseDiscoveryCatalog } from '../src/lib/discovery-catalog';
 import { enrichmentFixture } from '../src/lib/discovery-test-fixtures';
-import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecord, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 
 const catalog = parseDiscoveryCatalog(
@@ -144,7 +144,7 @@ for (const mode of ['on', 'off', 'lite', 'reduced'] as const) {
       expect(await scrollPosition(page)).toEqual(menuScroll);
     }
 
-    const game = libraryRecords[0];
+    const game = libraryRecord(0);
     const link = page.locator(`.game-card[data-game="${game.id}"] .game-link`);
     await link.scrollIntoViewIfNeeded();
     await link.focus();
@@ -163,7 +163,7 @@ for (const mode of ['on', 'off', 'lite', 'reduced'] as const) {
   test(`${mode}: nested completed confirmation retains the outer lock and focus`, async ({ page }) => {
     await seed(page, mode);
     const before = await readLibrary(page);
-    const game = libraryRecords[1];
+    const game = libraryRecord(1);
     const link = page.locator(`.game-card[data-game="${game.id}"] .game-link`);
     await link.scrollIntoViewIfNeeded();
     await link.focus();
@@ -217,7 +217,7 @@ for (const length of ['short', 'long'] as const) {
   test(`1440px ${length} page keeps header, tray and heading stationary across native open`, async ({ page }, info) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await seed(page);
-    const game = libraryRecords[0];
+    const game = libraryRecord(0);
     await page.getByRole('button', { name: `Pin for comparison: ${game.title}`, exact: true }).click();
     if (length === 'short') await page.goto('/?q=NoMatchGeometryFixture&catalogs=off');
     await expect(page.locator('.collection-title-line #collection-title')).toBeVisible();
@@ -287,7 +287,7 @@ test('provider enrichment waits for a focused native detail and a frame, and can
     await expect(detail.locator('#catalog-game-title')).toBeFocused();
     await expect.poll(() => page.evaluate(() => window.dialogOpenProbe.enrichment.length)).toBe(1);
     await expect.poll(() => page.evaluate(() => window.dialogOpenProbe.opens[0]?.length ?? 0)).toBe(3);
-    expect(await page.evaluate(() => window.dialogOpenProbe.opens[0][0].loading)).toBe(true);
+    expect(await page.evaluate(() => window.dialogOpenProbe.opens[0]?.[0]?.loading)).toBe(true);
     expect(await page.evaluate(() => window.dialogOpenProbe.enrichment)).toEqual([
       { modal: true, focused: true, afterFrame: true },
     ]);
@@ -379,10 +379,11 @@ test('warm provider art and ratings are present in the first three frames withou
   await opener.click();
   await expect(detail.locator('#catalog-game-title')).toBeFocused();
   await expect.poll(() => page.evaluate(() => window.dialogOpenProbe.opens[1]?.length ?? 0)).toBe(3);
-  const frames = await page.evaluate(() => window.dialogOpenProbe.opens[1]);
+  const frames = (await page.evaluate(() => window.dialogOpenProbe.opens[1])) ?? [];
   expect(frames.every((frame) => frame.image && frame.rating && !frame.unavailable && !frame.loading)).toBe(true);
-  expect(frames[0].actions).not.toBeNull();
-  expect(frames.map((frame) => frame.actions)).toEqual([frames[0].actions, frames[0].actions, frames[0].actions]);
+  const actions = frames[0]?.actions;
+  expect(actions).not.toBeNull();
+  expect(frames.map((frame) => frame.actions)).toEqual([actions, actions, actions]);
   // No-art source cards have no origin lease; the existing sleeve-only arrival still runs.
   await expect
     .poll(() =>

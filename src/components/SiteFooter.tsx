@@ -7,8 +7,8 @@ export function SiteFooter({
   onEffects,
   effects,
 }: {
-  onAbout?: () => void;
-  onEffects?: () => void;
+  onAbout?: (opener?: HTMLElement) => void;
+  onEffects?: (opener?: HTMLElement) => void;
   effects?: string;
 }) {
   return (
@@ -40,13 +40,13 @@ export function SiteFooter({
           Original spreadsheet
         </a>
         {onAbout ? (
-          <button onClick={onAbout}>About &amp; credits</button>
+          <button onClick={(event) => onAbout(event.currentTarget)}>About &amp; credits</button>
         ) : (
           <a href="/?info=credits">About &amp; credits</a>
         )}
         <DataUseLink />
         {onEffects && (
-          <button onClick={onEffects}>
+          <button onClick={(event) => onEffects(event.currentTarget)}>
             Effects: {effects}
             <Icon name="sliders" width="16" height="16" />
           </button>

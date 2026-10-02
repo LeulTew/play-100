@@ -94,10 +94,10 @@ export async function readFirstPaintRecord(output: string): Promise<FirstPaintRe
 }
 
 export async function readBuildManifest(output: string): Promise<Manifest> {
-  const manifest: Manifest = JSON.parse(await readFile(buildManifestPath(output), 'utf8'));
+  const manifest: unknown = JSON.parse(await readFile(buildManifestPath(output), 'utf8'));
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest))
     throw new Error('Invalid Vite build manifest.');
-  return manifest;
+  return manifest as Manifest;
 }
 
 export async function retainBuildManifest(output: string): Promise<Manifest> {

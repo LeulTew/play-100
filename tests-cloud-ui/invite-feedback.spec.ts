@@ -22,7 +22,7 @@ async function holdAutomaticSharingDefault(page: Page) {
       .map((entry) => entry.name)
       .find((url) => new URL(url).pathname === '/src/cloud/friend-all-store.ts');
     if (!sourceUrl) throw new Error('Loaded FriendAllStore module missing.');
-    const source: typeof import('../src/cloud/friend-all-store') = await import(sourceUrl);
+    const source = (await import(sourceUrl)) as typeof import('../src/cloud/friend-all-store');
     const setPolicy = source.FriendAllStore.prototype.setPolicy;
     source.FriendAllStore.prototype.setPolicy = function (uid, enabled, origin, expected, isCurrent) {
       if (origin === 'default' && !Reflect.get(window, 'automaticDefaultHeld')) {
@@ -43,7 +43,7 @@ test.beforeEach(async ({ page, request }, testInfo) => {
   if (delayedDefault) await holdAutomaticSharingDefault(page);
   await enableSync(page, 'empty');
   if (delayedDefault)
-    await expect.poll(() => page.evaluate(() => Reflect.get(window, 'automaticDefaultHeld'))).toBe(true);
+    await expect.poll(() => page.evaluate(() => Reflect.get(window, 'automaticDefaultHeld') as unknown)).toBe(true);
   await page.locator('#page-main').getByRole('button', { name: 'Friends', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Invite someone', exact: true })).toBeEnabled();
 });
@@ -61,10 +61,12 @@ test(
         if (!url) throw new Error(`Loaded module missing: ${pathname}`);
         return url;
       };
-      const friends: typeof import('../src/cloud/friend-store') = await import(loaded('/src/cloud/friend-store.ts'));
-      const all: typeof import('../src/cloud/friend-all-store') = await import(
+      const friends = (await import(
+        loaded('/src/cloud/friend-store.ts')
+      )) as typeof import('../src/cloud/friend-store');
+      const all = (await import(
         loaded('/src/cloud/friend-all-store.ts')
-      );
+      )) as typeof import('../src/cloud/friend-all-store');
       const setPolicy = all.FriendAllStore.prototype.setPolicy;
       const initialize = friends.FriendStore.prototype.initialize;
       const saveIdentity = friends.FriendStore.prototype.saveIdentity;
@@ -114,13 +116,13 @@ test(
     ).toEqual({ calls: 1, identityWrites: 1, initializes: 0 });
     const controls = await page.evaluate(async () => {
       const clientPath = '/src/cloud/firebase-client.ts';
-      const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
+      const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
       const url = performance
         .getEntriesByType('resource')
         .map((entry) => entry.name)
         .find((value) => new URL(value).pathname === '/src/cloud/friend-all-store.ts');
       if (!url) throw new Error('Loaded FriendAllStore module missing.');
-      const all: typeof import('../src/cloud/friend-all-store') = await import(url);
+      const all = (await import(url)) as typeof import('../src/cloud/friend-all-store');
       const uid = client.cloudAuth.currentUser?.uid;
       if (!uid) throw new Error('The synthetic actor is not signed in.');
       return new all.FriendAllStore(client.cloudDb).controls(uid);
@@ -146,7 +148,7 @@ test('creation feedback is immediate, duplicate clicks create once, and closing 
       .map((entry) => entry.name)
       .find((url) => new URL(url).pathname === '/src/cloud/friend-store.ts');
     if (!sourceUrl) throw new Error('Loaded FriendStore module missing.');
-    const module: typeof import('../src/cloud/friend-store') = await import(sourceUrl);
+    const module = (await import(sourceUrl)) as typeof import('../src/cloud/friend-store');
     const original = module.FriendStore.prototype.createInvite;
     const gate: NonNullable<Window['inviteGate']> = { calls: 0, committed: false, release: () => {} };
     window.inviteGate = gate;
@@ -191,8 +193,8 @@ test('known server ACK with a readback failure refreshes the actual invitation w
     const sourceUrl = resources.find((url) => new URL(url).pathname === '/src/cloud/friend-store.ts');
     const typesUrl = resources.find((url) => new URL(url).pathname === '/src/lib/friend-types.ts');
     if (!sourceUrl || !typesUrl) throw new Error('Loaded friend modules missing.');
-    const source: typeof import('../src/cloud/friend-store') = await import(sourceUrl);
-    const types: typeof import('../src/lib/friend-types') = await import(typesUrl);
+    const source = (await import(sourceUrl)) as typeof import('../src/cloud/friend-store');
+    const types = (await import(typesUrl)) as typeof import('../src/lib/friend-types');
     const original = source.FriendStore.prototype.createInvite;
     const gate: NonNullable<Window['inviteGate']> = { calls: 0, committed: false, release: () => {} };
     window.inviteGate = gate;
@@ -232,7 +234,7 @@ for (const exit of ['close', 'navigate'] as const)
         .map((entry) => entry.name)
         .find((url) => new URL(url).pathname === '/src/cloud/friend-store.ts');
       if (!sourceUrl) throw new Error('Loaded FriendStore module missing.');
-      const source: typeof import('../src/cloud/friend-store') = await import(sourceUrl);
+      const source = (await import(sourceUrl)) as typeof import('../src/cloud/friend-store');
       const identity = source.FriendStore.prototype.identity;
       const create = source.FriendStore.prototype.createInvite;
       const gate: NonNullable<Window['inviteGate']> = { calls: 0, committed: false, release: () => {} };

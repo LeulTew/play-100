@@ -50,7 +50,7 @@ function open(version: number) {
   return new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, version);
     request.onupgradeneeded = () => request.result.createObjectStore(STORE_NAME);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => reject(request.error ?? new Error('IndexedDB operation failed'));
     request.onsuccess = () => {
       connections.push(request.result);
       resolve(request.result);
@@ -63,9 +63,9 @@ function rows(db: IDBDatabase) {
     const tx = db.transaction(STORE_NAME, 'readonly'),
       store = tx.objectStore(STORE_NAME);
     const keys = store.getAllKeys(),
-      values = store.getAll();
+      values: IDBRequest<unknown[]> = store.getAll();
     tx.oncomplete = () => resolve(keys.result.map((key, index) => [key, values.result[index]]));
-    tx.onabort = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
   });
 }
 
@@ -86,7 +86,7 @@ it('drills v2 -> v3 -> rejected legacy reopen -> compatible recovery without los
     tx.objectStore(STORE_NAME).put(guest, STATE_KEY);
     tx.objectStore(STORE_NAME).put(legacyAccount, account);
     tx.oncomplete = () => resolve();
-    tx.onabort = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
   });
   const savedBefore = await rows(legacy);
   let versionChanged = false;
@@ -109,7 +109,7 @@ it('drills v2 -> v3 -> rejected legacy reopen -> compatible recovery without los
   expect(recovered.recovery).toEqual(withRecovery.recovery);
   await commitScopedAction(scopedWriter(recovered), { type: 'edit-ranking', id: game.id, note: 'Recovered safely' });
   closePersonalLibrary();
-  expect((await loadScopedLibrary(account)).state.ranking[0].note).toBe('Recovered safely');
+  expect((await loadScopedLibrary(account)).state.ranking[0]?.note).toBe('Recovered safely');
   expect((await loadPersonalLibrary([game])).state).toEqual(guest);
 });
 
@@ -131,5 +131,5 @@ it('keeps retirement tombstones and rejects stale saves and deletes after compat
   await commitScopedAction(scopedWriter(fresh), { type: 'rate-game', record: game, score: 8 });
   await expect(deleteScopedLibrary(oldWriter)).rejects.toMatchObject({ name: 'PersonalLibraryWriterRetiredError' });
   closePersonalLibrary();
-  expect((await loadScopedLibrary(account)).state.ranking[0].score).toBe(8);
+  expect((await loadScopedLibrary(account)).state.ranking[0]?.score).toBe(8);
 });

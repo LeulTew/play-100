@@ -45,8 +45,8 @@ async function seed(page: Page, request: APIRequestContext) {
   await page.evaluate(async (records) => {
     const statePath = '/src/lib/personal-library.ts';
     const dbPath = '/src/lib/personal-db.ts';
-    const lib: typeof import('../src/lib/personal-library') = await import(statePath);
-    const db: typeof import('../src/lib/personal-db') = await import(dbPath);
+    const lib = (await import(statePath)) as typeof import('../src/lib/personal-library');
+    const db = (await import(dbPath)) as typeof import('../src/lib/personal-db');
     let state = lib.applyPersonalAction(lib.emptyPersonalLibrary(), { type: 'add-ranking', records });
     state = lib.applyPersonalAction(state, {
       type: 'set-progress',

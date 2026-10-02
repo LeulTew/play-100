@@ -6,6 +6,10 @@ import { listenOnFetchSafePort } from './test-server-ports';
 
 const nativeFetch = globalThis.fetch;
 const JSON_TYPE = { 'content-type': 'application/json; charset=utf-8' };
+type Upstream = (
+  input: string | URL,
+  init: { headers: Record<string, string>; redirect?: RequestRedirect; signal?: AbortSignal },
+) => Promise<Response>;
 let server: Server;
 let base = '';
 beforeEach(async () => {
@@ -50,7 +54,7 @@ describe('same-origin catalog API boundary', () => {
   });
   it('echoes exact public query/source/offset, caches only success, identifies upstream and preserves literal query escaping', async () => {
     const upstream = vi
-      .fn()
+      .fn<Upstream>()
       .mockResolvedValue(
         new Response(JSON.stringify({ query: { search: [], searchinfo: { totalhits: 0 } } }), { headers: JSON_TYPE }),
       );
@@ -62,7 +66,7 @@ describe('same-origin catalog API boundary', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ source: 'wikidata', query: q, offset: 5, items: [], total: 0 });
     expect(response.headers.get('cache-control')).toContain('s-maxage=300');
-    const request = new URL(upstream.mock.calls[0]?.[0]);
+    const request = new URL(upstream.mock.calls[0]![0]);
     expect(request.searchParams.get('srsearch')).toBe(
       `"${q.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}" haswbstatement:P31=Q7889`,
     );
@@ -73,7 +77,7 @@ describe('same-origin catalog API boundary', () => {
     const response = await nativeFetch(`${base}/api/catalog?q=KCD`);
     expect(response.status).toBe(status);
     expect(response.headers.get('cache-control')).toBe('no-store');
-    const body = await response.json();
+    const body = (await response.json()) as { code: string };
     expect(body).not.toHaveProperty('items');
     expect(body.code).toBe(status === 429 ? 'rate-limited' : 'unavailable');
     if (status === 429) expect(response.headers.get('retry-after')).toBe('3');
@@ -125,7 +129,7 @@ describe('same-origin catalog API boundary', () => {
     'uses only the fixed %s upstream with redirect rejection',
     async (source) => {
       const body = source === 'wikidata' ? { query: { search: [], searchinfo: { totalhits: 0 } } } : [];
-      const upstream = vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { headers: JSON_TYPE }));
+      const upstream = vi.fn<Upstream>().mockResolvedValue(new Response(JSON.stringify(body), { headers: JSON_TYPE }));
       vi.stubGlobal('fetch', upstream);
       const response = await nativeFetch(
         `${base}/api/catalog?${new URLSearchParams({ source, q: 'https://private.invalid/' })}`,
@@ -149,7 +153,7 @@ describe('same-origin catalog API boundary', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(exact, { headers: JSON_TYPE })));
     const accepted = await nativeFetch(`${base}/api/catalog?q=ExactLimit`);
     expect(accepted.status).toBe(200);
-    expect((await accepted.json()).items).toEqual([]);
+    expect(((await accepted.json()) as { items: unknown[] }).items).toEqual([]);
     const cancel = vi.fn(async () => undefined);
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {

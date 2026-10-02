@@ -6,7 +6,7 @@ export function createMemoizedModule<T>(importModule: () => Promise<T>) {
   return {
     peek: () => value,
     started: () => value !== null || pending !== null,
-    load(): Promise<T> {
+    load: (): Promise<T> => {
       if (value !== null) return Promise.resolve(value);
       if (pending) return pending;
       pending = Promise.resolve()

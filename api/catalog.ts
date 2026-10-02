@@ -215,7 +215,9 @@ async function fillFreeCatalog(): Promise<LibraryRecord[]> {
   const records = payload.flatMap((value): LibraryRecord[] => {
     const item = object(value);
     const title = text(item?.title);
-    if (!item || !Number.isSafeInteger(item.id) || Number(item.id) < 1 || !title || title.length > 200) return [];
+    const id = item?.id;
+    if (!item || typeof id !== 'number' || !Number.isSafeInteger(id) || id < 1 || !title || title.length > 200)
+      return [];
     const profile = text(item.freetogame_profile_url);
     if (!profile) return [];
     let sourceUrl: URL;
@@ -234,7 +236,7 @@ async function fillFreeCatalog(): Promise<LibraryRecord[]> {
     const year = Number(/^(\d{4})-\d{2}-\d{2}$/.exec(text(item.release_date) ?? '')?.[1]);
     return [
       {
-        id: `freetogame:${item.id}`,
+        id: `freetogame:${id}`,
         title,
         year: Number.isInteger(year) && year >= 1900 && year <= 2100 ? year : null,
         studio: text(item.developer)?.slice(0, 200) ?? null,

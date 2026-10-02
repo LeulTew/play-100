@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecord, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 import { createLibraryBackup, emptyPersonalLibrary } from '../src/lib/personal-library';
 import { applyPersonalAction } from '../src/lib/personal-library';
 import { catalogFixture, discoveryFixture } from '../src/lib/discovery-test-fixtures';
 import { compareTrayStorageKey, serializeCompareTray } from '../src/lib/compare-tray';
 
-const game = libraryRecords[0]!;
+const game = libraryRecord(0);
 const provider = discoveryFixture.record;
 
 async function holdWrite(page: Page, rejected: boolean) {

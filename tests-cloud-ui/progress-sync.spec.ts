@@ -71,8 +71,8 @@ test('account sync keeps Played and Completed distinct and excludes both from Al
     const keys = await page.evaluate(async () => {
       const clientPath = '/src/cloud/firebase-client.ts';
       const storePath = '/src/cloud/friend-all-store.ts';
-      const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
-      const module: typeof import('../src/cloud/friend-all-store') = await import(storePath);
+      const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
+      const module = (await import(storePath)) as typeof import('../src/cloud/friend-all-store');
       const uid = client.cloudAuth.currentUser?.uid;
       if (!uid) throw new Error('Synthetic account missing.');
       const result = await new module.FriendAllStore(client.cloudDb).page(uid, 'games');

@@ -19,7 +19,7 @@ async function createStore(store = true) {
       open.result.close();
       resolve();
     };
-    open.onerror = () => reject(open.error);
+    open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
   });
 }
 

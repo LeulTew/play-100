@@ -31,6 +31,7 @@ interface SettingsDialogProps {
   statusError?: boolean;
   recovery?: ReactNode;
   getReturnFocus?: () => HTMLElement | null;
+  getOpener?: () => HTMLElement | null;
 }
 
 export function SettingsDialog({
@@ -54,6 +55,7 @@ export function SettingsDialog({
   statusError = false,
   recovery,
   getReturnFocus,
+  getOpener,
 }: SettingsDialogProps) {
   const motionId = useId();
   const [confirmReset, setConfirmReset] = useState(false);
@@ -143,6 +145,7 @@ export function SettingsDialog({
       titleId="settings-title"
       onClose={onClose}
       getReturnFocus={getReturnFocus}
+      getOpener={getOpener}
       className="info-dialog settings-dialog"
       motion={{ preset: 'dialog', enterMs: 160 }}
     >

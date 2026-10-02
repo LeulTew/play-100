@@ -24,6 +24,7 @@ import {
   retainsFriendGeneration,
 } from '../lib/friend-types';
 import type { FriendCleanupResult, FriendCursor, FriendExport, FriendPage } from '../lib/friend-types';
+import { isUnknownArray } from '../lib/guards';
 import { ensureAccountActivity } from './account-lifecycle';
 import { releaseIndexedPayload } from './generation-cleanup';
 import { quotaRef, quotaSupported, readQuotaSlots, releaseQuotaSlot } from './account-quota';
@@ -171,9 +172,10 @@ export async function releaseMissingQuotaIds(
   }
   const remaining = await getDocFromServer(quota);
   if (!remaining.exists()) return 'empty';
-  if (!Array.isArray(remaining.data().ids))
+  const left: unknown = remaining.data().ids;
+  if (!isUnknownArray(left))
     throw new FriendStoreError('invalid', 'Account settings could not be read. Try again later.');
-  return remaining.data().ids.length ? 'more' : 'empty';
+  return left.length ? 'more' : 'empty';
 }
 export async function cleanupDeleted(store: FriendStore, uid: string): Promise<FriendCleanupResult> {
   const settings = await store.settings(uid);

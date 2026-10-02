@@ -25,7 +25,7 @@ export function readFirebaseConfiguration(environment: Record<string, unknown>):
     };
   }
   const [apiKey, authDomain, projectId, appId] = fields.map((field) =>
-    typeof environment[field] === 'string' ? (environment[field] as string).trim() : '',
+    typeof environment[field] === 'string' ? environment[field].trim() : '',
   );
   if (
     !apiKey ||

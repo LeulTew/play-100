@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { canonicalCatalogId } from '../src/lib/catalog-identity';
 import { parseDiscoveryCatalog } from '../src/lib/discovery-catalog';
-import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecord } from './library-pagination-helpers';
 import { openBrowsingFilters } from './browsing-helpers';
 import {
   adoptTextSpacing,
@@ -58,14 +58,14 @@ async function surfaces(page: Page, spacing = false) {
   await page
     .locator('.game-card')
     .first()
-    .getByRole('button', { name: `Pin for comparison: ${libraryRecords[0].title}`, exact: true })
+    .getByRole('button', { name: `Pin for comparison: ${libraryRecord(0).title}`, exact: true })
     .click();
   await expect(page.locator('.compare-tray-dock')).toBeVisible();
   await audit('Pinned comparison dock');
   if (await page.evaluate(() => matchMedia('(forced-colors: active)').matches)) {
     const borders = await page.locator('.compare-tray-dock, .search-field, .game-cover').evaluateAll((elements) =>
       elements.map((element) => ({
-        selector: element.className,
+        selector: element.className as string,
         style: getComputedStyle(element).borderTopStyle,
         width: parseFloat(getComputedStyle(element).borderTopWidth),
       })),
@@ -220,13 +220,14 @@ const over = (top: Rgba, bottom: Rgba): Rgba => ({
 /** The WCAG 2 contrast ratio of two opaque colours. */
 function contrast(first: Rgba, second: Rgba): number {
   const luminance = ({ r, g, b }: Rgba) => {
-    const [red, green, blue] = [r, g, b].map((value) => {
+    const linear = (value: number) => {
       const channel = value / 255;
       return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-    });
-    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+    };
+    return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
   };
-  const [light, dark] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+  const [one, two] = [luminance(first), luminance(second)];
+  const [light, dark] = one >= two ? [one, two] : [two, one];
   return (light + 0.05) / (dark + 0.05);
 }
 

@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecord, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 import { closeDialog } from './readability-helpers';
 import { emptyCatalogs } from './catalog-helpers';
+
+type Box = Omit<DOMRectReadOnly, 'toJSON'>;
 
 const browsingTargets =
   ':is(.game-card, .discovery-card, .personal-row-static) :is(h3, button, a[href], input, select, textarea, summary)';
@@ -17,17 +19,17 @@ test('the tray limit message spans the list and aligns its dismissal with row ac
   await page.getByRole('button', { name: '6 games in Compare tray', exact: true }).click();
   const tray = page.getByRole('dialog', { name: 'Compare tray', exact: true });
   await expect(tray.locator('.compare-tray-error')).toContainText('six games');
-  await expect(tray.locator('.compare-tray-games li').first()).toContainText(`Leul's 100 · ${libraryRecords[0]!.year}`);
+  await expect(tray.locator('.compare-tray-games li').first()).toContainText(`Leul's 100 · ${libraryRecord(0).year}`);
   const alignment = await tray.evaluate((dialog) => {
     const error = dialog.querySelector('.compare-tray-error')!;
     const text = error.querySelector('p')!;
     const dismiss = error.querySelector('button')!.getBoundingClientRect();
     return {
-      error: error.getBoundingClientRect().toJSON(),
-      list: dialog.querySelector('.compare-tray-games')!.getBoundingClientRect().toJSON(),
+      error: error.getBoundingClientRect().toJSON() as Box,
+      list: dialog.querySelector('.compare-tray-games')!.getBoundingClientRect().toJSON() as Box,
       rule: getComputedStyle(error).borderTopWidth,
       textFits: text.getBoundingClientRect().width <= parseFloat(getComputedStyle(text).maxWidth) + 1,
-      dismiss: dismiss.toJSON(),
+      dismiss: dismiss.toJSON() as Box,
       rows: [...dialog.querySelectorAll('[data-unpin]')].map((button) => button.getBoundingClientRect().right),
     };
   });
@@ -181,7 +183,7 @@ for (const viewport of [
             return {
               browsing: Boolean(target.closest('.game-card, .discovery-card, .personal-row-static')),
               name: target.getAttribute('aria-label') || target.textContent?.trim(),
-              bounds: box.toJSON(),
+              bounds: box.toJSON() as Box,
               headerBottom: header.bottom,
               floor: nav.height ? nav.top : innerHeight,
               visible:
@@ -238,10 +240,10 @@ test('header Compare keeps its slot and expansion edge across wide breakpoints',
   const chip = dock.getByRole('button', { name: '1 game in Compare tray', exact: true });
   const slot = () =>
     dock.evaluate((element) => ({
-      anchor: element.parentElement!.getBoundingClientRect().toJSON(),
-      dock: element.getBoundingClientRect().toJSON(),
+      anchor: element.parentElement!.getBoundingClientRect().toJSON() as Box,
+      dock: element.getBoundingClientRect().toJSON() as Box,
       position: getComputedStyle(element).position,
-      header: element.closest('.site-header')!.getBoundingClientRect().toJSON(),
+      header: element.closest('.site-header')!.getBoundingClientRect().toJSON() as Box,
     }));
   type Slot = Awaited<ReturnType<typeof slot>>;
   // After a resize, a drag or a dialog, the fixed dock can reach its anchor a frame or a transition later, and a
@@ -545,7 +547,7 @@ for (const width of [320, 393, 768, 1440]) {
 
     const dock = page.locator('.compare-tray-dock');
     await expect(page.locator('.toast-visible')).toContainText('six games');
-    const failedPin = page.getByRole('button', { name: `Pin for comparison: ${libraryRecords[6].title}`, exact: true });
+    const failedPin = page.getByRole('button', { name: `Pin for comparison: ${libraryRecord(6).title}`, exact: true });
     await expect(failedPin).toBeFocused();
     const failedHit = await failedPin.evaluate((element) => {
       const bounds = element.getBoundingClientRect();
@@ -647,7 +649,7 @@ for (const width of [320, 393]) {
       'Requires the centrally configured online build; no remote account requests are allowed.',
     );
     await page.goto('/?catalogs=off');
-    await page.getByRole('button', { name: `Pin for comparison: ${libraryRecords[0].title}`, exact: true }).click();
+    await page.getByRole('button', { name: `Pin for comparison: ${libraryRecord(0).title}`, exact: true }).click();
     const before = await readLibrary(page);
     for (const route of ['/my-games?tab=library&catalogs=off', '/?q=NoMatchContextFixture&catalogs=off']) {
       await page.goto(route);

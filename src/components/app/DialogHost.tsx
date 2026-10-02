@@ -70,7 +70,7 @@ function ReadySettings(props: SettingsPanelProps) {
 // would take the card-to-detail motion, so the loading dialog appears only once a load is actually slow.
 const PENDING_DETAIL_DELAY_MS = 300;
 
-function PendingCatalogDialog({ onClose }: { onClose: () => void }) {
+function PendingCatalogDialog({ onClose, getOpener }: { onClose: () => void; getOpener?: () => HTMLElement | null }) {
   const [slow, setSlow] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => setSlow(true), PENDING_DETAIL_DELAY_MS);
@@ -78,7 +78,7 @@ function PendingCatalogDialog({ onClose }: { onClose: () => void }) {
   }, []);
   if (!slow) return null;
   return (
-    <Dialog open titleId="loading-catalog-title" onClose={onClose} className="info-dialog">
+    <Dialog open titleId="loading-catalog-title" onClose={onClose} getOpener={getOpener} className="info-dialog">
       <h2 id="loading-catalog-title" data-autofocus tabIndex={-1}>
         Opening game…
       </h2>
@@ -97,6 +97,7 @@ export interface DialogHostProps {
   missingGame: boolean;
   metadataFailure?: boolean;
   onCloseGame: () => void;
+  getGameOpener?: () => HTMLElement | null;
   menu: KeyedProps<ComponentProps<typeof MenuDialog>> | null;
   about: ComponentProps<typeof AboutDialog> | null;
   settings: KeyedProps<ComponentProps<typeof SettingsDialog>> | null;
@@ -115,6 +116,7 @@ export function DialogHost({
   missingGame,
   metadataFailure,
   onCloseGame,
+  getGameOpener,
   menu,
   about,
   settings,
@@ -142,7 +144,13 @@ export function DialogHost({
             <ChunkBoundary
               key={catalog.key}
               fallback={
-                <Dialog open titleId="catalog-load-error-title" onClose={onCloseGame} className="info-dialog">
+                <Dialog
+                  open
+                  titleId="catalog-load-error-title"
+                  onClose={onCloseGame}
+                  getOpener={getGameOpener}
+                  className="info-dialog"
+                >
                   <h2 id="catalog-load-error-title" data-autofocus tabIndex={-1}>
                     Game details
                   </h2>
@@ -150,13 +158,19 @@ export function DialogHost({
                 </Dialog>
               }
             >
-              <Suspense fallback={<PendingCatalogDialog onClose={onCloseGame} />}>
+              <Suspense fallback={<PendingCatalogDialog onClose={onCloseGame} getOpener={getGameOpener} />}>
                 <CatalogDetail key={catalog.key} {...catalog.props} />
               </Suspense>
             </ChunkBoundary>
           )}
           {metadataFailure && (
-            <Dialog open titleId="catalog-parser-error-title" onClose={onCloseGame} className="info-dialog">
+            <Dialog
+              open
+              titleId="catalog-parser-error-title"
+              onClose={onCloseGame}
+              getOpener={getGameOpener}
+              className="info-dialog"
+            >
               <h2 id="catalog-parser-error-title" data-autofocus tabIndex={-1}>
                 Game details
               </h2>
@@ -164,7 +178,13 @@ export function DialogHost({
             </Dialog>
           )}
           {loadingGame && (
-            <Dialog open titleId="loading-game-title" onClose={onCloseGame} className="info-dialog">
+            <Dialog
+              open
+              titleId="loading-game-title"
+              onClose={onCloseGame}
+              getOpener={getGameOpener}
+              className="info-dialog"
+            >
               <h2 id="loading-game-title" data-autofocus tabIndex={-1}>
                 Opening game…
               </h2>
@@ -172,7 +192,13 @@ export function DialogHost({
             </Dialog>
           )}
           {canonicalError && (
-            <Dialog open titleId="canonical-game-error-title" onClose={onCloseGame} className="info-dialog">
+            <Dialog
+              open
+              titleId="canonical-game-error-title"
+              onClose={onCloseGame}
+              getOpener={getGameOpener}
+              className="info-dialog"
+            >
               <h2 id="canonical-game-error-title" data-autofocus tabIndex={-1}>
                 The original game could not load.
               </h2>
@@ -183,7 +209,13 @@ export function DialogHost({
             </Dialog>
           )}
           {missingGame && (
-            <Dialog open titleId="missing-game-title" onClose={onCloseGame} className="info-dialog">
+            <Dialog
+              open
+              titleId="missing-game-title"
+              onClose={onCloseGame}
+              getOpener={getGameOpener}
+              className="info-dialog"
+            >
               <h2 id="missing-game-title" data-autofocus tabIndex={-1}>
                 {page === 'collection'
                   ? "That game isn't in this collection."

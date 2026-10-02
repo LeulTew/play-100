@@ -116,7 +116,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   const results = await Promise.allSettled([browser?.close(), server?.close()]);
-  const errors = results.filter((result) => result.status === 'rejected').map((result) => result.reason);
+  const errors = results.filter((result) => result.status === 'rejected').map((result): unknown => result.reason);
   if (errors.length) throw new AggregateError(errors, 'Library retry fixture cleanup failed.');
 }, 60_000);
 
@@ -143,7 +143,7 @@ async function blockedFixture(mobile = false, signedIn = false, localHint = fals
       new Promise<void>((resolve, reject) => {
         const open = indexedDB.open(name, 2);
         open.onupgradeneeded = () => open.result.createObjectStore(store);
-        open.onerror = () => reject(open.error);
+        open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
         open.onsuccess = () => {
           const db = open.result;
           window.libraryRetryBlocker = db;
@@ -154,7 +154,7 @@ async function blockedFixture(mobile = false, signedIn = false, localHint = fals
           if (signedIn) tx.objectStore(store).put(accountCopy, accountCopy.scope);
           if (localHint) localStorage.setItem('play100.online-requested.v1', 'yes');
           tx.oncomplete = () => resolve();
-          tx.onabort = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
         };
       }),
     { name: DB_NAME, store: STORE_NAME, key: STATE_KEY, saved, extra, signedIn, accountCopy, localHint },
@@ -189,13 +189,13 @@ async function readRows(page: Page, existing = false) {
           };
           tx.onabort = () => {
             if (!existing) db.close();
-            reject(tx.error);
+            reject(tx.error ?? new Error('IndexedDB operation failed'));
           };
         };
         if (existing) read(window.libraryRetryBlocker);
         else {
           const open = indexedDB.open(name);
-          open.onerror = () => reject(open.error);
+          open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
           open.onsuccess = () => read(open.result);
         }
       }),

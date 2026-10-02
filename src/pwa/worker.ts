@@ -167,7 +167,8 @@ export function parsePwaDocumentPolicy(input: unknown): PwaDocumentPolicy {
   }
   const names = new Set<string>();
   const headers: Array<{ name: string; value: string }> = [];
-  for (const entry of input.headers) {
+  const entries: unknown[] = input.headers;
+  for (const entry of entries) {
     if (
       !entry ||
       typeof entry !== 'object' ||
@@ -687,7 +688,7 @@ export function installPwaWorker(scope: PwaWorkerHost, manifest: PwaBuildManifes
       url.password ||
       input.headers.has('authorization') ||
       input.headers.has('range') ||
-      /^\/(?:api|__|data-use)(?:\/|$)/.test(url.pathname)
+      /^\/(?:api|__)(?:\/|$)/.test(url.pathname)
     )
       return;
     if (input.mode === 'navigate') {

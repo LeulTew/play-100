@@ -16,7 +16,7 @@ async function otherTabEdit(page: Page, uid: string, id: string) {
   await page.evaluate(
     async ({ uid, id }) => {
       const path = '/src/lib/scoped-library.ts';
-      const scoped: typeof import('../src/lib/scoped-library') = await import(path);
+      const scoped = (await import(path)) as typeof import('../src/lib/scoped-library');
       await scoped.commitScopedAction(`account:demo-play100:${uid}`, {
         type: 'rate-game',
         score: 7,
@@ -48,7 +48,7 @@ async function interceptCopyRead(
   await page.evaluate(
     async ({ uid, skip, outcome, id }) => {
       const path = '/src/lib/scoped-library.ts';
-      const scoped: typeof import('../src/lib/scoped-library') = await import(path);
+      const scoped = (await import(path)) as typeof import('../src/lib/scoped-library');
       const key = `account:demo-play100:${uid}`;
       const original = IDBObjectStore.prototype.get;
       let seen = 0;
@@ -84,8 +84,8 @@ async function sharedRankingCount(page: Page) {
   return page.evaluate(async () => {
     const clientPath = '/src/cloud/firebase-client.ts';
     const storePath = '/src/cloud/friend-all-store.ts';
-    const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
-    const all: typeof import('../src/cloud/friend-all-store') = await import(storePath);
+    const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
+    const all = (await import(storePath)) as typeof import('../src/cloud/friend-all-store');
     const uid = client.cloudAuth.currentUser?.uid;
     if (!uid) throw new Error('The synthetic account is not signed in.');
     return (await new all.FriendAllStore(client.cloudDb).head(uid, 'ranking'))?.count ?? null;
@@ -102,7 +102,7 @@ async function openRemoval(page: Page) {
 async function savePins(page: Page, scope: string) {
   await page.evaluate(async (scope) => {
     const path = '/src/lib/compare-tray.ts';
-    const tray: typeof import('../src/lib/compare-tray') = await import(path);
+    const tray = (await import(path)) as typeof import('../src/lib/compare-tray');
     const record = {
       id: 'manual:pinned',
       title: 'Pinned for comparison',

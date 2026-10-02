@@ -82,7 +82,7 @@ export async function saveGroup(
       name,
       participantUids,
       revision: expectedRevision + 1,
-      createdAt: snap.exists() ? snap.data().createdAt : serverTimestamp(),
+      createdAt: snap.exists() ? (snap.data().createdAt as unknown) : serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
     return null;

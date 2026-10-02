@@ -34,7 +34,7 @@ for (const scenario of [
           else localStorage.setItem(hintKey, hint);
           const open = indexedDB.open(name, version);
           open.onupgradeneeded = () => open.result.createObjectStore(store);
-          open.onerror = () => reject(open.error);
+          open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
           open.onsuccess = () => {
             const db = open.result;
             const tx = db.transaction(store, 'readwrite');
@@ -45,7 +45,7 @@ for (const scenario of [
             };
             tx.onabort = () => {
               db.close();
-              reject(tx.error);
+              reject(tx.error ?? new Error('IndexedDB operation failed'));
             };
           };
         }),

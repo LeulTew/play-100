@@ -23,7 +23,7 @@ export default async function warmDevelopmentApp(config: FullConfig) {
   let resources: { path: string; durationMs: number; serverWaitMs: number; type: string }[] = [];
   let browserServer: BrowserServer | undefined;
   let timeout: ReturnType<typeof setTimeout> | undefined;
-  let failure: unknown;
+  let failure: Error | undefined;
   const remaining = () => Math.max(1, budget - (performance.now() - started));
   console.info(JSON.stringify({ kind: 'DEV_WARMUP_START', startedAt, origin, budgetMs: budget }));
   const work = async () => {

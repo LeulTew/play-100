@@ -20,6 +20,13 @@ export const libraryRecords = [
 ].slice(0, 500);
 export const rankedRecords = libraryRecords.slice(0, 3);
 
+/** A fixture record by position; a shorter bundled collection fails here rather than as an undefined deep in a test. */
+export function libraryRecord(index: number) {
+  const record = libraryRecords[index];
+  if (!record) throw new Error(`The library fixture has no record at ${index}.`);
+  return record;
+}
+
 export function libraryFixture(total = 500): PersonalLibraryState {
   const records = libraryRecords.slice(0, total);
   const ranked = rankedRecords.filter((record) => records.some((candidate) => candidate.id === record.id));
@@ -58,7 +65,7 @@ export async function installGuestLibrary(page: Page, state = libraryFixture(), 
           throw new Error('Synthetic Library fixtures require a loopback origin.');
         const open = indexedDB.open(name, version);
         open.onupgradeneeded = () => open.result.createObjectStore(store);
-        open.onerror = () => reject(open.error);
+        open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
         open.onsuccess = () => {
           const db = open.result;
           const tx = db.transaction(store, 'readwrite');
@@ -69,7 +76,7 @@ export async function installGuestLibrary(page: Page, state = libraryFixture(), 
           };
           tx.onabort = () => {
             db.close();
-            reject(tx.error);
+            reject(tx.error ?? new Error('IndexedDB operation failed'));
           };
         };
       }),

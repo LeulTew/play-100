@@ -63,8 +63,8 @@ async function keepLegacyChoice(page: Page, uid: string) {
   await page.evaluate(async (uid) => {
     const clientPath = '/src/cloud/firebase-client.ts';
     const friendPath = '/src/cloud/friend-store.ts';
-    const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
-    const friends: typeof import('../src/cloud/friend-store') = await import(friendPath);
+    const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
+    const friends = (await import(friendPath)) as typeof import('../src/cloud/friend-store');
     if (client.cloudAuth.currentUser?.uid !== uid) throw new Error('The legacy fixture actor is not signed in.');
     const store = new friends.FriendStore(client.cloudDb);
     if (!(await store.settings(uid))) await store.initialize(uid);
@@ -80,10 +80,10 @@ async function populate(page: Page, actor: CohortActor): Promise<number> {
       const recordPath = '/src/lib/personal-types.ts';
       const libraryPath = '/src/lib/personal-library.ts';
       const scopedPath = '/src/lib/scoped-library.ts';
-      const collection: typeof import('../src/lib/collection') = await import(collectionPath);
-      const records: typeof import('../src/lib/personal-types') = await import(recordPath);
-      const library: typeof import('../src/lib/personal-library') = await import(libraryPath);
-      const scoped: typeof import('../src/lib/scoped-library') = await import(scopedPath);
+      const collection = (await import(collectionPath)) as typeof import('../src/lib/collection');
+      const records = (await import(recordPath)) as typeof import('../src/lib/personal-types');
+      const library = (await import(libraryPath)) as typeof import('../src/lib/personal-library');
+      const scoped = (await import(scopedPath)) as typeof import('../src/lib/scoped-library');
       type LibraryRecord = import('../src/lib/personal-types').LibraryRecord;
       const games = collection.parseCollection(await (await fetch('/data/collection.json')).json()).games;
       const response = await fetch('/data/discovery/catalog.v1.json');
@@ -151,9 +151,9 @@ async function saved(page: Page, actor: CohortActor, count: number): Promise<boo
       const clientPath = '/src/cloud/firebase-client.ts';
       const cloudPath = '/src/cloud/cloud-store.ts';
       const allPath = '/src/cloud/friend-all-store.ts';
-      const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
-      const cloud: typeof import('../src/cloud/cloud-store') = await import(cloudPath);
-      const all: typeof import('../src/cloud/friend-all-store') = await import(allPath);
+      const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
+      const cloud = (await import(cloudPath)) as typeof import('../src/cloud/cloud-store');
+      const all = (await import(allPath)) as typeof import('../src/cloud/friend-all-store');
       if (client.cloudAuth.currentUser?.uid !== uid) throw new Error('The fixture actor changed.');
       const store = new cloud.CloudStore(client.cloudDb, uid);
       const head = await store.head();
@@ -177,10 +177,10 @@ async function shareIdentity(page: Page, actor: CohortActor) {
       const socialPath = '/src/cloud/social-store.ts';
       const friendPath = '/src/cloud/friend-store.ts';
       const actionsPath = '/src/cloud/friend-page-actions.ts';
-      const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
-      const social: typeof import('../src/cloud/social-store') = await import(socialPath);
-      const friends: typeof import('../src/cloud/friend-store') = await import(friendPath);
-      const actions: typeof import('../src/cloud/friend-page-actions') = await import(actionsPath);
+      const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
+      const social = (await import(socialPath)) as typeof import('../src/cloud/social-store');
+      const friends = (await import(friendPath)) as typeof import('../src/cloud/friend-store');
+      const actions = (await import(actionsPath)) as typeof import('../src/cloud/friend-page-actions');
       const member = await new social.SocialStore(client.cloudDb).member(uid);
       if (!member || !client.cloudAuth.currentUser?.emailVerified)
         throw new Error('The fixture actor is not a verified member.');
@@ -269,8 +269,8 @@ async function saveGroups(browser: Browser, origin: string, owner: CohortActor, 
       async ({ uid, peerUids }) => {
         const clientPath = '/src/cloud/firebase-client.ts';
         const friendPath = '/src/cloud/friend-store.ts';
-        const client: typeof import('../src/cloud/firebase-client') = await import(clientPath);
-        const friends: typeof import('../src/cloud/friend-store') = await import(friendPath);
+        const client = (await import(clientPath)) as typeof import('../src/cloud/firebase-client');
+        const friends = (await import(friendPath)) as typeof import('../src/cloud/friend-store');
         if (client.cloudAuth.currentUser?.uid !== uid) throw new Error('The fixture owner is not signed in.');
         const store = new friends.FriendStore(client.cloudDb);
         const two = await store.saveGroup(uid, { name: 'QA B two people', participantUids: [uid, peerUids[0]!] }, 0);

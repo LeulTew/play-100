@@ -1,7 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
-import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecord, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
+
+type Box = Omit<DOMRectReadOnly, 'toJSON'>;
 
 for (const width of [1440, 393]) {
   for (const mode of ['full', 'lite'] as const) {
@@ -161,7 +163,7 @@ for (const viewport of [
       const pins = await page.evaluate(() => {
         const raw = localStorage.getItem('play100:compare-tray:v1:guest');
         if (!raw) throw new Error('Accepted table pins must be stored in the guest tray.');
-        return JSON.parse(raw).items.map((record: { id: string }) => record.id);
+        return (JSON.parse(raw) as { items: Array<{ id: string }> }).items.map((record: { id: string }) => record.id);
       });
       expect(pins).toEqual(libraryRecords.slice(0, 2).map((record) => record.id));
     });
@@ -200,13 +202,13 @@ for (const viewport of [
     const later = page
       .locator('.ratings-table tbody tr')
       .first()
-      .getByRole('button', { name: `Play later: ${libraryRecords[0].title}`, exact: true });
+      .getByRole('button', { name: `Play later: ${libraryRecord(0).title}`, exact: true });
     await later.scrollIntoViewIfNeeded();
     await expect(later).toHaveAttribute('aria-pressed', 'false');
     const before = await scrollport.evaluate((element) => ({
       height: element.getBoundingClientRect().height,
       horizontal: element.scrollLeft,
-      tray: document.querySelector('.ratings-tray-strip .compare-tray-dock')!.getBoundingClientRect().toJSON(),
+      tray: document.querySelector('.ratings-tray-strip .compare-tray-dock')!.getBoundingClientRect().toJSON() as Box,
     }));
     if (viewport.width === 393) expect(before.horizontal).toBeGreaterThan(0);
     const observation = await page.evaluateHandle(() => {
@@ -251,7 +253,7 @@ for (const viewport of [
     try {
       if (isMobile) await later.tap();
       else await later.click();
-      await expect(page.locator('.toast-visible')).toContainText(`${libraryRecords[0].title} added to Play later.`);
+      await expect(page.locator('.toast-visible')).toContainText(`${libraryRecord(0).title} added to Play later.`);
       const samples = await observation.evaluate((probe) => probe.finished);
       expect(samples.some((sample) => sample.running && sample.translated)).toBe(true);
       expect(
@@ -260,10 +262,10 @@ for (const viewport of [
       ).toBe(true);
       if (viewport.width === 1440) {
         expect(samples.every((sample) => Math.abs(sample.tableHeight - before.height) <= 1)).toBe(true);
-        expect(await tray.evaluate((element) => element.getBoundingClientRect().toJSON())).toEqual(before.tray);
+        expect(await tray.evaluate((element) => element.getBoundingClientRect().toJSON() as Box)).toEqual(before.tray);
       }
       await expect(later).toHaveAttribute('aria-pressed', 'true');
-      expect((await readLibrary(page)).progress[libraryRecords[0].id]?.later).toBe(true);
+      expect((await readLibrary(page)).progress[libraryRecord(0).id]?.later).toBe(true);
       expect(await tray.evaluate((element) => element.closest('.ratings-scroll'))).toBeNull();
       await page.getByRole('button', { name: 'Dismiss notification', exact: true }).click();
       await expect(page.locator('.toast-visible')).toHaveCount(0);

@@ -411,11 +411,62 @@ disabled. ServiceWorker-blocked timing tests are not offline evidence.
   a redirect, or a fallback HTML page. The Vercel configuration has no SPA
   catch-all; 404 is the required result. Publish only `dist`, not `.build-meta`.
 
-- Verify OS-level installation and launch/uninstall behavior with explicit user
-  consent; automation does not install an OS app.
+- With explicit owner consent, use the Windows OS companion below for real
+  Chrome installation, launch and uninstall. Its receipt covers only that OS
+  and Chrome version, not all platforms.
 - Check physical iOS Safari's Share/Add to Home Screen flow and offline launch.
   Chromium mobile emulation does not certify Safari or a physical device.
 - Exercise real multi-window/two-version update races and interrupted updates,
   including an unsubmitted form, failed save, changed scope and fresh edit
   after approval. The single-build offline spec does not manufacture an update
   or replace these campaigns; source mocks cover the guard logic separately.
+
+### Windows OS installation companion
+
+Run `npm run release:pwa-os -- --url https://play-100-collection.vercel.app`
+from a clean committed checkout on Windows with desktop Google Chrome installed.
+This is an opt-in **real OS mutation**, not browser install-prompt emulation:
+the experimental Chrome CDP `PWA` domain installs the production manifest ID
+`https://play-100-collection.vercel.app/`, reads `PWA.getOsAppState`, opens a
+standalone app target with `PWA.launch`, then calls `PWA.uninstall`. The companion
+explicitly selects `standalone` through `PWA.changeAppUserSettings` for this
+temporary installation; a DevTools install otherwise can launch in a browser tab.
+Chrome is launched through a locally owned debugging pipe, not a network CDP
+endpoint: Chrome restricts these OS-mutating commands to pipe clients with
+`AllowUnsafeOperations`. The normal Chrome sandbox stays enabled, and no real
+profile or pre-existing app preferences are changed.
+
+The companion always creates a temporary user-data directory; it never accepts
+an existing profile or signs in. It refuses an existing shortcut for the same
+app ID rather than risking an owner's installation. It verifies a new
+Start-menu shortcut belongs to the temporary profile, checks the actual app
+window's standalone display mode, root start URL and `The 100 | Play 100`
+title, then prepares offline files through the real Settings control.
+It closes Chrome, then restarts the temporary profile with browser-local DNS
+resolution disabled (`--host-resolver-rules=MAP * ~NOTFOUND`) before launching
+the OS app again. The check requires the app shell, its service-worker
+controller and a failed same-origin network-only API fetch. This is a cold
+browser restart with transport failure, **not a physical network disconnect**;
+`navigator.onLine` can remain true because the Windows network is unchanged.
+
+Uninstall must remove all matching Start-menu/desktop shortcuts and make a
+subsequent `PWA.launch` refuse the removed app. The owned Chrome process and
+profile are cleaned up; cleanup failure holds the result and preserves the
+profile for recovery, rather than erasing evidence of an OS registration.
+The script prints a redacted JSON receipt path and SHA-256 outside the repo.
+Keep failures too. A script or passing pure unit test is not OS-run evidence.
+
+The companion refuses to start while `%USERPROFILE%\.copilot\mizan-host.lock`
+exists or free RAM is below 6 GiB, and rechecks before install and relaunch.
+Only with explicit coordinator approval for a single-browser burst, set
+`PLAY100_OS_MIN_FREE_GIB=4`; the receipt records this threshold. The default
+remains six, and no other override is accepted.
+For a coordinator-reserved slot, acquire that file atomically with `CreateNew`;
+an unexpired lock owned by this lane is accepted only when its random `token`
+matches `PLAY100_HOST_LOCK_TOKEN` in the child environment. Never read another
+holder's token to bypass the lock, replace their file, or extend the agreed slot.
+Its work deadline is twelve minutes, reserving time for uninstall within a
+fifteen-minute host burst. Do not run alongside another foreground device job.
+Missing experimental CDP methods are a blocker, not permission to substitute
+an install-prompt test. The Chrome protocol specification is
+<https://chromedevtools.github.io/devtools-protocol/tot/PWA/>.

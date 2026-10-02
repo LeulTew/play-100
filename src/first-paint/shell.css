@@ -113,3 +113,6 @@ html[data-boot-art=ready] .first-paint-shell [data-shell-art]:not([data-shell-ar
 .p100-probe-display { font: 800 100px 'P100 DF Impact', 'P100 DF Arial', 'P100 DF Roboto', monospace; }
 .p100-probe-sans { font: 400 100px 'P100 Sans Fallback', 'P100 Sans Roboto', monospace; }
 .p100-probe-sans-bold { font: 700 100px 'P100 Sans Fallback', 'P100 Sans Roboto', monospace; }
+/* The web fonts themselves, once loaded, for the boot script's second check when the fallback faces fail. */
+.p100-probe-web { font-family: 'Hanken Grotesk Variable', monospace; }
+.p100-probe-web.p100-probe-display { font-family: 'Barlow Condensed', monospace; }

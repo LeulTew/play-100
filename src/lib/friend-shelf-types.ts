@@ -119,10 +119,10 @@ export function parseFriendShelfEntry(value: unknown): FriendShelfEntry {
   return {
     id,
     title: row.title,
-    year: row.year as number | null,
+    year: row.year,
     source: source as LibraryRecord['source'],
     sourceId,
-    sourceUrl: url as string | null,
+    sourceUrl: url,
   };
 }
 export function validateFriendShelfEntries(

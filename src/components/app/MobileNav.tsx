@@ -12,7 +12,7 @@ export interface MobileNavProps {
   pageHref: (page: AppPage) => string;
   onNavigateLink: (event: MouseEvent<HTMLAnchorElement>, page: AppPage) => void;
   onBrowseLink: (event: MouseEvent<HTMLAnchorElement>) => void;
-  onMenu: () => void;
+  onMenu: (opener?: HTMLElement) => void;
   onIntent?: (page: AppPage) => void;
 }
 
@@ -87,7 +87,7 @@ export function MobileNav({
           <span>Ranking</span>
         </a>
       )}
-      <button aria-haspopup="dialog" aria-expanded={menuOpen} onClick={onMenu}>
+      <button aria-haspopup="dialog" aria-expanded={menuOpen} onClick={(event) => onMenu(event.currentTarget)}>
         <Icon name="menu" width="20" height="20" />
         <span>Menu</span>
       </button>

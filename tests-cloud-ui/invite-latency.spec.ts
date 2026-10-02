@@ -35,7 +35,7 @@ test('measures first and warm invitation feedback and confirmed links with a 300
       .map((entry) => entry.name)
       .find((url) => new URL(url).pathname === '/src/cloud/friend-store.ts');
     if (!modulePath) throw new Error('The application FriendStore module was not loaded.');
-    const source: typeof import('../src/cloud/friend-store') = await import(modulePath);
+    const source = (await import(modulePath)) as typeof import('../src/cloud/friend-store');
     const originalInitialize = source.FriendStore.prototype.initialize;
     const originalIdentity = source.FriendStore.prototype.identity;
     const originalSettings = source.FriendStore.prototype.settings;

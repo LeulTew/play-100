@@ -10,6 +10,17 @@ updates:
       npm-minor-patch:
         patterns: ['*']
         update-types: [minor, patch]
+    ignore:
+      # Node 24 is the runtime (package.json engines), so its types stay on the
+      # same major. Move both together when the runtime changes.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+      # typescript-eslint 8 supports TypeScript below 6.1 and refuses to load
+      # with TypeScript 7, whose package also drops the compiler API that our
+      # source-contract scripts and tests use. Revisit when typescript-eslint
+      # supports TypeScript 7.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:

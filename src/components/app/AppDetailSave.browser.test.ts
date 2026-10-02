@@ -6,6 +6,7 @@ import path from 'node:path';
 import { createServer } from 'vite';
 import type { ViteDevServer } from 'vite';
 import { createFetchSafeViteServer } from '../../lib/test-server-ports';
+import { PERSONAL_RATING_DEBOUNCE_MS } from '../personal/PersonalRatingInput';
 
 declare global {
   interface Window {
@@ -100,12 +101,12 @@ describe("App's catalog-detail save", () => {
       await page.goto(`${origin}/my-games?game=${encodeURIComponent('manual:held')}`);
       const rating = page.getByRole('dialog').getByRole('spinbutton');
       await browserExpect(rating).toBeVisible({ timeout: 30_000 });
-      // Hold the field's 650 ms debounced save, so only the dialog's exit saves the draft.
-      await page.evaluate(() => {
+      // Hold the field's debounced save, so only the dialog's exit saves the draft.
+      await page.evaluate((debounceMs) => {
         const schedule = window.setTimeout.bind(window);
         window.setTimeout = ((handler: TimerHandler, timeout?: number, ...rest: unknown[]) =>
-          timeout === 650 ? 0 : schedule(handler, timeout, ...rest)) as typeof window.setTimeout;
-      });
+          timeout === debounceMs ? 0 : schedule(handler, timeout, ...rest)) as typeof window.setTimeout;
+      }, PERSONAL_RATING_DEBOUNCE_MS);
       await rating.fill('8.3');
       await page.evaluate(() => window.appDetailSave.signOutElsewhere());
       await browserExpect(rating).toHaveCount(0);

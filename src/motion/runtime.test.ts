@@ -21,7 +21,7 @@ function fixture(animate = true) {
     supported: vi.fn(() => true),
     hidden: () => snapshot.policy.hidden,
     now: () => 0,
-    subscribe: vi.fn((next) => {
+    subscribe: vi.fn((next: (reason: MotionCancelReason) => void) => {
       listener = next;
       return () => {
         listener = null;
@@ -91,7 +91,7 @@ describe('bounded optional motion sessions', () => {
 
   it('keeps active essential input interruptions available with optional animation off', () => {
     const { runtime, emit, update, environment, release } = fixture(false);
-    const interrupted = vi.fn();
+    const interrupted = vi.fn<(reason: MotionCancelReason) => void>();
     const unsubscribe = runtime.subscribeInterrupt(interrupted);
     expect(environment.subscribe).toHaveBeenCalledTimes(1);
     emit('resize');

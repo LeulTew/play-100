@@ -29,6 +29,8 @@ function readyPanelFromUrl(): AppPanel {
 
 export function useAppPanel(scope: string, opening: boolean) {
   const [panel, commit] = useState<AppPanel>(readyPanelFromUrl);
+  const panelOpener = useRef<HTMLElement | null>(null);
+  const getPanelOpener = useCallback(() => panelOpener.current, []);
   const [message, setMessage] = useState({ text: '', error: false });
   const [panelFailure, setPanelFailure] = useState<'about' | 'settings' | null>(null);
   const generation = useRef(0);
@@ -93,7 +95,8 @@ export function useAppPanel(scope: string, opening: boolean) {
     [loadPanel],
   );
   const setPanel = useCallback(
-    (next: AppPanel) => {
+    (next: AppPanel, opener?: HTMLElement) => {
+      if (next && !panel) panelOpener.current = opener ?? null;
       setPanelFromMenu(next === 'menu' || Boolean(next && panel && panelFromMenu));
       urlIntentActive.current = false;
       clearPanelIntent();
@@ -160,6 +163,7 @@ export function useAppPanel(scope: string, opening: boolean) {
   return {
     panel,
     setPanel,
+    getPanelOpener,
     panelMessage: message.text,
     panelMessageError: message.error,
     panelFailure,

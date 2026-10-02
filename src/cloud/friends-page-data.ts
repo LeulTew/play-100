@@ -47,7 +47,7 @@ interface AuxiliaryPage {
   pages: number;
   loading: boolean;
   ready: boolean;
-  error: unknown | null;
+  error: unknown;
 }
 
 function clearedAux(view: FriendsView, loading: boolean): AuxiliaryPage {

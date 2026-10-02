@@ -36,7 +36,7 @@ describe('distinct played/completed progress', () => {
     ['not-completed', [0, 1]],
   ] as const)('%s has the same truth table for canonical and external games', (view, indices) => {
     const progress = Object.fromEntries(
-      records.flatMap((record, index) => (values[index] ? [[record.id, values[index]!]] : [])),
+      records.flatMap((record, index) => (values[index] ? [[record.id, values[index]]] : [])),
     );
     const filters = { ...defaultFilters, progress: view };
     expect(filterGames(games, filters, progress).map((game) => game.slug)).toEqual(
@@ -51,7 +51,7 @@ describe('distinct played/completed progress', () => {
       collectionRank: null,
     }));
     const extras = Object.fromEntries(
-      external.flatMap((record, index) => (values[index] ? [[record.id, values[index]!]] : [])),
+      external.flatMap((record, index) => (values[index] ? [[record.id, values[index]]] : [])),
     );
     expect(filterUnranked(external, filters, extras).map((record) => record.id)).toEqual(
       indices.map((index) => external[index]!.id),
@@ -179,7 +179,7 @@ describe('distinct played/completed progress', () => {
 
 describe('Pick for me candidates', () => {
   const progress = Object.fromEntries(
-    records.flatMap((record, index) => (values[index] ? [[record.id, values[index]!]] : [])),
+    records.flatMap((record, index) => (values[index] ? [[record.id, values[index]]] : [])),
   );
   const picked = (patch: Partial<Filters>) => {
     const filters = { ...defaultFilters, ...patch };

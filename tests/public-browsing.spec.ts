@@ -7,7 +7,11 @@ import { canonicalCatalogId } from '../src/lib/catalog-identity';
 import { readLibrary } from './library-helpers';
 import { openBrowsingFilters } from './browsing-helpers';
 
-const rawSeed = JSON.parse(readFileSync(new URL('../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8'));
+type Box = Omit<DOMRectReadOnly, 'toJSON'>;
+
+const rawSeed: unknown = JSON.parse(
+  readFileSync(new URL('../public/data/discovery/catalog.v1.json', import.meta.url), 'utf8'),
+);
 const seed = parseDiscoveryCatalog(rawSeed);
 const credited = seed.items.find(
   (item) => item.artwork && item.artwork.credit.length > 200 && canonicalCatalogId(item.record.id) === item.record.id,
@@ -232,7 +236,7 @@ test('a pending page intent cannot replace a newer Back navigation after its del
       .map((entry) => entry.name)
       .findLast((value) => new URL(value).pathname === path);
     if (!loaded) throw new Error('The active app editor registry was not loaded.');
-    const { registerPendingEditor }: typeof import('../src/hooks/useExitSave') = await import(loaded);
+    const { registerPendingEditor } = (await import(loaded)) as typeof import('../src/hooks/useExitSave');
     let pending = true;
     const flush = new Promise<boolean>((resolve) => {
       window.releaseBrowsingNavigation = () => {
@@ -284,8 +288,8 @@ test('short targets and horizontal table scrolling retain a compact visible orig
       .evaluate((element) => {
         const region = document.querySelector('.ratings-scroll')!;
         return {
-          identity: element.getBoundingClientRect().toJSON(),
-          region: region.getBoundingClientRect().toJSON(),
+          identity: element.getBoundingClientRect().toJSON() as Box,
+          region: region.getBoundingClientRect().toJSON() as Box,
           inlineRank: element.querySelector('.table-inline-rank')!.textContent,
         };
       });
@@ -437,21 +441,22 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
             .filter((rect) => rect.bottom > rect.top && rect.right > rect.left);
         }
         return {
-          title: title.toJSON(),
+          title: title.toJSON() as Box,
           focus: {
             tag: focused?.tagName,
             id: focused?.id,
             text: focused?.textContent,
-            bounds: bounds?.toJSON(),
+            bounds: bounds?.toJSON() as Box | undefined,
             visibleHeight: Math.max(
               0,
               ...visible.filter((rect) => rect.right > rect.left).map((rect) => rect.bottom - rect.top),
             ),
           },
-          nav: document.querySelector('.mobile-nav')!.getBoundingClientRect().toJSON(),
-          dock: document.querySelector('.compare-tray-dock')?.getBoundingClientRect().toJSON() ?? null,
-          header: document.querySelector('.site-header')!.getBoundingClientRect().toJSON(),
-          collection: document.querySelector('#collection')!.getBoundingClientRect().toJSON(),
+          nav: document.querySelector('.mobile-nav')!.getBoundingClientRect().toJSON() as Box,
+          dock:
+            (document.querySelector('.compare-tray-dock')?.getBoundingClientRect().toJSON() as Box | undefined) ?? null,
+          header: document.querySelector('.site-header')!.getBoundingClientRect().toJSON() as Box,
+          collection: document.querySelector('#collection')!.getBoundingClientRect().toJSON() as Box,
           hits,
           coarse: matchMedia('(pointer: coarse)').matches,
           touch: navigator.maxTouchPoints,
@@ -520,9 +525,9 @@ test('a pinned tray leaves the first explored game identity unobscured at 320px 
   expect(await readLibrary(page)).toEqual(before);
   expect(
     await page.evaluate(() =>
-      JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? '{}').items.map(
-        (record: { id: string }) => record.id,
-      ),
+      (
+        JSON.parse(localStorage.getItem('play100:compare-tray:v1:guest') ?? '{}') as { items: Array<{ id: string }> }
+      ).items.map((record: { id: string }) => record.id),
     ),
   ).toEqual([pinnedGame.id]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -560,8 +565,8 @@ test('batched desktop and mobile pixels keep games before secondary filters and 
       await page.getByRole('link', { name: 'Explore all 100', exact: true }).click();
       const first = page.locator('.game-card h3').first();
       const result = await first.evaluate((element) => ({
-        identity: element.getBoundingClientRect().toJSON(),
-        nav: document.querySelector('.mobile-nav')!.getBoundingClientRect().toJSON(),
+        identity: element.getBoundingClientRect().toJSON() as Box,
+        nav: document.querySelector('.mobile-nav')!.getBoundingClientRect().toJSON() as Box,
         width: innerWidth,
         documentWidth: document.documentElement.scrollWidth,
         coarsePointer: matchMedia('(pointer: coarse)').matches,

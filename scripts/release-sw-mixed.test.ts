@@ -58,7 +58,7 @@ describe('mixed-version phase acceptance', () => {
     [
       'unrelated handle closes',
       (facts: ReturnType<typeof mixedFacts>) => {
-        facts.events[2].connection = 1;
+        facts.events[2]!.connection = 1;
       },
     ],
     [
@@ -175,12 +175,12 @@ describe('native connection observer', () => {
       db = await new Promise<IDBDatabase>((resolve, reject) => {
         const request = factory.open('play100-personal', 2);
         request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(request.error ?? new Error('IndexedDB operation failed'));
       });
       const request = factory.open('play100-personal', 3);
       const upgraded = new Promise<IDBDatabase>((resolve, reject) => {
         request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(request.error ?? new Error('IndexedDB operation failed'));
       });
       await new Promise<void>((resolve) => {
         request.onblocked = () => resolve();

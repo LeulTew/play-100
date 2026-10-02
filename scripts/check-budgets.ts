@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { Parser } from 'htmlparser2';
-import { isRecord as object } from '../src/lib/guards.js';
+import { isRecord as object, isStringArray as strings } from '../src/lib/guards.js';
 import {
   assertPublicBuildOutput,
   assertPublicPrecachePaths,
@@ -282,8 +282,7 @@ export function routeFiles(
     files.add(localFile(`/${chunk.file}`));
     for (const field of ['imports', 'css'] as const) {
       const values = chunk[field] ?? [];
-      if (!Array.isArray(values) || values.some((value) => typeof value !== 'string'))
-        throw new Error(`Invalid Vite ${field}: ${key}`);
+      if (!strings(values)) throw new Error(`Invalid Vite ${field}: ${key}`);
       for (const value of values) {
         if (field === 'imports') visit(value);
         else files.add(localFile(`/${value}`));
@@ -368,8 +367,7 @@ export async function measureBuild(
     eagerFiles.add(localFile(`/${chunk.file}`));
     for (const field of ['imports', 'css'] as const) {
       const values = chunk[field] ?? [];
-      if (!Array.isArray(values) || values.some((value) => typeof value !== 'string'))
-        throw new Error(`Invalid Vite ${field}: ${key}`);
+      if (!strings(values)) throw new Error(`Invalid Vite ${field}: ${key}`);
       for (const value of values) {
         if (field === 'imports') visit(value);
         else eagerFiles.add(localFile(`/${value}`));

@@ -89,9 +89,9 @@ test('corrupt account cache does not trap sign-out or prevent a network-only acc
             db.close();
             resolve();
           };
-          tx.onabort = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error ?? new Error('IndexedDB operation failed'));
         };
-        open.onerror = () => reject(open.error);
+        open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
       }),
     { key: `account:demo-play100:${uid}`, name: DB_NAME, version: DB_VERSION },
   );

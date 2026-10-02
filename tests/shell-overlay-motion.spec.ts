@@ -42,7 +42,7 @@ async function seedGuest(page: Page, motion: MotionPreference = 'full') {
       new Promise<void>((resolve, reject) => {
         const open = indexedDB.open(name, version);
         open.onupgradeneeded = () => open.result.createObjectStore(store);
-        open.onerror = () => reject(open.error);
+        open.onerror = () => reject(open.error ?? new Error('IndexedDB operation failed'));
         open.onsuccess = () => {
           const db = open.result;
           const transaction = db.transaction(store, 'readwrite');
@@ -53,7 +53,7 @@ async function seedGuest(page: Page, motion: MotionPreference = 'full') {
           };
           transaction.onabort = () => {
             db.close();
-            reject(transaction.error);
+            reject(transaction.error ?? new Error('IndexedDB operation failed'));
           };
         };
       }),

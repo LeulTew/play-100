@@ -236,7 +236,7 @@ export class FriendStore {
           ...(cursor ? [startAfter(cursor)] : []),
           limit(20),
         ),
-      ).catch((cause) => {
+      ).catch((cause: unknown) => {
         if (cause && typeof cause === 'object' && 'code' in cause && cause.code === 'failed-precondition') {
           throw new FriendStoreError('limit', 'Connection cleanup is not ready yet. Try again later.');
         }

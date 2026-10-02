@@ -7,13 +7,13 @@ export async function readLibrary(page: Page): Promise<PersonalLibraryState> {
     ({ name, version, store, key }) =>
       new Promise<PersonalLibraryState>((resolve, reject) => {
         const request = indexedDB.open(name, version);
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(request.error ?? new Error('IndexedDB operation failed'));
         request.onsuccess = () => {
           const database = request.result;
           const transaction = database.transaction(store, 'readonly');
           const get = transaction.objectStore(store).get(key);
           get.onsuccess = () => resolve(get.result as PersonalLibraryState);
-          get.onerror = () => reject(get.error);
+          get.onerror = () => reject(get.error ?? new Error('IndexedDB operation failed'));
           transaction.oncomplete = () => database.close();
         };
       }),

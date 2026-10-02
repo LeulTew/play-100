@@ -23,6 +23,8 @@ interface DialogProps {
   children: ReactNode;
   className?: string;
   getReturnFocus?: () => HTMLElement | null;
+  getOpener?: () => HTMLElement | null;
+  getFallbackFocus?: () => HTMLElement | null;
   motion?: false | DialogMotionOptions;
 }
 
@@ -34,6 +36,8 @@ export function Dialog({
   children,
   className = '',
   getReturnFocus,
+  getOpener,
+  getFallbackFocus,
   motion,
 }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -45,10 +49,12 @@ export function Dialog({
   const latestMotion = useRef(motion);
   const motionDisabled = motion === false;
   const returnFocus = useRef(getReturnFocus);
+  const openerFocus = useRef({ getOpener, getFallbackFocus });
   useLayoutEffect(() => {
     latestMotion.current = motion;
     returnFocus.current = getReturnFocus;
-  }, [motion, getReturnFocus]);
+    openerFocus.current = { getOpener, getFallbackFocus };
+  }, [motion, getReturnFocus, getOpener, getFallbackFocus]);
   useLayoutEffect(() => {
     const current = visual;
     return () => {
@@ -62,6 +68,7 @@ export function Dialog({
     const dialog = ref.current;
     if (!dialog || !open) return;
     const previousFocus = document.activeElement;
+    const opener = openerFocus.current.getOpener?.() ?? null;
     const focusTarget = dialog.querySelector<HTMLElement>('[data-autofocus]');
     const unlock = showLockedDialog(dialog, focusTarget);
     const releaseLayer = registerDialogLayer(dialog, layer, previousFocus);
@@ -87,17 +94,21 @@ export function Dialog({
       let target: HTMLElement | null;
       if (reveal) target = preferred;
       else if (foreground && focused instanceof HTMLElement && canReturnTo(focused)) target = focused;
+      else if (canReturnTo(opener)) target = opener;
       else if (previousFocus instanceof HTMLElement && previousFocus !== document.body && canReturnTo(previousFocus))
         target = previousFocus;
       else {
         fallback = true;
-        target = foreground
-          ? ([...foreground.querySelectorAll<HTMLElement>('[data-autofocus]')].find(canReturnTo) ?? foreground)
-          : ([
-              ...document.querySelectorAll<HTMLElement>(
-                '[data-page-heading][tabindex], #collection-title[tabindex], main h1[tabindex]',
-              ),
-            ].find(canReturnTo) ?? visibleMenuTrigger());
+        const linkedTarget = openerFocus.current.getFallbackFocus?.() ?? null;
+        target = canReturnTo(linkedTarget)
+          ? linkedTarget
+          : foreground
+            ? ([...foreground.querySelectorAll<HTMLElement>('[data-autofocus]')].find(canReturnTo) ?? foreground)
+            : ([
+                ...document.querySelectorAll<HTMLElement>(
+                  '[data-page-heading][tabindex], #collection-title[tabindex], main h1[tabindex]',
+                ),
+              ].find(canReturnTo) ?? visibleMenuTrigger());
       }
       releaseLayer();
       dialog.close();

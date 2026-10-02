@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
+import { installGuestLibrary, libraryFixture, libraryRecord } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 
 type Shortcut = 'header Play later' | 'ranked detail';
-const game = libraryRecords[0]!;
+const game = libraryRecord(0);
 
 async function openShortcut(page: Page, shortcut: Shortcut) {
   await installGuestLibrary(page, libraryFixture(3));

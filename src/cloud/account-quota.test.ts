@@ -14,7 +14,7 @@ describe('bounded account product limits', () => {
     'counts every visible %s record, including legacy, before allowing creation',
     async (kind) => {
       const limit = ACCOUNT_LIMITS[kind];
-      const read = vi.fn(async (cursor = 0) => {
+      const read = vi.fn(async (cursor: number = 0) => {
         const size = Math.min(20, limit - cursor);
         return {
           items: Array.from({ length: size }, (_, index) => ({ id: cursor + index, legacy: index % 2 === 0 })),

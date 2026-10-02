@@ -59,7 +59,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   const results = await Promise.allSettled([browser?.close(), server?.close()]);
-  const failures = results.filter((result) => result.status === 'rejected').map((result) => result.reason);
+  const failures = results.filter((result) => result.status === 'rejected').map((result): unknown => result.reason);
   if (failures.length) throw new AggregateError(failures, 'Friend actions fixture cleanup failed.');
 }, 60_000);
 

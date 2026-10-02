@@ -46,7 +46,10 @@ export async function releaseSwProbe(inputFile: string) {
   const sourceIdentity = async () =>
     Object.fromEntries(
       await Promise.all(
-        sourceFiles.map(async (file) => [file, hash(await readFile(path.join(repository, 'scripts', file)))]),
+        sourceFiles.map(async (file): Promise<[string, string]> => [
+          file,
+          hash(await readFile(path.join(repository, 'scripts', file))),
+        ]),
       ),
     );
   const runner = {
@@ -196,7 +199,7 @@ export async function releaseSwProbe(inputFile: string) {
     let page = context.pages()[0] ?? (await context.newPage()),
       events = track(page);
     receipt.phases.browser = await (async () => {
-      const cdp = await context!.newCDPSession(page);
+      const cdp = await context.newCDPSession(page);
       try {
         return await cdp.send('Browser.getVersion');
       } finally {
@@ -215,7 +218,7 @@ export async function releaseSwProbe(inputFile: string) {
     await page.waitForFunction(
       async () => {
         const registrations = await navigator.serviceWorker.getRegistrations();
-        return registrations.length === 1 && registrations[0].active?.state === 'activated';
+        return registrations.length === 1 && registrations[0]?.active?.state === 'activated';
       },
       undefined,
       { timeout: 60000 },
@@ -388,13 +391,13 @@ export async function releaseSwProbe(inputFile: string) {
     try {
       await context?.close();
     } catch (error) {
-      receipt.errors.push(`Browser cleanup: ${error}`);
+      receipt.errors.push(`Browser cleanup: ${String(error)}`);
     }
     try {
       await stopServer();
       receipt.checks.serverStopped = true;
     } catch (error) {
-      receipt.errors.push(`Server cleanup: ${error}`);
+      receipt.errors.push(`Server cleanup: ${String(error)}`);
     }
     receipt.phases.servers = servers.map(({ requests, errors }) => ({ requests, errors }));
     for (const item of servers) receipt.errors.push(...item.errors);
@@ -407,7 +410,7 @@ export async function releaseSwProbe(inputFile: string) {
         hash(await readFile(inputFile)) === hash(inputBytes) &&
         JSON.stringify(await sourceIdentity()) === JSON.stringify(runner.files);
     } catch (error) {
-      receipt.errors.push(`Evidence changed: ${error}`);
+      receipt.errors.push(`Evidence changed: ${String(error)}`);
     }
     const failedChecks = failedSwChecks(receipt.checks);
     const result = {

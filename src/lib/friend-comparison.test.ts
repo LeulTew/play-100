@@ -88,7 +88,7 @@ function reject(input: unknown) {
 
 function deepFreeze<T>(value: T): T {
   if (value && typeof value === 'object') {
-    Object.values(value).forEach((child) => deepFreeze(child));
+    (Object.values(value) as unknown[]).forEach((child) => deepFreeze(child));
     Object.freeze(value);
   }
   return value;

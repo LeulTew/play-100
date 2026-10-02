@@ -73,7 +73,7 @@ async function closeFromEnd(page: Page, dialog: Locator, opener: Locator) {
 }
 
 for (const pins of [0, 6]) {
-  test(`320x640 deep-link close reveals fallback focus above navigation with ${pins} pins`, async ({
+  test(`320x640 deep-link close reveals its card above navigation with ${pins} pins`, async ({
     page,
     baseURL,
     isMobile,
@@ -97,13 +97,13 @@ for (const pins of [0, 6]) {
     expect(await page.evaluate(() => scrollY)).toBe(0);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
-    const heading = page.locator('#collection-title');
+    const heading = page.locator('.game-card[data-game="portal-2"] .game-link');
     await expect(heading).toBeFocused();
     await expect(page.locator('.compare-tray-dock')).toHaveCount(pins ? 1 : 0);
     const geometry = await heading.evaluate((element) => {
       const bounds = element.getBoundingClientRect();
       return {
-        heading: bounds.toJSON(),
+        heading: { top: bounds.top, bottom: bounds.bottom },
         headerBottom: document.querySelector('.site-header')!.getBoundingClientRect().bottom,
         navTop: document.querySelector('.mobile-nav')!.getBoundingClientRect().top,
         uncovered: element.contains(

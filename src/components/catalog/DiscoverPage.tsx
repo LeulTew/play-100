@@ -52,7 +52,7 @@ export default function DiscoverPage({
   onAction: (action: PersonalAction) => Promise<boolean>;
   onLibrary: () => void;
   onCommunity?: () => void;
-  onPreview?: (record: LibraryRecord, origin?: MotionOriginHint) => void;
+  onPreview?: (record: LibraryRecord, origin?: MotionOriginHint, opener?: HTMLElement) => void;
   onPin?: (record: LibraryRecord) => void;
   pinnedIds?: ReadonlySet<string>;
 }) {
@@ -240,7 +240,7 @@ export default function DiscoverPage({
                       )
                         return;
                       event.preventDefault();
-                      onPreview(record);
+                      onPreview(record, undefined, event.currentTarget);
                     }}
                   >
                     {record.title}
