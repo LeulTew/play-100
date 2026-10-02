@@ -6,17 +6,23 @@ import { ChunkRecovery } from './ChunkRecovery';
 import { ChunkBoundary } from './ChunkBoundary';
 import { extendedResultCount } from '../lib/extended-search';
 
+/**
+ * When a deferred section asks for its module: at once; once it nears the viewport; or only once it is used (focus
+ * inside it, a film to watch), never because a scroll passes it.
+ */
+export type LoadTrigger = 'now' | 'near' | 'use';
+
 export function DeferredCollection({
   input,
-  near = false,
+  load = 'now',
   onReady,
 }: {
   input: CollectionExtrasProps;
-  near?: boolean;
+  load?: LoadTrigger;
   onReady?: () => void;
 }) {
   const [module, setModule] = useState(collectionExtrasModule.peek);
-  const [requested, setRequested] = useState(!near);
+  const [requested, setRequested] = useState(load === 'now');
   const [failed, setFailed] = useState(false);
   const [film, setFilm] = useState<'the-100' | 'discover-compare'>();
   const root = useRef<HTMLDivElement>(null);
@@ -24,9 +30,10 @@ export function DeferredCollection({
   const pendingSearch = useRef<{ queryKey: string; trigger: HTMLButtonElement; activate: boolean } | null>(null);
   const ready = input.kind !== 'films' || input.props.postersReady;
   // Without IntersectionObserver a nearby section cannot wait to be near, so it asks for its tools once it is ready.
-  if (ready && !requested && !module && typeof IntersectionObserver === 'undefined') setRequested(true);
+  if (load === 'near' && ready && !requested && !module && typeof IntersectionObserver === 'undefined')
+    setRequested(true);
   useEffect(() => {
-    if (!ready || requested || module || !root.current) return;
+    if (load !== 'near' || !ready || requested || module || !root.current) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
@@ -38,7 +45,7 @@ export function DeferredCollection({
     );
     observer.observe(root.current);
     return () => observer.disconnect();
-  }, [ready, requested, module, near]);
+  }, [ready, requested, module, load]);
   useEffect(() => {
     if (!requested || module) return;
     let current = true;

@@ -30,6 +30,20 @@ it('reserves the exact film listing text and frames without loading movies or ar
   expect(onWatch).not.toHaveBeenCalled();
 });
 
+it.each([
+  ['now', 'true'],
+  // Without IntersectionObserver, as here, a nearby section cannot wait to be near and asks at once.
+  ['near', 'true'],
+  // A constrained device's films wait for use, observer or not: a scroll past them asks for nothing (CollectionPage).
+  ['use', 'false'],
+] as const)('asks for the films module %s: first busy %s', (load, busy) => {
+  const html = renderToStaticMarkup(
+    createElement(DeferredCollection, { load, input: { kind: 'films', props: { postersReady: true } } }),
+  );
+  expect(html).toContain(`aria-busy="${busy}"`);
+  expect(html).toContain('<ul class="films-list">');
+});
+
 it('keeps one identical visible rating note before and after the table loads', () => {
   const props: ComponentProps<typeof RatingsTable> = {
     games: [],
