@@ -34,7 +34,10 @@ test('the current engine prepares offline through Settings and reloads the colle
   const ready = settings.getByRole('button', { name: 'Offline files ready', exact: true });
   await expect(ready).toBeVisible({ timeout: 45000 });
   await expect(ready).toHaveAttribute('aria-disabled', 'true');
-  await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+  // Preparation does not claim the already-open document; the next navigation gets the active worker.
+  await expect
+    .poll(() => page.evaluate(async () => (await navigator.serviceWorker.getRegistration('/'))?.active?.state))
+    .toBe('activated');
   await page.keyboard.press('Escape');
   await context.setOffline(true);
   try {
