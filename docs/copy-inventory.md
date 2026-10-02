@@ -6,7 +6,7 @@ The unit-test gate regenerates this inventory and rejects stale content or sourc
 
 ## Scope and reading convention
 
-Scanned 384 production TS/TSX/JS files and standalone HTML fallbacks; 3783 source entries.
+Scanned 385 production TS/TSX/JS files and standalone HTML fallbacks; 3787 source entries.
 This is a deliberately inclusive inventory of rendered text, accessible labels,
 message outputs, message constants and validation/error strings. It includes the
 Discover help/source notes, Settings/backups/PWA, empty states, confirmations,
@@ -2518,68 +2518,70 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/CollectionExtrasFallback.tsx:19](../src/components/CollectionExtrasFallback.tsx#L19) | Message/fragment | Rank | columns(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:20](../src/components/CollectionExtrasFallback.tsx#L20) | Message/fragment | Game | columns(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:21](../src/components/CollectionExtrasFallback.tsx#L21) | Message/fragment | Year | columns(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:24](../src/components/CollectionExtrasFallback.tsx#L24) | Message/fragment | Average | columns(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:28](../src/components/CollectionExtrasFallback.tsx#L28) | Live region | Loading ratings table… | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:32](../src/components/CollectionExtrasFallback.tsx#L32) | Rendered copy | ${author.shortName}'s rank-based workbook ratings are separate from critic scores. — means unavailable. Critic averages include both Metacritic columns. Edit your own ratings in My games → Ranking. | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:35](../src/components/CollectionExtrasFallback.tsx#L35) | Rendered copy | My games → Ranking | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:51](../src/components/CollectionExtrasFallback.tsx#L51) | Rendered copy | ${label} ${scale &amp;&amp; &lt;small&gt;{scale}&lt;/small&gt;} | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:53](../src/components/CollectionExtrasFallback.tsx#L53) | Rendered copy | ${scale} | TableFallback(); scale &amp;&amp; |
-| [src/components/CollectionExtrasFallback.tsx:79](../src/components/CollectionExtrasFallback.tsx#L79) | Rendered copy | #${String(game.rank).padStart(2, '0')} | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:80](../src/components/CollectionExtrasFallback.tsx#L80) | Rendered copy | ${game.title} | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:82](../src/components/CollectionExtrasFallback.tsx#L82) | Rendered copy | ${game.genre} · ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:99](../src/components/CollectionExtrasFallback.tsx#L99) | Rendered copy | Played | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:101](../src/components/CollectionExtrasFallback.tsx#L101) | Rendered copy | Completed | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:136](../src/components/CollectionExtrasFallback.tsx#L136) | Live region | Loading additional games… | ExtendedFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:145](../src/components/CollectionExtrasFallback.tsx#L145) | Rendered copy | ${record.year ?? 'Game'} | ExtendedFallback(); !online.artwork.has(record.id) &amp;&amp; |
-| [src/components/CollectionExtrasFallback.tsx:145](../src/components/CollectionExtrasFallback.tsx#L145) | Message/fragment | Game | ExtendedFallback(); !online.artwork.has(record.id) &amp;&amp;; record.year ?? |
-| [src/components/CollectionExtrasFallback.tsx:146](../src/components/CollectionExtrasFallback.tsx#L146) | Rendered copy | Artwork unavailable | ExtendedFallback(); !online.artwork.has(record.id) &amp;&amp; |
-| [src/components/CollectionExtrasFallback.tsx:152](../src/components/CollectionExtrasFallback.tsx#L152) | Rendered copy | ${record.title} | ExtendedFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:154](../src/components/CollectionExtrasFallback.tsx#L154) | Rendered copy | ${[record.year, catalogGenreLabel(record)].filter((value) =&gt; value !== null).join(' · ') &#124;&#124; 'Game'} | ExtendedFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:155](../src/components/CollectionExtrasFallback.tsx#L155) | Message/fragment | Game | ExtendedFallback(); [record.year, catalogGenreLabel(record)].filter((value) =&gt; value !== null).join(' · ') &#124;&#124; |
-| [src/components/CollectionExtrasFallback.tsx:158](../src/components/CollectionExtrasFallback.tsx#L158) | Rendered copy | ${state.records[record.id] ? 'In My games' : 'Add to My games'} | ExtendedFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:160](../src/components/CollectionExtrasFallback.tsx#L160) | Message/fragment | Add to My games | ExtendedFallback(); state.records[record.id] is false |
-| [src/components/CollectionExtrasFallback.tsx:160](../src/components/CollectionExtrasFallback.tsx#L160) | Message/fragment | In My games | ExtendedFallback(); state.records[record.id] is true |
-| [src/components/CollectionExtrasFallback.tsx:163](../src/components/CollectionExtrasFallback.tsx#L163) | Rendered copy | Pin | ExtendedFallback(); onPin &amp;&amp; |
-| [src/components/CollectionExtrasFallback.tsx:170](../src/components/CollectionExtrasFallback.tsx#L170) | Rendered copy | More actions | ExtendedFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:178](../src/components/CollectionExtrasFallback.tsx#L178) | Rendered copy | Search online | ExtendedFallback(); online.eligible &amp;&amp; !online.remoteEnabled &amp;&amp; |
-| [src/components/CollectionExtrasFallback.tsx:188](../src/components/CollectionExtrasFallback.tsx#L188) | Rendered copy | Loading additional games… | ExtendedFallback(); !records.length &amp;&amp; |
-| [src/components/CollectionExtrasFallback.tsx:194](../src/components/CollectionExtrasFallback.tsx#L194) | Message/fragment | The original order, ratings and workbook. | filmSummaries(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:198](../src/components/CollectionExtrasFallback.tsx#L198) | Message/fragment | Find games, pin a shortlist and compare shared rankings. | filmSummaries(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:216](../src/components/CollectionExtrasFallback.tsx#L216) | Rendered copy | ${film.title} | FilmsFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:217](../src/components/CollectionExtrasFallback.tsx#L217) | Rendered copy | ${film.description} | FilmsFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:218](../src/components/CollectionExtrasFallback.tsx#L218) | Rendered copy | 0:22 · Watch film | FilmsFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:20](../src/components/CollectionExtrasFallback.tsx#L20) | Message/fragment | Rank | columns(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:21](../src/components/CollectionExtrasFallback.tsx#L21) | Message/fragment | Game | columns(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:22](../src/components/CollectionExtrasFallback.tsx#L22) | Message/fragment | Year | columns(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:25](../src/components/CollectionExtrasFallback.tsx#L25) | Message/fragment | Average | columns(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:29](../src/components/CollectionExtrasFallback.tsx#L29) | Live region | Loading ratings table… | TableFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:33](../src/components/CollectionExtrasFallback.tsx#L33) | Rendered copy | ${author.shortName}'s rank-based workbook ratings are separate from critic scores. — means unavailable. Critic averages include both Metacritic columns. Edit your own ratings in My games → Ranking. | TableFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:36](../src/components/CollectionExtrasFallback.tsx#L36) | Rendered copy | My games → Ranking | TableFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:52](../src/components/CollectionExtrasFallback.tsx#L52) | Rendered copy | ${label} ${scale &amp;&amp; &lt;small&gt;{scale}&lt;/small&gt;} | TableFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:54](../src/components/CollectionExtrasFallback.tsx#L54) | Rendered copy | ${scale} | TableFallback(); scale &amp;&amp; |
+| [src/components/CollectionExtrasFallback.tsx:80](../src/components/CollectionExtrasFallback.tsx#L80) | Rendered copy | #${String(game.rank).padStart(2, '0')} | TableFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:81](../src/components/CollectionExtrasFallback.tsx#L81) | Rendered copy | ${game.title} | TableFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:83](../src/components/CollectionExtrasFallback.tsx#L83) | Rendered copy | ${game.genre} · ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | TableFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:100](../src/components/CollectionExtrasFallback.tsx#L100) | Rendered copy | Played | TableFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:102](../src/components/CollectionExtrasFallback.tsx#L102) | Rendered copy | Completed | TableFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:137](../src/components/CollectionExtrasFallback.tsx#L137) | Live region | Loading additional games… | ExtendedFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:146](../src/components/CollectionExtrasFallback.tsx#L146) | Rendered copy | ${record.year ?? 'Game'} | ExtendedFallback(); !online.artwork.has(record.id) &amp;&amp; |
+| [src/components/CollectionExtrasFallback.tsx:146](../src/components/CollectionExtrasFallback.tsx#L146) | Message/fragment | Game | ExtendedFallback(); !online.artwork.has(record.id) &amp;&amp;; record.year ?? |
+| [src/components/CollectionExtrasFallback.tsx:147](../src/components/CollectionExtrasFallback.tsx#L147) | Rendered copy | Artwork unavailable | ExtendedFallback(); !online.artwork.has(record.id) &amp;&amp; |
+| [src/components/CollectionExtrasFallback.tsx:153](../src/components/CollectionExtrasFallback.tsx#L153) | Rendered copy | ${record.title} | ExtendedFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:155](../src/components/CollectionExtrasFallback.tsx#L155) | Rendered copy | ${[record.year, catalogGenreLabel(record)].filter((value) =&gt; value !== null).join(' · ') &#124;&#124; 'Game'} | ExtendedFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:156](../src/components/CollectionExtrasFallback.tsx#L156) | Message/fragment | Game | ExtendedFallback(); [record.year, catalogGenreLabel(record)].filter((value) =&gt; value !== null).join(' · ') &#124;&#124; |
+| [src/components/CollectionExtrasFallback.tsx:159](../src/components/CollectionExtrasFallback.tsx#L159) | Rendered copy | ${state.records[record.id] ? 'In My games' : 'Add to My games'} | ExtendedFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:161](../src/components/CollectionExtrasFallback.tsx#L161) | Message/fragment | Add to My games | ExtendedFallback(); state.records[record.id] is false |
+| [src/components/CollectionExtrasFallback.tsx:161](../src/components/CollectionExtrasFallback.tsx#L161) | Message/fragment | In My games | ExtendedFallback(); state.records[record.id] is true |
+| [src/components/CollectionExtrasFallback.tsx:164](../src/components/CollectionExtrasFallback.tsx#L164) | Rendered copy | Pin | ExtendedFallback(); onPin &amp;&amp; |
+| [src/components/CollectionExtrasFallback.tsx:171](../src/components/CollectionExtrasFallback.tsx#L171) | Rendered copy | More actions | ExtendedFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:179](../src/components/CollectionExtrasFallback.tsx#L179) | Rendered copy | Search online | ExtendedFallback(); online.eligible &amp;&amp; !online.remoteEnabled &amp;&amp; |
+| [src/components/CollectionExtrasFallback.tsx:189](../src/components/CollectionExtrasFallback.tsx#L189) | Rendered copy | Loading additional games… | ExtendedFallback(); !records.length &amp;&amp; |
+| [src/components/CollectionExtrasFallback.tsx:195](../src/components/CollectionExtrasFallback.tsx#L195) | Message/fragment | The original order, ratings and workbook. | filmSummaries(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:199](../src/components/CollectionExtrasFallback.tsx#L199) | Message/fragment | Find games, pin a shortlist and compare shared rankings. | filmSummaries(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:210](../src/components/CollectionExtrasFallback.tsx#L210) | Label/help | {film.title} | FilmsFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:218](../src/components/CollectionExtrasFallback.tsx#L218) | Rendered copy | ${film.title} | FilmsFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:219](../src/components/CollectionExtrasFallback.tsx#L219) | Rendered copy | ${film.description} | FilmsFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:220](../src/components/CollectionExtrasFallback.tsx#L220) | Rendered copy | 0:22 · Watch film | FilmsFallback(); when its owning surface/operation is used |
 ## src/components/CollectionFilms.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/CollectionFilms.tsx:18](../src/components/CollectionFilms.tsx#L18) | Error/validation | Listing thumbnails are missing for ${film.id}. | FilmPoster(); !smallest is true |
-| [src/components/CollectionFilms.tsx:20](../src/components/CollectionFilms.tsx#L20) | Rendered copy | ${failed ? ( &lt;span className="film-poster-fallback"&gt;Poster unavailable&lt;/span&gt; ) : enabled ? ( &lt;img src={smallest.src} srcSet={candidates.map((candidate) =&gt; &#96;${candidate.src} ${candidate.width}w&#96;).join(', ')} sizes={POSTER_SIZES} width={film.poster.width} height={film.poster.height} loading="lazy" decoding="async" alt="" onError={() =&gt; setFailed(true)} /&gt; ) : null} | FilmPoster(); when its owning surface/operation is used |
-| [src/components/CollectionFilms.tsx:22](../src/components/CollectionFilms.tsx#L22) | Rendered copy | Poster unavailable | FilmPoster(); failed is true |
-| [src/components/CollectionFilms.tsx:73](../src/components/CollectionFilms.tsx#L73) | Label/help | {&#96;${film.title} film&#96;} | FilmVideo(); when its owning surface/operation is used |
-| [src/components/CollectionFilms.tsx:82](../src/components/CollectionFilms.tsx#L82) | Label/help | English (sound) | FilmVideo(); when its owning surface/operation is used |
-| [src/components/CollectionFilms.tsx:85](../src/components/CollectionFilms.tsx#L85) | Live region | Buffering film… | FilmVideo(); waiting &amp;&amp; !failed &amp;&amp; |
-| [src/components/CollectionFilms.tsx:87](../src/components/CollectionFilms.tsx#L87) | Live region | The film could not load. Check your connection or download it instead. Retry film | FilmVideo(); failed &amp;&amp; |
-| [src/components/CollectionFilms.tsx:88](../src/components/CollectionFilms.tsx#L88) | Rendered copy | The film could not load. Check your connection or download it instead. | FilmVideo(); failed &amp;&amp; |
-| [src/components/CollectionFilms.tsx:89](../src/components/CollectionFilms.tsx#L89) | Rendered copy | Retry film | FilmVideo(); failed &amp;&amp; |
-| [src/components/CollectionFilms.tsx:167](../src/components/CollectionFilms.tsx#L167) | Rendered copy | ${film.title} ${film.description} ${filmDuration(film.durationSeconds)} · Watch film | content(); when its owning surface/operation is used |
-| [src/components/CollectionFilms.tsx:168](../src/components/CollectionFilms.tsx#L168) | Rendered copy | ${film.description} | content(); when its owning surface/operation is used |
-| [src/components/CollectionFilms.tsx:168](../src/components/CollectionFilms.tsx#L168) | Rendered copy | ${film.title} | content(); when its owning surface/operation is used |
-| [src/components/CollectionFilms.tsx:169](../src/components/CollectionFilms.tsx#L169) | Rendered copy | ${filmDuration(film.durationSeconds)} · Watch film | content(); when its owning surface/operation is used |
-| [src/components/CollectionFilms.tsx:177](../src/components/CollectionFilms.tsx#L177) | Rendered copy | ${active.title} | content(); active &amp;&amp; |
-| [src/components/CollectionFilms.tsx:180](../src/components/CollectionFilms.tsx#L180) | Rendered copy | ${filmDuration(active.durationSeconds)}. Native playback controls. Instrumental music and interface sounds; no narration. | content(); active &amp;&amp; |
-| [src/components/CollectionFilms.tsx:186](../src/components/CollectionFilms.tsx#L186) | Rendered copy | Download film (${(active.video.bytes / 1000000).toFixed(1)} MB) | content(); active &amp;&amp; |
-| [src/components/CollectionFilms.tsx:188](../src/components/CollectionFilms.tsx#L188) | Rendered copy | (${(active.video.bytes / 1000000).toFixed(1)} MB) | content(); active &amp;&amp; |
-| [src/components/CollectionFilms.tsx:193](../src/components/CollectionFilms.tsx#L193) | Rendered copy | Watch ${film.title} | content(); active &amp;&amp; |
-| [src/components/CollectionFilms.tsx:207](../src/components/CollectionFilms.tsx#L207) | Rendered copy | Text alternative &amp; credits | content(); active &amp;&amp; |
-| [src/components/CollectionFilms.tsx:208](../src/components/CollectionFilms.tsx#L208) | Rendered copy | ${active.context} | content(); active &amp;&amp;; expanded "Text alternative &amp; credits" disclosure |
-| [src/components/CollectionFilms.tsx:217](../src/components/CollectionFilms.tsx#L217) | Rendered copy | Curated by Leul Tewodros Agonafer. Original instrumental music; Kenney UI Audio clicks (CC0). Game names and imagery belong to their respective owners; no endorsement is implied. | content(); active &amp;&amp;; expanded "Text alternative &amp; credits" disclosure |
-| [src/components/CollectionFilms.tsx:222](../src/components/CollectionFilms.tsx#L222) | Rendered copy | Download text alternative | content(); active &amp;&amp;; expanded "Text alternative &amp; credits" disclosure |
-| [src/components/CollectionFilms.tsx:226](../src/components/CollectionFilms.tsx#L226) | Rendered copy | Full source &amp; media credits | content(); active &amp;&amp;; expanded "Text alternative &amp; credits" disclosure |
-| [src/components/CollectionFilms.tsx:241](../src/components/CollectionFilms.tsx#L241) | Rendered copy | Watch films | CollectionFilms(); embedded is false |
-| [src/components/CollectionFilms.tsx:244](../src/components/CollectionFilms.tsx#L244) | Rendered copy | Short tours. Play only when you choose. | CollectionFilms(); embedded is false |
+| [src/components/CollectionFilms.tsx:19](../src/components/CollectionFilms.tsx#L19) | Error/validation | Listing thumbnails are missing for ${film.id}. | FilmPoster(); !smallest is true |
+| [src/components/CollectionFilms.tsx:21](../src/components/CollectionFilms.tsx#L21) | Rendered copy | ${failed ? ( &lt;span className="film-poster-fallback"&gt;Poster unavailable&lt;/span&gt; ) : enabled ? ( &lt;img src={smallest.src} srcSet={candidates.map((candidate) =&gt; &#96;${candidate.src} ${candidate.width}w&#96;).join(', ')} sizes={POSTER_SIZES} width={film.poster.width} height={film.poster.height} loading="lazy" decoding="async" alt="" onError={() =&gt; setFailed(true)} /&gt; ) : ( &lt;FilmPosterCard number={collectionFilms.indexOf(film) + 1} title={film.title} /&gt; )} | FilmPoster(); when its owning surface/operation is used |
+| [src/components/CollectionFilms.tsx:23](../src/components/CollectionFilms.tsx#L23) | Rendered copy | Poster unavailable | FilmPoster(); failed is true |
+| [src/components/CollectionFilms.tsx:37](../src/components/CollectionFilms.tsx#L37) | Label/help | {film.title} | FilmPoster(); failed is false; enabled is false |
+| [src/components/CollectionFilms.tsx:76](../src/components/CollectionFilms.tsx#L76) | Label/help | {&#96;${film.title} film&#96;} | FilmVideo(); when its owning surface/operation is used |
+| [src/components/CollectionFilms.tsx:85](../src/components/CollectionFilms.tsx#L85) | Label/help | English (sound) | FilmVideo(); when its owning surface/operation is used |
+| [src/components/CollectionFilms.tsx:88](../src/components/CollectionFilms.tsx#L88) | Live region | Buffering film… | FilmVideo(); waiting &amp;&amp; !failed &amp;&amp; |
+| [src/components/CollectionFilms.tsx:90](../src/components/CollectionFilms.tsx#L90) | Live region | The film could not load. Check your connection or download it instead. Retry film | FilmVideo(); failed &amp;&amp; |
+| [src/components/CollectionFilms.tsx:91](../src/components/CollectionFilms.tsx#L91) | Rendered copy | The film could not load. Check your connection or download it instead. | FilmVideo(); failed &amp;&amp; |
+| [src/components/CollectionFilms.tsx:92](../src/components/CollectionFilms.tsx#L92) | Rendered copy | Retry film | FilmVideo(); failed &amp;&amp; |
+| [src/components/CollectionFilms.tsx:170](../src/components/CollectionFilms.tsx#L170) | Rendered copy | ${film.title} ${film.description} ${filmDuration(film.durationSeconds)} · Watch film | content(); when its owning surface/operation is used |
+| [src/components/CollectionFilms.tsx:171](../src/components/CollectionFilms.tsx#L171) | Rendered copy | ${film.description} | content(); when its owning surface/operation is used |
+| [src/components/CollectionFilms.tsx:171](../src/components/CollectionFilms.tsx#L171) | Rendered copy | ${film.title} | content(); when its owning surface/operation is used |
+| [src/components/CollectionFilms.tsx:172](../src/components/CollectionFilms.tsx#L172) | Rendered copy | ${filmDuration(film.durationSeconds)} · Watch film | content(); when its owning surface/operation is used |
+| [src/components/CollectionFilms.tsx:180](../src/components/CollectionFilms.tsx#L180) | Rendered copy | ${active.title} | content(); active &amp;&amp; |
+| [src/components/CollectionFilms.tsx:183](../src/components/CollectionFilms.tsx#L183) | Rendered copy | ${filmDuration(active.durationSeconds)}. Native playback controls. Instrumental music and interface sounds; no narration. | content(); active &amp;&amp; |
+| [src/components/CollectionFilms.tsx:189](../src/components/CollectionFilms.tsx#L189) | Rendered copy | Download film (${(active.video.bytes / 1000000).toFixed(1)} MB) | content(); active &amp;&amp; |
+| [src/components/CollectionFilms.tsx:191](../src/components/CollectionFilms.tsx#L191) | Rendered copy | (${(active.video.bytes / 1000000).toFixed(1)} MB) | content(); active &amp;&amp; |
+| [src/components/CollectionFilms.tsx:196](../src/components/CollectionFilms.tsx#L196) | Rendered copy | Watch ${film.title} | content(); active &amp;&amp; |
+| [src/components/CollectionFilms.tsx:210](../src/components/CollectionFilms.tsx#L210) | Rendered copy | Text alternative &amp; credits | content(); active &amp;&amp; |
+| [src/components/CollectionFilms.tsx:211](../src/components/CollectionFilms.tsx#L211) | Rendered copy | ${active.context} | content(); active &amp;&amp;; expanded "Text alternative &amp; credits" disclosure |
+| [src/components/CollectionFilms.tsx:220](../src/components/CollectionFilms.tsx#L220) | Rendered copy | Curated by Leul Tewodros Agonafer. Original instrumental music; Kenney UI Audio clicks (CC0). Game names and imagery belong to their respective owners; no endorsement is implied. | content(); active &amp;&amp;; expanded "Text alternative &amp; credits" disclosure |
+| [src/components/CollectionFilms.tsx:225](../src/components/CollectionFilms.tsx#L225) | Rendered copy | Download text alternative | content(); active &amp;&amp;; expanded "Text alternative &amp; credits" disclosure |
+| [src/components/CollectionFilms.tsx:229](../src/components/CollectionFilms.tsx#L229) | Rendered copy | Full source &amp; media credits | content(); active &amp;&amp;; expanded "Text alternative &amp; credits" disclosure |
+| [src/components/CollectionFilms.tsx:244](../src/components/CollectionFilms.tsx#L244) | Rendered copy | Watch films | CollectionFilms(); embedded is false |
+| [src/components/CollectionFilms.tsx:247](../src/components/CollectionFilms.tsx#L247) | Rendered copy | Short tours. Play only when you choose. | CollectionFilms(); embedded is false |
 ## src/components/CollectionPage.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -2617,18 +2619,18 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 | [src/components/CollectionPage.tsx:386](../src/components/CollectionPage.tsx#L386) | Live region | Opening the collection… One hundred games. Just a moment. | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is false |
 | [src/components/CollectionPage.tsx:387](../src/components/CollectionPage.tsx#L387) | Rendered copy | Opening the collection… | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is false |
 | [src/components/CollectionPage.tsx:388](../src/components/CollectionPage.tsx#L388) | Rendered copy | One hundred games. Just a moment. | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is false |
-| [src/components/CollectionPage.tsx:412](../src/components/CollectionPage.tsx#L412) | Rendered copy | PLAY 100 | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:418](../src/components/CollectionPage.tsx#L418) | Rendered copy | Red Dead Redemption 2 | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:423](../src/components/CollectionPage.tsx#L423) | Rendered copy | Mass Effect 2 | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:428](../src/components/CollectionPage.tsx#L428) | Rendered copy | The Witcher 3 | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:432](../src/components/CollectionPage.tsx#L432) | Rendered copy | THE COMPLETE COLLECTION / .XLSX | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:436](../src/components/CollectionPage.tsx#L436) | Rendered copy | THE WORKBOOK. ALL 100 TO KEEP. | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:441](../src/components/CollectionPage.tsx#L441) | Rendered copy | Take all 100 with you. The enhanced workbook keeps the original order, complete score snapshots and notes in one filterable collection. | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:445](../src/components/CollectionPage.tsx#L445) | Rendered copy | Download the workbook XLSX | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:449](../src/components/CollectionPage.tsx#L449) | Label/help | Download the workbook, XLSX | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:452](../src/components/CollectionPage.tsx#L452) | Rendered copy | XLSX | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:454](../src/components/CollectionPage.tsx#L454) | Rendered copy | The curated collection, not your personal progress. | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:455](../src/components/CollectionPage.tsx#L455) | Rendered copy | Or download the untouched original Excel | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:413](../src/components/CollectionPage.tsx#L413) | Rendered copy | PLAY 100 | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:419](../src/components/CollectionPage.tsx#L419) | Rendered copy | Red Dead Redemption 2 | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:424](../src/components/CollectionPage.tsx#L424) | Rendered copy | Mass Effect 2 | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:429](../src/components/CollectionPage.tsx#L429) | Rendered copy | The Witcher 3 | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:433](../src/components/CollectionPage.tsx#L433) | Rendered copy | THE COMPLETE COLLECTION / .XLSX | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:437](../src/components/CollectionPage.tsx#L437) | Rendered copy | THE WORKBOOK. ALL 100 TO KEEP. | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:442](../src/components/CollectionPage.tsx#L442) | Rendered copy | Take all 100 with you. The enhanced workbook keeps the original order, complete score snapshots and notes in one filterable collection. | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:446](../src/components/CollectionPage.tsx#L446) | Rendered copy | Download the workbook XLSX | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:450](../src/components/CollectionPage.tsx#L450) | Label/help | Download the workbook, XLSX | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:453](../src/components/CollectionPage.tsx#L453) | Rendered copy | XLSX | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:455](../src/components/CollectionPage.tsx#L455) | Rendered copy | The curated collection, not your personal progress. | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:456](../src/components/CollectionPage.tsx#L456) | Rendered copy | Or download the untouched original Excel | CollectionPage(); secondPass is true |
 ## src/components/compare-tray/compare-drag-controller.ts
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -2772,13 +2774,13 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/DeferredCollection.tsx:116](../src/components/DeferredCollection.tsx#L116) | Message/fragment | The films didn't load. | failureMessage(); input.kind === 'films' is true |
-| [src/components/DeferredCollection.tsx:116](../src/components/DeferredCollection.tsx#L116) | Message/fragment | These collection tools didn't load. | failureMessage(); input.kind === 'films' is false |
-| [src/components/DeferredCollection.tsx:119](../src/components/DeferredCollection.tsx#L119) | Label/help | {failureMessage} | body(); failed is true |
-| [src/components/DeferredCollection.tsx:154](../src/components/DeferredCollection.tsx#L154) | Rendered copy | Watch films | DeferredCollection(); input.kind === 'films' is true |
-| [src/components/DeferredCollection.tsx:157](../src/components/DeferredCollection.tsx#L157) | Rendered copy | Short tours. Play only when you choose. | DeferredCollection(); input.kind === 'films' is true |
-| [src/components/DeferredCollection.tsx:168](../src/components/DeferredCollection.tsx#L168) | Rendered copy | Beyond The 100 | DeferredCollection(); input.kind === 'films' is false; input.kind === 'extended' is true |
-| [src/components/DeferredCollection.tsx:171](../src/components/DeferredCollection.tsx#L171) | Rendered copy | ${extendedResultCount(input.props.records.length, input.props.queryKey, input.props.online.loading)} | DeferredCollection(); input.kind === 'films' is false; input.kind === 'extended' is true |
+| [src/components/DeferredCollection.tsx:123](../src/components/DeferredCollection.tsx#L123) | Message/fragment | The films didn't load. | failureMessage(); input.kind === 'films' is true |
+| [src/components/DeferredCollection.tsx:123](../src/components/DeferredCollection.tsx#L123) | Message/fragment | These collection tools didn't load. | failureMessage(); input.kind === 'films' is false |
+| [src/components/DeferredCollection.tsx:126](../src/components/DeferredCollection.tsx#L126) | Label/help | {failureMessage} | body(); failed is true |
+| [src/components/DeferredCollection.tsx:161](../src/components/DeferredCollection.tsx#L161) | Rendered copy | Watch films | DeferredCollection(); input.kind === 'films' is true |
+| [src/components/DeferredCollection.tsx:164](../src/components/DeferredCollection.tsx#L164) | Rendered copy | Short tours. Play only when you choose. | DeferredCollection(); input.kind === 'films' is true |
+| [src/components/DeferredCollection.tsx:175](../src/components/DeferredCollection.tsx#L175) | Rendered copy | Beyond The 100 | DeferredCollection(); input.kind === 'films' is false; input.kind === 'extended' is true |
+| [src/components/DeferredCollection.tsx:178](../src/components/DeferredCollection.tsx#L178) | Rendered copy | ${extendedResultCount(input.props.records.length, input.props.queryKey, input.props.online.loading)} | DeferredCollection(); input.kind === 'films' is false; input.kind === 'extended' is true |
 ## src/components/Dialog.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -2793,6 +2795,12 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 | [src/components/ErrorBoundary.tsx:19](../src/components/ErrorBoundary.tsx#L19) | Rendered copy | The page ran into a problem. Your saved device data has not been cleared. | render(); this.state.failed is true |
 | [src/components/ErrorBoundary.tsx:20](../src/components/ErrorBoundary.tsx#L20) | Rendered copy | Reload the collection | render(); this.state.failed is true |
 | [src/components/ErrorBoundary.tsx:23](../src/components/ErrorBoundary.tsx#L23) | Rendered copy | Or download the workbook | render(); this.state.failed is true |
+## src/components/FilmPosterCard.tsx
+
+| Source | Kind | Copy or expression | Showing condition / owner |
+| --- | --- | --- | --- |
+| [src/components/FilmPosterCard.tsx:9](../src/components/FilmPosterCard.tsx#L9) | Rendered copy | FILM / ${String(number).padStart(2, '0')} | FilmPosterCard(); when its owning surface/operation is used |
+| [src/components/FilmPosterCard.tsx:10](../src/components/FilmPosterCard.tsx#L10) | Rendered copy | ${title} | FilmPosterCard(); when its owning surface/operation is used |
 ## src/components/FriendSharingSummary.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
