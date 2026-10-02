@@ -1,12 +1,15 @@
 # First-paint shell
 
 The landing shell paints before the application module executes, after the
-inline boot script accepts and reveals it. `index.html` carries, inside
+inline boot script accepts and reveals it. The built `index.html` carries, inside
 `#root`, static markup of exactly what React's first commit renders at `/`: the
-skip link, header, hero, the loading collection and the mobile navigation. It is
-hidden by default. A small inline boot script shows it only when React's first
-commit will match it, and `createRoot()` replaces it in that commit, so the first
-paint and React's first rendered page never differ. The page below the loading collection
+skip link, header, hero, the loading collection and the mobile navigation. The
+build renders it from those components with `react-dom/server`
+([`src/first-paint/shell-render.tsx`](../src/first-paint/shell-render.tsx)), so
+no copy of that markup is kept by hand. It is hidden by default. A small inline
+boot script shows it only when React's first commit will match it, and
+`createRoot()` replaces it in that commit, so the first paint and React's first
+rendered page never differ. The page below the loading collection
 (films, workbook, footer) is React-only; the shell's `main` keeps the page as tall
 as the viewport so no scrollbar appears at the handoff. The collection section is
 at least a viewport tall in every state, in the shell and in React alike, so that
@@ -28,12 +31,23 @@ code.
 `transformIndexHtml` post hook. It runs only for builds, after Vite injected its
 tags and before the PWA `writeBundle` records `index.html`:
 
-1. It keeps the header variant React renders. `<!--shell:online-->` and
-   `<!--shell:offline-->` blocks mirror `src/lib/online-availability.ts`: online
+1. It renders the shell in place of the `<!--p100:shell-->` placeholder in
+   `#root`, with the header variant React renders. `firstPaintVariant`, which
+   `vite.config.ts` calls, mirrors `src/lib/online-availability.ts`: online
    tools configured (or the cloud-test emulators) render the online header,
    otherwise the offline one. When the first commit would show the online
    configuration banner (cloud-test only), the build ships no shell and leaves
    Vite's tags where Vite put them.
+   [`render-shell.ts`](../scripts/first-paint/render-shell.ts) loads
+   `shell-render.tsx` from the source tree through Vite's module runner, with
+   React's production JSX runtime and every CSS import stubbed; the runner reads
+   no `vite.config.ts` and no `.env` file. The build fails unless `index.html`
+   has exactly one placeholder, inside `#root` and outside every comment, and
+   the rendered shell starts with its hidden wrapper and holds no comment. It
+   drops the comments of `#root` and the line breaks and indentation between its
+   tags, but keeps text and any space between two tags on one line. It renders
+   the other variant too, only for its inline style hash
+   ([Content Security Policy](#content-security-policy)).
 2. It moves every startup tag out of `<head>` into
    `<template id="p100-deferred">`: Vite's module entry, its modulepreloads and
    the entry stylesheet, and the preloads of the public-metadata plugin: the
@@ -274,21 +288,41 @@ not a `style=`.
 
 ## Keeping the shell exact
 
-- Edit the shell markup together with the components it copies (`AppHeader`,
-  `MobileNav`, the hero and loading collection in `CollectionPage`,
-  `CollectionArtifact`). [`src/first-paint/shell-parity.test.ts`](../src/first-paint/shell-parity.test.ts)
-  compares both variants with their server-rendered markup.
-- Intended differences:
-  - Play later, both Menus and Fan out run only in the app, so the shell disables them with a bare
-    `disabled`, and React's first commit enables them. They take the app's `button:disabled` look,
-    as Pick for me does; React's first commit disables Pick for me too, so it keeps React's
-    `disabled=""`. Every visible shell control is a working link or a disabled button, nothing is
-    `inert`, and opacity is the only style that changes at the handoff.
+- No copy of the shell is kept by hand. `renderShell`
+  ([`src/first-paint/shell-render.tsx`](../src/first-paint/shell-render.tsx)) renders App's first
+  commit at `/` for a guest from the components that commit renders (`AppHeader`, `MobileNav`, the
+  hero and loading collection in `CollectionPage`, `CollectionArtifact`), with the props App gives
+  them, so a change to those components changes the shell. Its guards:
+  - [`src/first-paint/shell-parity.test.ts`](../src/first-paint/shell-parity.test.ts) compares both
+    variants with React's first commit: the same components rendered on the server as App renders
+    them, outside `StaticShellContext`. Only the differences below may remain, and it checks App's
+    landing structure, header label and motion hint against their sources.
+  - [`src/first-paint/shell-render.test.ts`](../src/first-paint/shell-render.test.ts) compares the
+    `index.html` each variant builds with the reviewed snapshots in
+    [`src/first-paint/__snapshots__/`](../src/first-paint/__snapshots__), so every change to the
+    shipped shell shows up in review. `npx vitest run -u src/first-paint/shell-render.test.ts`
+    rewrites them.
+  - [`scripts/first-paint/render-shell.test.ts`](../scripts/first-paint/render-shell.test.ts) loads
+    the shell the way the build does and checks it renders those snapshots.
+
+  A change that makes other entry-stylesheet rules match the shell changes its inline style hash
+  too; `npm run csp:write` updates `vercel.json`.
+- Intended differences, which `StaticShellContext`
+  ([`src/first-paint/static-shell.ts`](../src/first-paint/static-shell.ts)) applies. The app never
+  provides it, so its own render is unchanged:
+  - Play later, both Menus and Fan out run only in the app, so the shell disables them
+    (`disabled=""`), and React's first commit enables them. They take the app's `button:disabled`
+    look, as Pick for me does, which React's first commit disables too. Every visible shell control
+    is a working link or a disabled button, nothing is `inert`, and opacity is the only style that
+    changes at the handoff.
   - The artifact caption holds every state, `reduced`, `lite`, `pending`, `saving`, `tap` and
     `ready`, and shell.css shows the one `data-boot-art` names. The artifact omits
     `data-scene-status` and `data-activation`, and the Magnet wrapper omits its inline transition.
     Neither paints the decorative still at first: React loads it after its first commit has
     painted (`AfterFirstPaint`), and it is absolutely positioned.
+  - The shell ends with the loading collection. It leaves out the reserve React's first commit
+    keeps after it for the films and workbook, which start below the fold of every window; the
+    shell's own `main` keeps the page viewport-tall (`shell.css`).
   - None changes layout.
 - Until the library opens, App takes the guest motion hint from the snapshot
   `src/main.tsx` makes before the library load starts (`snapshotMotionHint()` in
