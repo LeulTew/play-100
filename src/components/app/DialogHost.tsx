@@ -244,7 +244,7 @@ export function DialogHost({
           <DialogBoundary
             key={`about:${scope}`}
             onClose={about.onClose}
-            onFailure={failed('Credits')}
+            onFailure={failed('About & credits')}
             getReturnFocus={about.getReturnFocus}
           >
             <ReadyAbout {...about} />

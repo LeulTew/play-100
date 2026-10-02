@@ -105,7 +105,7 @@ export function sendPwaRequest(
         !versionPattern.test(reply.version)
       ) {
         finish();
-        reject(new Error('The offline worker returned an invalid version.'));
+        reject(new Error('This page could not verify its offline files. Try again when connected.'));
         return;
       }
       finish();

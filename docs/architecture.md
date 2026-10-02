@@ -147,6 +147,8 @@ pending writes with guarded `aria-disabled`. Ranking notes and position inputs
 become read-only rather than disabled; clearing a bulk selection moves focus to
 Select all. The single Pin stack symbol is distinct from the row's reorder
 grip. The rating-order action stays mounted after releasing its fixed position.
+Selection has one **Done selecting** control: the original selection trigger
+keeps focus and changes its label. The bulk bar does not repeat the exit action.
 Action notices use optional, non-persisted transaction feedback: guest and account
 commits compare the reducer-validated previous state to the result before writing
 the receipt after commit. Counts exclude duplicate IDs and already-set values,

@@ -173,11 +173,14 @@ export function DiscoverFilters({
           </SelectField>
         </div>
         <p className="section-help" id="discovery-genre-help">
-          Families group source labels and can overlap. Other includes unclear or missing genres. Changing family clears
-          the exact source genre below.
+          A game can belong to more than one family.
         </p>
         <details className="discovery-help" open={Boolean(filters.genre)}>
           <summary>Exact source genre</summary>
+          <p>
+            Families group the genres supplied by each source. Other includes unclear or missing genres. Changing family
+            clears the exact source genre below.
+          </p>
           <div className="discovery-toolbar">
             <label>
               Exact source genre

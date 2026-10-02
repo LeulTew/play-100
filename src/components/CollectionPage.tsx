@@ -219,10 +219,6 @@ function CollectionPage({
                 busy={busy}
                 onSelectAll={() => setSelected(new Set(resultRecords.map((record) => record.id)))}
                 onClear={() => setSelected(new Set())}
-                onDone={() => {
-                  setSelecting(false);
-                  setSelected(new Set());
-                }}
                 onAction={(action) => {
                   void bulk(action);
                 }}
@@ -330,7 +326,7 @@ function CollectionPage({
                   {filters.list === 'later' && savedCount === 0
                     ? 'Your next great game goes here.'
                     : filters.list === 'completed' && completedCount === 0
-                      ? 'Every collection starts somewhere.'
+                      ? 'No completed games yet'
                       : 'No worlds found. Yet.'}
                 </h3>
                 <p>

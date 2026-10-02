@@ -10,6 +10,13 @@ test('served head has unique matching social metadata and a fetchable PNG', asyn
   expect(url).toMatch(/^https:\/\/[^/]+\/$/);
   await expect(page.locator('meta[property="og:url"]')).toHaveCount(1);
   await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', url);
+  for (const selector of [
+    'meta[name="description"]',
+    'meta[property="og:description"]',
+    'meta[name="twitter:description"]',
+  ]) {
+    await expect(page.locator(selector)).toHaveAttribute('content', /save games to Play later/);
+  }
   for (const field of ['title', 'description', 'image', 'image:alt']) {
     const og = page.locator(`meta[property="og:${field}"]`);
     const twitter = page.locator(`meta[name="twitter:${field}"]`);
@@ -43,4 +50,12 @@ test('served head has unique matching social metadata and a fetchable PNG', asyn
   const icoBytes = await ico.body();
   expect(icoBytes.readUInt16LE(2)).toBe(1);
   expect(icoBytes.subarray(22)).toEqual(await png.body());
+  const manifest = await request.get('/manifest.webmanifest');
+  expect(manifest.ok()).toBe(true);
+  expect(await manifest.json()).toMatchObject({
+    description: 'A personal collection of games, with your own library, Play later and rankings.',
+    shortcuts: expect.arrayContaining([
+      expect.objectContaining({ name: 'Play later', description: 'Games to play next.', url: '/my-games?tab=queue' }),
+    ]),
+  });
 });

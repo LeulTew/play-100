@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Play 100",
   "short_name": "Play 100",
-  "description": "A personal collection of games, with your own library, queue and rankings.",
+  "description": "A personal collection of games, with your own library, Play later and rankings.",
   "categories": ["games", "entertainment"],
   "lang": "en",
   "start_url": "/",
@@ -18,8 +18,8 @@
       "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "Queue",
-      "description": "Choose what to play next.",
+      "name": "Play later",
+      "description": "Games to play next.",
       "url": "/my-games?tab=queue",
       "icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },

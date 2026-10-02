@@ -28,6 +28,22 @@ test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 
+test('family guidance keeps its summary visible and uncommon detail inside the disclosure', async ({ page }) => {
+  await page.goto('/discover?catalogs=off');
+  await ready(page);
+  await openBrowsingFilters(page);
+  await expect(page.locator('#discovery-genre-help')).toHaveText('A game can belong to more than one family.');
+  const details = page
+    .locator('details')
+    .filter({ has: page.locator('summary').filter({ hasText: /^Exact source genre$/ }) });
+  await expect(details).not.toHaveAttribute('open');
+  const context = details.getByText('Families group the genres supplied by each source.', { exact: false });
+  await expect(context).toBeHidden();
+  await details.locator('summary').click();
+  await expect(context).toBeVisible();
+  await expect(context).toContainText('Changing family clears the exact source genre below.');
+});
+
 test('small native family choices preserve legacy exact URLs, Back, refresh, reset and private state', async ({
   page,
 }) => {

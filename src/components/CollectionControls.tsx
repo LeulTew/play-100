@@ -342,7 +342,7 @@ export function CollectionControls({
       <div className="collection-extra-actions">
         <button className="text-button" onClick={onSelectMode}>
           <Icon name="select" width="18" height="18" />
-          {selecting ? 'Exit selection mode' : 'Select multiple games'}
+          {selecting ? 'Done selecting' : 'Select multiple games'}
         </button>
         <a className="text-button" href="/downloads/Play-100-Collection.xlsx" download>
           <Icon name="download" width="18" height="18" />

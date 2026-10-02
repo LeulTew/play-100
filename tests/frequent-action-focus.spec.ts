@@ -561,7 +561,7 @@ test('bulk feedback counts only changed memberships and single toggles name thei
   await bar.getByRole('button', { name: 'Add to Play later', exact: true }).press('Enter');
   await expect(page.locator('.toast-visible')).toContainText('96 games added to Play later; 6 were already there.');
   await expect(bar.getByRole('button', { name: /^Select all/ })).toBeFocused();
-  await bar.getByRole('button', { name: 'Done selecting' }).click();
+  await page.getByRole('button', { name: 'Done selecting', exact: true }).click();
   await page.goto('/?catalogs=off');
   const later = page.locator(`[data-game="${game.id}"]`).getByRole('button', { name: `Play later: ${game.title}` });
   await later.press('Enter');
