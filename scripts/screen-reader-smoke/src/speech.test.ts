@@ -25,6 +25,12 @@ describe('validateOrigin', () => {
     expect(validateOrigin('https://Example.test:8443')).toBe('https://example.test:8443');
   });
 
+  it('accepts plain http only on the 127.0.0.1 loopback', () => {
+    expect(validateOrigin('http://127.0.0.1:4173')).toBe('http://127.0.0.1:4173');
+    expect(() => validateOrigin('http://localhost:4173')).toThrow(/https/);
+    expect(() => validateOrigin('http://example.test')).toThrow(/https/);
+  });
+
   it.each([
     'http://play-100-collection.vercel.app',
     'https://play-100-collection.vercel.app/discover',

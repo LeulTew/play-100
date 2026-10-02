@@ -33,10 +33,43 @@ export async function focusIsOn(target: Locator): Promise<boolean> {
   return target.evaluateAll((elements) => elements.some((element) => element === document.activeElement));
 }
 
-/** Read-only description of the focused element for the journal. */
+/**
+ * Passively records DOM focus events (focusin/focusout, with the element and timestamp) from page load, so the journal
+ * can tell DOM focus moves apart from the reader's own virtual focus. It only listens; it never moves focus.
+ */
+export async function installFocusTrace(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const trace: {
+      type: string;
+      tag: string;
+      id: string | null;
+      role: string | null;
+      name: string | null;
+      t: number;
+    }[] = [];
+    (window as unknown as { __srFocusTrace: typeof trace }).__srFocusTrace = trace;
+    const record = (event: FocusEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      trace.push({
+        type: event.type,
+        tag: target?.tagName ?? (event.target === window ? 'WINDOW' : 'UNKNOWN'),
+        id: target?.id || null,
+        role: target?.getAttribute('role') ?? null,
+        name:
+          target?.getAttribute('aria-label') ?? target?.textContent?.replace(/\s+/g, ' ').trim().slice(0, 80) ?? null,
+        t: Math.round(performance.now()),
+      });
+    };
+    document.addEventListener('focusin', record, true);
+    document.addEventListener('focusout', record, true);
+  });
+}
+
+/** Read-only description of the focused element for the journal, with the DOM focus events since the last step. */
 export async function describeFocus(page: Page) {
   return page.evaluate(() => {
     const active = document.activeElement;
+    const trace = (window as unknown as { __srFocusTrace?: unknown[] }).__srFocusTrace;
     return {
       tag: active?.tagName ?? null,
       id: active?.id || null,
@@ -46,6 +79,7 @@ export async function describeFocus(page: Page) {
       inDialog: Boolean(active?.closest('dialog[open], [role="dialog"]')),
       documentHasFocus: document.hasFocus(),
       url: location.href,
+      focusEvents: trace ? trace.splice(0) : null,
     };
   });
 }
@@ -167,6 +201,7 @@ export async function runJourney(
   body: () => Promise<void>,
 ): Promise<void> {
   try {
+    await installFocusTrace(page);
     await body();
   } catch (error) {
     journal.error = error instanceof Error ? error.message : String(error);
