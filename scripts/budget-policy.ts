@@ -36,6 +36,8 @@ export interface BudgetRelease {
   readonly name: string;
   /** The measured commit. */
   readonly commit: string;
+  /** The tree of the measured commit; required when `commit` is a provenance alias of the shipped record's commit. */
+  readonly tree?: string;
   readonly measured: BudgetLimits;
   /** The caps set from this measurement. */
   readonly limits: BudgetLimits;
@@ -62,9 +64,12 @@ export function parseBudgetRelease(input: unknown): BudgetRelease {
     throw new Error('budgets.json needs a release record with the name of the measured release.');
   if (typeof release.commit !== 'string' || !/^[0-9a-f]{40}$/.test(release.commit))
     throw new Error('budgets.json release.commit must be the full commit the release measured.');
+  if (release.tree !== undefined && (typeof release.tree !== 'string' || !/^[0-9a-f]{40}$/.test(release.tree)))
+    throw new Error('budgets.json release.tree must be the full tree of the measured commit.');
   return {
     name: release.name,
     commit: release.commit,
+    ...(release.tree === undefined ? {} : { tree: release.tree }),
     measured: measurements(release.measured, 'release.measured'),
     limits: measurements(release.limits, 'release.limits'),
   };
@@ -138,12 +143,23 @@ export function budgetPolicyProblems(input: unknown): string[] {
   return problems;
 }
 
+function latestReleaseSection(ledger: string): string | undefined {
+  return ledger.split(/^## /m).find((part) => /^Release \d+/.test(part));
+}
+
 /** The commit of the latest production release in docs/releases.md: the Commit row of its first release section. */
 export function latestReleaseCommit(ledger: string): string {
-  const section = ledger.split(/^## /m).find((part) => /^Release \d+/.test(part));
-  const commit = section?.match(/^\| Commit \| `([0-9a-f]{40})`/m)?.[1];
+  const commit = latestReleaseSection(ledger)?.match(/^\| Commit \| `([0-9a-f]{40})`/m)?.[1];
   if (!commit) throw new Error('docs/releases.md has no release section with a full Commit row.');
   return commit;
+}
+
+/** Every "`<commit>` (tree `<tree>`)" the latest release section of docs/releases.md records, by commit. */
+export function latestReleaseTrees(ledger: string): ReadonlyMap<string, string> {
+  const section = latestReleaseSection(ledger) ?? '';
+  return new Map(
+    [...section.matchAll(/`([0-9a-f]{40})` \(tree `([0-9a-f]{40})`\)/g)].map((match) => [match[1]!, match[2]!]),
+  );
 }
 
 export interface ReleaseHistory {
@@ -151,14 +167,25 @@ export interface ReleaseHistory {
   readonly exists: (commit: string) => boolean;
   /** Whether `ancestor` is `commit` or one of its ancestors. */
   readonly isAncestor: (ancestor: string, commit: string) => boolean;
+  /** The tree of `commit`, or undefined when it is not in the repository. */
+  readonly treeOf: (commit: string) => string | undefined;
+  /** Whether `commit` is reachable from HEAD. */
+  readonly reachable: (commit: string) => boolean;
 }
 
 /**
  * Holds the committed release record to the one the latest production release shipped (its budgets.json), so the
- * ratchet can't be loosened by editing the record. The same release must keep the shipped record byte for byte; a
- * newer one needs a new name and a measured commit that exists and is not older than the shipped measurement.
+ * ratchet can't be loosened by editing the record. The same release must keep every field of the shipped record but
+ * its commit byte for byte; a different commit is only a provenance alias of the same tree (see aliasProblems). A
+ * newer release needs a new name and a measured commit that exists and is not older than the shipped measurement.
+ * `recordedTrees` is latestReleaseTrees() of docs/releases.md.
  */
-export function releaseRecordProblems(committed: unknown, shipped: unknown, history: ReleaseHistory): string[] {
+export function releaseRecordProblems(
+  committed: unknown,
+  shipped: unknown,
+  history: ReleaseHistory,
+  recordedTrees: ReadonlyMap<string, string> = new Map(),
+): string[] {
   let current: BudgetRelease;
   let before: BudgetRelease;
   try {
@@ -167,12 +194,14 @@ export function releaseRecordProblems(committed: unknown, shipped: unknown, hist
   } catch (cause) {
     return [cause instanceof Error ? cause.message : String(cause)];
   }
-  if (current.name === before.name || current.commit === before.commit)
-    return JSON.stringify(current) === JSON.stringify(before)
-      ? []
-      : [
-          `budgets.json release ${current.name} differs from the record the latest release shipped (${before.name}, ${before.commit}). Record a new measurement with npm run budgets:record instead of editing it.`,
-        ];
+  if (current.name === before.name || current.commit === before.commit) {
+    const fields = ({ name, measured, limits }: BudgetRelease) => JSON.stringify({ name, measured, limits });
+    if (fields(current) !== fields(before))
+      return [
+        `budgets.json release ${current.name} differs from the record the latest release shipped (${before.name}, ${before.commit}). Record a new measurement with npm run budgets:record instead of editing it.`,
+      ];
+    return current.commit === before.commit ? [] : aliasProblems(current, before, history, recordedTrees);
+  }
   if (!history.exists(current.commit))
     return [`budgets.json release ${current.name} names ${current.commit}, which is not in this repository.`];
   if (history.isAncestor(current.commit, before.commit))
@@ -180,6 +209,36 @@ export function releaseRecordProblems(committed: unknown, shipped: unknown, hist
       `budgets.json release ${current.name} measures ${current.commit}, older than the shipped measurement ${before.name} (${before.commit}).`,
     ];
   return [];
+}
+
+/**
+ * A release record may name another commit than the shipped record only as a provenance alias: a commit reachable from
+ * HEAD whose tree is `release.tree`, the tree of the shipped commit. When the shipped commit is not in the repository
+ * (a clone of main without the measured branch), the tree must be one docs/releases.md records for the latest release.
+ */
+function aliasProblems(
+  current: BudgetRelease,
+  before: BudgetRelease,
+  history: ReleaseHistory,
+  recordedTrees: ReadonlyMap<string, string>,
+): string[] {
+  const alias = `budgets.json release ${current.name} names ${current.commit} instead of the shipped ${before.commit}`;
+  if (!current.tree) return [`${alias}: an alias of the same tree needs release.tree.`];
+  if (!history.reachable(current.commit)) return [`${alias}, which is not reachable from HEAD.`];
+  const tree = history.treeOf(current.commit);
+  if (tree !== current.tree) return [`${alias}: its tree is ${tree ?? 'unknown'}, not release.tree ${current.tree}.`];
+  if (history.exists(before.commit)) {
+    const shippedTree = history.treeOf(before.commit);
+    return shippedTree === current.tree
+      ? []
+      : [`${alias}: the shipped commit's tree is ${shippedTree ?? 'unknown'}, not release.tree ${current.tree}.`];
+  }
+  const recorded = [recordedTrees.get(current.commit), recordedTrees.get(before.commit)];
+  return recorded.includes(current.tree)
+    ? []
+    : [
+        `${alias}: the shipped commit is not in this repository, and docs/releases.md records no tree ${current.tree} for either commit in the latest release.`,
+      ];
 }
 
 /** The measurements of a `check:budgets --json` report of a clean, configured, passing build. */

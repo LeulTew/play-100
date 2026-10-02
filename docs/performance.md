@@ -29,7 +29,10 @@ measurement or reason, or lets a cap exceed that measurement plus the margin; an
 differ from `PWA_BUDGET`. It also reads the commit of the latest release in [`docs/releases.md`](releases.md) and,
 with `git show`, the `budgets.json` that release shipped: the committed `release` record must equal the shipped one, or
 name a newer measurement of a commit in the repository, so the record the caps are judged against can't be quietly
-edited. The test needs the full history, not a shallow clone.
+edited. The same release may name another commit only as a provenance alias of the same tree: every other field must
+match byte for byte, `release.tree` must be the alias's tree and the shipped commit's (or, when the shipped commit
+isn't in the clone, a tree the latest release section of the ledger records), and the alias must be reachable from
+HEAD. The test needs the full history, not a shallow clone.
 
 ## Keeping bytes down
 

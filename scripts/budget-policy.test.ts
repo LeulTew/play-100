@@ -8,6 +8,7 @@ import {
   WORKER_LIMITS,
   budgetPolicyProblems,
   latestReleaseCommit,
+  latestReleaseTrees,
   parseBudgetRaises,
   parseBudgetRelease,
   policyCap,
@@ -137,16 +138,34 @@ describe('the release record against the last production release', () => {
   const repository: ReleaseHistory = {
     exists: (sha) => succeeds('cat-file', '-e', `${sha}^{commit}`),
     isAncestor: (ancestor, sha) => succeeds('merge-base', '--is-ancestor', ancestor, sha),
+    treeOf: (sha) => {
+      try {
+        return git('rev-parse', '--verify', '--quiet', `${sha}^{tree}`).trim();
+      } catch {
+        return undefined;
+      }
+    },
+    reachable: (sha) => succeeds('merge-base', '--is-ancestor', sha, 'HEAD'),
   };
 
   it('keeps the record the release in docs/releases.md shipped, or a newer measurement', () => {
-    const shippedCommit = latestReleaseCommit(readFileSync(new URL('docs/releases.md', root), 'utf8'));
+    const ledger = readFileSync(new URL('docs/releases.md', root), 'utf8');
+    const shippedCommit = latestReleaseCommit(ledger);
     expect(
       repository.exists(shippedCommit),
       `${shippedCommit} (docs/releases.md) is missing: fetch the full history`,
     ).toBe(true);
     const shipped: unknown = JSON.parse(git('show', `${shippedCommit}:budgets.json`));
-    expect(releaseRecordProblems(committed, shipped, repository)).toEqual([]);
+    expect(releaseRecordProblems(committed, shipped, repository, latestReleaseTrees(ledger))).toEqual([]);
+  });
+
+  it('reads the commit trees the latest release section records', () => {
+    const sha = (digit: string) => digit.repeat(40);
+    const ledger = `## Release 2: x\n\n| Commit | \`${sha('2')}\` (tree \`${sha('3')}\`) |\n| Rollback | \`${sha('4')}\` (tree \`${sha('5')}\`) |\n\n## Release 1: x\n\n| Commit | \`${sha('1')}\` (tree \`${sha('6')}\`) |\n`;
+    expect([...latestReleaseTrees(ledger)]).toEqual([
+      [sha('2'), sha('3')],
+      [sha('4'), sha('5')],
+    ]);
   });
 
   it('reads the commit of the first release section of the ledger', () => {
@@ -163,6 +182,8 @@ describe('the release record against the last production release', () => {
   const history = (known: boolean, older: boolean): ReleaseHistory => ({
     exists: () => known,
     isAncestor: () => older,
+    treeOf: () => undefined,
+    reachable: () => true,
   });
 
   it('refuses an edited copy of the shipped record', () => {
@@ -183,6 +204,63 @@ describe('the release record against the last production release', () => {
     expect(releaseRecordProblems(newer, shipped, history(true, true))).toEqual([
       `budgets.json release R2 measures ${'b'.repeat(40)}, older than the shipped measurement R1 (${commit}).`,
     ]);
+  });
+
+  describe('a provenance alias of the shipped commit', () => {
+    const aliasCommit = 'c'.repeat(40);
+    const tree = 'd'.repeat(40);
+    const alias = { ...shipped, release: { ...shipped.release, commit: aliasCommit, tree } };
+    const named = `budgets.json release R1 names ${aliasCommit} instead of the shipped ${commit}`;
+    const trees = (overrides: Record<string, string | undefined> = {}): Record<string, string | undefined> => ({
+      [aliasCommit]: tree,
+      [commit]: tree,
+      ...overrides,
+    });
+    const aliasHistory = (
+      treeByCommit: Record<string, string | undefined>,
+      { shippedKnown = true, reachable = true } = {},
+    ): ReleaseHistory => ({
+      exists: (sha) => (sha === commit ? shippedKnown : sha in treeByCommit),
+      isAncestor: () => false,
+      treeOf: (sha) => (sha === commit && !shippedKnown ? undefined : treeByCommit[sha]),
+      reachable: () => reachable,
+    });
+
+    it('accepts a reachable commit of the shipped tree', () => {
+      expect(releaseRecordProblems(alias, shipped, aliasHistory(trees()))).toEqual([]);
+    });
+
+    it('refuses an alias without release.tree, of another tree, or unreachable from HEAD', () => {
+      const untreed = { ...shipped, release: { ...shipped.release, commit: aliasCommit } };
+      expect(releaseRecordProblems(untreed, shipped, aliasHistory(trees()))).toEqual([
+        `${named}: an alias of the same tree needs release.tree.`,
+      ]);
+      expect(releaseRecordProblems(alias, shipped, aliasHistory(trees({ [aliasCommit]: 'e'.repeat(40) })))).toEqual([
+        `${named}: its tree is ${'e'.repeat(40)}, not release.tree ${tree}.`,
+      ]);
+      expect(releaseRecordProblems(alias, shipped, aliasHistory(trees({ [commit]: 'e'.repeat(40) })))).toEqual([
+        `${named}: the shipped commit's tree is ${'e'.repeat(40)}, not release.tree ${tree}.`,
+      ]);
+      expect(releaseRecordProblems(alias, shipped, aliasHistory(trees(), { reachable: false }))).toEqual([
+        `${named}, which is not reachable from HEAD.`,
+      ]);
+    });
+
+    it('needs the ledger to record the tree when the shipped commit is not in the repository', () => {
+      const absent = aliasHistory(trees(), { shippedKnown: false });
+      expect(releaseRecordProblems(alias, shipped, absent, new Map([[aliasCommit, tree]]))).toEqual([]);
+      expect(releaseRecordProblems(alias, shipped, absent, new Map([[commit, tree]]))).toEqual([]);
+      expect(releaseRecordProblems(alias, shipped, absent, new Map([[aliasCommit, 'e'.repeat(40)]]))).toEqual([
+        `${named}: the shipped commit is not in this repository, and docs/releases.md records no tree ${tree} for either commit in the latest release.`,
+      ]);
+    });
+
+    it('still refuses an alias with an edited measurement', () => {
+      const edited = { ...alias, release: { ...alias.release, measured: limits({ cssRawBytes: 1100 }) } };
+      expect(releaseRecordProblems(edited, shipped, aliasHistory(trees()))).toEqual([
+        `budgets.json release R1 differs from the record the latest release shipped (R1, ${commit}). Record a new measurement with npm run budgets:record instead of editing it.`,
+      ]);
+    });
   });
 });
 
