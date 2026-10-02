@@ -6,7 +6,7 @@ The unit-test gate regenerates this inventory and rejects stale content or sourc
 
 ## Scope and reading convention
 
-Scanned 384 production TS/TSX/JS files and standalone HTML fallbacks; 3783 source entries.
+Scanned 386 production TS/TSX/JS files and standalone HTML fallbacks; 3785 source entries.
 This is a deliberately inclusive inventory of rendered text, accessible labels,
 message outputs, message constants and validation/error strings. It includes the
 Discover help/source notes, Settings/backups/PWA, empty states, confirmations,
@@ -1897,27 +1897,27 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/app/AppHeader.tsx:55](../src/components/app/AppHeader.tsx#L55) | Rendered copy | PLAY100 . Home | AppHeader(); when its owning surface/operation is used |
-| [src/components/app/AppHeader.tsx:61](../src/components/app/AppHeader.tsx#L61) | Rendered copy | Home | AppHeader(); when its owning surface/operation is used |
-| [src/components/app/AppHeader.tsx:63](../src/components/app/AppHeader.tsx#L63) | Label/help | Main navigation | AppHeader(); when its owning surface/operation is used |
-| [src/components/app/AppHeader.tsx:64](../src/components/app/AppHeader.tsx#L64) | Rendered copy | The 100 | AppHeader(); when its owning surface/operation is used |
-| [src/components/app/AppHeader.tsx:72](../src/components/app/AppHeader.tsx#L72) | Rendered copy | Discover | AppHeader(); when its owning surface/operation is used |
-| [src/components/app/AppHeader.tsx:80](../src/components/app/AppHeader.tsx#L80) | Rendered copy | My games | AppHeader(); when its owning surface/operation is used |
-| [src/components/app/AppHeader.tsx:88](../src/components/app/AppHeader.tsx#L88) | Rendered copy | Friends | AppHeader(); onlineAvailable &amp;&amp; |
-| [src/components/app/AppHeader.tsx:101](../src/components/app/AppHeader.tsx#L101) | Rendered copy | Play later | AppHeader(); when its owning surface/operation is used |
-| [src/components/app/AppHeader.tsx:103](../src/components/app/AppHeader.tsx#L103) | Label/help | {&#96;Play later, ${savedCount} ${savedCount === 1 ? 'game' : 'games'}&#96;} | AppHeader(); when its owning surface/operation is used |
-| [src/components/app/AppHeader.tsx:103](../src/components/app/AppHeader.tsx#L103) | Message/fragment | Play later, ${savedCount} ${savedCount === 1 ? 'game' : 'games'} | AppHeader(); when its owning surface/operation is used |
-| [src/components/app/AppHeader.tsx:107](../src/components/app/AppHeader.tsx#L107) | Rendered copy | Play later | AppHeader(); when its owning surface/operation is used |
-| [src/components/app/AppHeader.tsx:115](../src/components/app/AppHeader.tsx#L115) | Label/help | Download the Excel workbook | AppHeader(); when its owning surface/operation is used |
-| [src/components/app/AppHeader.tsx:116](../src/components/app/AppHeader.tsx#L116) | Label/help | Download the Excel workbook | AppHeader(); when its owning surface/operation is used |
-| [src/components/app/AppHeader.tsx:120](../src/components/app/AppHeader.tsx#L120) | Rendered copy | Menu | AppHeader(); when its owning surface/operation is used |
-| [src/components/app/AppHeader.tsx:134](../src/components/app/AppHeader.tsx#L134) | Label/help | {&#96;Account${headerIdentity ? &#96; for ${headerIdentity.name}&#96; : ''}${libraryLabel ? &#96; ${libraryLabel}&#96; : ''}&#96;} | AppHeader(); onlineAvailable &amp;&amp; |
-| [src/components/app/AppHeader.tsx:134](../src/components/app/AppHeader.tsx#L134) | Message/fragment | Account${headerIdentity ? &#96; for ${headerIdentity.name}&#96; : ''}${libraryLabel ? &#96; ${libraryLabel}&#96; : ''} | AppHeader(); onlineAvailable &amp;&amp; |
-| [src/components/app/AppHeader.tsx:142](../src/components/app/AppHeader.tsx#L142) | Rendered copy | ${headerIdentity ? ( &lt;img src={headerIdentity.avatarSrc} width="32" height="32" alt="" draggable={false} /&gt; ) : ( &lt;Icon name="user" width="20" height="20" /&gt; )} | AppHeader(); onlineAvailable &amp;&amp; |
-| [src/components/app/AppHeader.tsx:149](../src/components/app/AppHeader.tsx#L149) | Rendered copy | ${headerIdentity?.name ?? 'Account'} ${libraryLabel &amp;&amp; ( &lt;&gt; {' '} &lt;small&gt;{libraryLabel}&lt;/small&gt; &lt;/&gt; )} | AppHeader(); onlineAvailable &amp;&amp; |
-| [src/components/app/AppHeader.tsx:150](../src/components/app/AppHeader.tsx#L150) | Rendered copy | ${headerIdentity?.name ?? 'Account'} | AppHeader(); onlineAvailable &amp;&amp; |
-| [src/components/app/AppHeader.tsx:150](../src/components/app/AppHeader.tsx#L150) | Message/fragment | Account | AppHeader(); onlineAvailable &amp;&amp;; headerIdentity?.name ?? |
-| [src/components/app/AppHeader.tsx:154](../src/components/app/AppHeader.tsx#L154) | Rendered copy | ${libraryLabel} | AppHeader(); onlineAvailable &amp;&amp;; libraryLabel &amp;&amp; |
+| [src/components/app/AppHeader.tsx:59](../src/components/app/AppHeader.tsx#L59) | Rendered copy | PLAY100 . Home | AppHeader(); when its owning surface/operation is used |
+| [src/components/app/AppHeader.tsx:65](../src/components/app/AppHeader.tsx#L65) | Rendered copy | Home | AppHeader(); when its owning surface/operation is used |
+| [src/components/app/AppHeader.tsx:67](../src/components/app/AppHeader.tsx#L67) | Label/help | Main navigation | AppHeader(); when its owning surface/operation is used |
+| [src/components/app/AppHeader.tsx:68](../src/components/app/AppHeader.tsx#L68) | Rendered copy | The 100 | AppHeader(); when its owning surface/operation is used |
+| [src/components/app/AppHeader.tsx:76](../src/components/app/AppHeader.tsx#L76) | Rendered copy | Discover | AppHeader(); when its owning surface/operation is used |
+| [src/components/app/AppHeader.tsx:84](../src/components/app/AppHeader.tsx#L84) | Rendered copy | My games | AppHeader(); when its owning surface/operation is used |
+| [src/components/app/AppHeader.tsx:92](../src/components/app/AppHeader.tsx#L92) | Rendered copy | Friends | AppHeader(); onlineAvailable &amp;&amp; |
+| [src/components/app/AppHeader.tsx:105](../src/components/app/AppHeader.tsx#L105) | Rendered copy | Play later | AppHeader(); when its owning surface/operation is used |
+| [src/components/app/AppHeader.tsx:107](../src/components/app/AppHeader.tsx#L107) | Label/help | {&#96;Play later, ${savedCount} ${savedCount === 1 ? 'game' : 'games'}&#96;} | AppHeader(); when its owning surface/operation is used |
+| [src/components/app/AppHeader.tsx:107](../src/components/app/AppHeader.tsx#L107) | Message/fragment | Play later, ${savedCount} ${savedCount === 1 ? 'game' : 'games'} | AppHeader(); when its owning surface/operation is used |
+| [src/components/app/AppHeader.tsx:112](../src/components/app/AppHeader.tsx#L112) | Rendered copy | Play later | AppHeader(); when its owning surface/operation is used |
+| [src/components/app/AppHeader.tsx:120](../src/components/app/AppHeader.tsx#L120) | Label/help | Download the Excel workbook | AppHeader(); when its owning surface/operation is used |
+| [src/components/app/AppHeader.tsx:121](../src/components/app/AppHeader.tsx#L121) | Label/help | Download the Excel workbook | AppHeader(); when its owning surface/operation is used |
+| [src/components/app/AppHeader.tsx:125](../src/components/app/AppHeader.tsx#L125) | Rendered copy | Menu | AppHeader(); when its owning surface/operation is used |
+| [src/components/app/AppHeader.tsx:140](../src/components/app/AppHeader.tsx#L140) | Label/help | {&#96;Account${headerIdentity ? &#96; for ${headerIdentity.name}&#96; : ''}${libraryLabel ? &#96; ${libraryLabel}&#96; : ''}&#96;} | AppHeader(); onlineAvailable &amp;&amp; |
+| [src/components/app/AppHeader.tsx:140](../src/components/app/AppHeader.tsx#L140) | Message/fragment | Account${headerIdentity ? &#96; for ${headerIdentity.name}&#96; : ''}${libraryLabel ? &#96; ${libraryLabel}&#96; : ''} | AppHeader(); onlineAvailable &amp;&amp; |
+| [src/components/app/AppHeader.tsx:148](../src/components/app/AppHeader.tsx#L148) | Rendered copy | ${headerIdentity ? ( &lt;img src={headerIdentity.avatarSrc} width="32" height="32" alt="" draggable={false} /&gt; ) : ( &lt;Icon name="user" width="20" height="20" /&gt; )} | AppHeader(); onlineAvailable &amp;&amp; |
+| [src/components/app/AppHeader.tsx:155](../src/components/app/AppHeader.tsx#L155) | Rendered copy | ${headerIdentity?.name ?? 'Account'} ${libraryLabel &amp;&amp; ( &lt;&gt; {' '} &lt;small&gt;{libraryLabel}&lt;/small&gt; &lt;/&gt; )} | AppHeader(); onlineAvailable &amp;&amp; |
+| [src/components/app/AppHeader.tsx:156](../src/components/app/AppHeader.tsx#L156) | Rendered copy | ${headerIdentity?.name ?? 'Account'} | AppHeader(); onlineAvailable &amp;&amp; |
+| [src/components/app/AppHeader.tsx:156](../src/components/app/AppHeader.tsx#L156) | Message/fragment | Account | AppHeader(); onlineAvailable &amp;&amp;; headerIdentity?.name ?? |
+| [src/components/app/AppHeader.tsx:160](../src/components/app/AppHeader.tsx#L160) | Rendered copy | ${libraryLabel} | AppHeader(); onlineAvailable &amp;&amp;; libraryLabel &amp;&amp; |
 ## src/components/app/AppShell.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -2009,13 +2009,13 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/app/MobileNav.tsx:37](../src/components/app/MobileNav.tsx#L37) | Label/help | Mobile navigation | MobileNav(); when its owning surface/operation is used |
-| [src/components/app/MobileNav.tsx:45](../src/components/app/MobileNav.tsx#L45) | Rendered copy | The 100 | MobileNav(); when its owning surface/operation is used |
-| [src/components/app/MobileNav.tsx:54](../src/components/app/MobileNav.tsx#L54) | Rendered copy | Discover | MobileNav(); when its owning surface/operation is used |
-| [src/components/app/MobileNav.tsx:66](../src/components/app/MobileNav.tsx#L66) | Rendered copy | My games | MobileNav(); when its owning surface/operation is used |
-| [src/components/app/MobileNav.tsx:78](../src/components/app/MobileNav.tsx#L78) | Rendered copy | Friends | MobileNav(); onlineAvailable is true |
-| [src/components/app/MobileNav.tsx:87](../src/components/app/MobileNav.tsx#L87) | Rendered copy | Ranking | MobileNav(); onlineAvailable is false |
-| [src/components/app/MobileNav.tsx:92](../src/components/app/MobileNav.tsx#L92) | Rendered copy | Menu | MobileNav(); when its owning surface/operation is used |
+| [src/components/app/MobileNav.tsx:41](../src/components/app/MobileNav.tsx#L41) | Label/help | Mobile navigation | MobileNav(); when its owning surface/operation is used |
+| [src/components/app/MobileNav.tsx:49](../src/components/app/MobileNav.tsx#L49) | Rendered copy | The 100 | MobileNav(); when its owning surface/operation is used |
+| [src/components/app/MobileNav.tsx:58](../src/components/app/MobileNav.tsx#L58) | Rendered copy | Discover | MobileNav(); when its owning surface/operation is used |
+| [src/components/app/MobileNav.tsx:70](../src/components/app/MobileNav.tsx#L70) | Rendered copy | My games | MobileNav(); when its owning surface/operation is used |
+| [src/components/app/MobileNav.tsx:82](../src/components/app/MobileNav.tsx#L82) | Rendered copy | Friends | MobileNav(); onlineAvailable is true |
+| [src/components/app/MobileNav.tsx:91](../src/components/app/MobileNav.tsx#L91) | Rendered copy | Ranking | MobileNav(); onlineAvailable is false |
+| [src/components/app/MobileNav.tsx:101](../src/components/app/MobileNav.tsx#L101) | Rendered copy | Menu | MobileNav(); when its owning surface/operation is used |
 ## src/components/app/RouteBoundary.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -2422,26 +2422,27 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/CollectionArtifact.tsx:266](../src/components/CollectionArtifact.tsx#L266) | Message/fragment | Illustrated view · 3D unavailable | loadScene(); operation rejected or threw |
-| [src/components/CollectionArtifact.tsx:375](../src/components/CollectionArtifact.tsx#L375) | Message/fragment | Illustrated view · reduced motion | explanation(); motionReduced is true |
-| [src/components/CollectionArtifact.tsx:378](../src/components/CollectionArtifact.tsx#L378) | Message/fragment | Illustrated view | explanation(); motionReduced is false; quality === 'lite' is true; pending is true |
-| [src/components/CollectionArtifact.tsx:379](../src/components/CollectionArtifact.tsx#L379) | Message/fragment | Illustrated view · Lite mode | explanation(); motionReduced is false; quality === 'lite' is true; pending is false |
-| [src/components/CollectionArtifact.tsx:381](../src/components/CollectionArtifact.tsx#L381) | Message/fragment | Illustrated view · saving resources | explanation(); motionReduced is false; quality === 'lite' is false; quality === 'auto' &amp;&amp; constrained is true |
-| [src/components/CollectionArtifact.tsx:383](../src/components/CollectionArtifact.tsx#L383) | Message/fragment | Illustrated view · tap Fan out for 3D | explanation(); motionReduced is false; quality === 'lite' is false; quality === 'auto' &amp;&amp; constrained is false; needsInteraction is true |
-| [src/components/CollectionArtifact.tsx:384](../src/components/CollectionArtifact.tsx#L384) | Message/fragment | Illustrated view | explanation(); motionReduced is false; quality === 'lite' is false; quality === 'auto' &amp;&amp; constrained is false; needsInteraction is false; state.reason ??; state.ready is false |
-| [src/components/CollectionArtifact.tsx:394](../src/components/CollectionArtifact.tsx#L394) | Label/help | {motifShown ? 'Static sleeve motif' : undefined} | CollectionArtifact(); when its owning surface/operation is used |
-| [src/components/CollectionArtifact.tsx:394](../src/components/CollectionArtifact.tsx#L394) | Message/fragment | Static sleeve motif | CollectionArtifact(); motifShown is true |
-| [src/components/CollectionArtifact.tsx:407](../src/components/CollectionArtifact.tsx#L407) | Rendered copy | ${motifShown ? 'Static sleeve motif' : 'The 100 game sleeves'} | CollectionArtifact(); when its owning surface/operation is used |
-| [src/components/CollectionArtifact.tsx:407](../src/components/CollectionArtifact.tsx#L407) | Message/fragment | Static sleeve motif | CollectionArtifact(); motifShown is true |
-| [src/components/CollectionArtifact.tsx:407](../src/components/CollectionArtifact.tsx#L407) | Message/fragment | The 100 game sleeves | CollectionArtifact(); motifShown is false |
-| [src/components/CollectionArtifact.tsx:408](../src/components/CollectionArtifact.tsx#L408) | Rendered copy | ${motifShown ? 'Art unavailable' : explanation} | CollectionArtifact(); when its owning surface/operation is used |
-| [src/components/CollectionArtifact.tsx:408](../src/components/CollectionArtifact.tsx#L408) | Message/fragment | Art unavailable | CollectionArtifact(); motifShown is true |
-| [src/components/CollectionArtifact.tsx:411](../src/components/CollectionArtifact.tsx#L411) | Rendered copy | ${fanned ? ( &lt;path d="m3 7 7-4 7 4-7 4-7-4Zm0 3 7 4 7-4M3 13l7 4 7-4" /&gt; ) : ( &lt;path d="m2 11 3-6 4 2M7 15 6 7l7-1 1 8-7 1Zm6-10 4 1-2 8" /&gt; )} ${fanned ? 'Stack up' : 'Fan out'} | CollectionArtifact(); canInteract &amp;&amp; |
-| [src/components/CollectionArtifact.tsx:422](../src/components/CollectionArtifact.tsx#L422) | Label/help | {fanned ? 'Stack up the collection sleeves' : 'Fan out the collection sleeves'} | CollectionArtifact(); canInteract &amp;&amp; |
-| [src/components/CollectionArtifact.tsx:422](../src/components/CollectionArtifact.tsx#L422) | Message/fragment | Fan out the collection sleeves | CollectionArtifact(); canInteract &amp;&amp;; fanned is false |
-| [src/components/CollectionArtifact.tsx:422](../src/components/CollectionArtifact.tsx#L422) | Message/fragment | Stack up the collection sleeves | CollectionArtifact(); canInteract &amp;&amp;; fanned is true |
-| [src/components/CollectionArtifact.tsx:438](../src/components/CollectionArtifact.tsx#L438) | Message/fragment | Fan out | CollectionArtifact(); canInteract &amp;&amp;; fanned is false |
-| [src/components/CollectionArtifact.tsx:438](../src/components/CollectionArtifact.tsx#L438) | Message/fragment | Stack up | CollectionArtifact(); canInteract &amp;&amp;; fanned is true |
+| [src/components/CollectionArtifact.tsx:99](../src/components/CollectionArtifact.tsx#L99) | Message/fragment | Illustrated view · reduced motion | FIRST_CAPTIONS(); when its owning surface/operation is used |
+| [src/components/CollectionArtifact.tsx:100](../src/components/CollectionArtifact.tsx#L100) | Message/fragment | Illustrated view · Lite mode | FIRST_CAPTIONS(); when its owning surface/operation is used |
+| [src/components/CollectionArtifact.tsx:101](../src/components/CollectionArtifact.tsx#L101) | Message/fragment | Illustrated view | FIRST_CAPTIONS(); when its owning surface/operation is used |
+| [src/components/CollectionArtifact.tsx:102](../src/components/CollectionArtifact.tsx#L102) | Message/fragment | Illustrated view · saving resources | FIRST_CAPTIONS(); when its owning surface/operation is used |
+| [src/components/CollectionArtifact.tsx:103](../src/components/CollectionArtifact.tsx#L103) | Message/fragment | Illustrated view · tap Fan out for 3D | FIRST_CAPTIONS(); when its owning surface/operation is used |
+| [src/components/CollectionArtifact.tsx:104](../src/components/CollectionArtifact.tsx#L104) | Message/fragment | Illustrated view | FIRST_CAPTIONS(); when its owning surface/operation is used |
+| [src/components/CollectionArtifact.tsx:281](../src/components/CollectionArtifact.tsx#L281) | Message/fragment | Illustrated view · 3D unavailable | loadScene(); operation rejected or threw |
+| [src/components/CollectionArtifact.tsx:415](../src/components/CollectionArtifact.tsx#L415) | Label/help | {motifShown ? 'Static sleeve motif' : undefined} | CollectionArtifact(); when its owning surface/operation is used |
+| [src/components/CollectionArtifact.tsx:415](../src/components/CollectionArtifact.tsx#L415) | Message/fragment | Static sleeve motif | CollectionArtifact(); motifShown is true |
+| [src/components/CollectionArtifact.tsx:428](../src/components/CollectionArtifact.tsx#L428) | Rendered copy | ${motifShown ? 'Static sleeve motif' : 'The 100 game sleeves'} | CollectionArtifact(); when its owning surface/operation is used |
+| [src/components/CollectionArtifact.tsx:428](../src/components/CollectionArtifact.tsx#L428) | Message/fragment | Static sleeve motif | CollectionArtifact(); motifShown is true |
+| [src/components/CollectionArtifact.tsx:428](../src/components/CollectionArtifact.tsx#L428) | Message/fragment | The 100 game sleeves | CollectionArtifact(); motifShown is false |
+| [src/components/CollectionArtifact.tsx:429](../src/components/CollectionArtifact.tsx#L429) | Rendered copy | ${staticShell ? Object.entries(FIRST_CAPTIONS).map(([art, text]) =&gt; ( &lt;span key={art} data-shell-art={art}&gt; {text} &lt;/span&gt; )) : motifShown ? 'Art unavailable' : explanation} | CollectionArtifact(); when its owning surface/operation is used |
+| [src/components/CollectionArtifact.tsx:432](../src/components/CollectionArtifact.tsx#L432) | Rendered copy | ${text} | CollectionArtifact(); staticShell is true |
+| [src/components/CollectionArtifact.tsx:437](../src/components/CollectionArtifact.tsx#L437) | Message/fragment | Art unavailable | CollectionArtifact(); staticShell is false; motifShown is true |
+| [src/components/CollectionArtifact.tsx:442](../src/components/CollectionArtifact.tsx#L442) | Rendered copy | ${fanned ? ( &lt;path d="m3 7 7-4 7 4-7 4-7-4Zm0 3 7 4 7-4M3 13l7 4 7-4" /&gt; ) : ( &lt;path d="m2 11 3-6 4 2M7 15 6 7l7-1 1 8-7 1Zm6-10 4 1-2 8" /&gt; )} ${fanned ? 'Stack up' : 'Fan out'} | CollectionArtifact(); (canInteract &#124;&#124; staticShell) &amp;&amp; |
+| [src/components/CollectionArtifact.tsx:453](../src/components/CollectionArtifact.tsx#L453) | Label/help | {fanned ? 'Stack up the collection sleeves' : 'Fan out the collection sleeves'} | CollectionArtifact(); (canInteract &#124;&#124; staticShell) &amp;&amp; |
+| [src/components/CollectionArtifact.tsx:453](../src/components/CollectionArtifact.tsx#L453) | Message/fragment | Fan out the collection sleeves | CollectionArtifact(); (canInteract &#124;&#124; staticShell) &amp;&amp;; fanned is false |
+| [src/components/CollectionArtifact.tsx:453](../src/components/CollectionArtifact.tsx#L453) | Message/fragment | Stack up the collection sleeves | CollectionArtifact(); (canInteract &#124;&#124; staticShell) &amp;&amp;; fanned is true |
+| [src/components/CollectionArtifact.tsx:471](../src/components/CollectionArtifact.tsx#L471) | Message/fragment | Fan out | CollectionArtifact(); (canInteract &#124;&#124; staticShell) &amp;&amp;; fanned is false |
+| [src/components/CollectionArtifact.tsx:471](../src/components/CollectionArtifact.tsx#L471) | Message/fragment | Stack up | CollectionArtifact(); (canInteract &#124;&#124; staticShell) &amp;&amp;; fanned is true |
 ## src/components/CollectionControls.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -2584,51 +2585,51 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/CollectionPage.tsx:125](../src/components/CollectionPage.tsx#L125) | Rendered copy | GOOD GAMES. GREAT ESCAPES. | CollectionPage(); filters.view !== 'table' &amp;&amp; |
-| [src/components/CollectionPage.tsx:128](../src/components/CollectionPage.tsx#L128) | Rendered copy | GREAT ESCAPES. | CollectionPage(); filters.view !== 'table' &amp;&amp; |
-| [src/components/CollectionPage.tsx:130](../src/components/CollectionPage.tsx#L130) | Rendered copy | One hundred games worth making time for. Find your next world. | CollectionPage(); filters.view !== 'table' &amp;&amp; |
-| [src/components/CollectionPage.tsx:135](../src/components/CollectionPage.tsx#L135) | Rendered copy | Explore all 100 | CollectionPage(); filters.view !== 'table' &amp;&amp; |
-| [src/components/CollectionPage.tsx:148](../src/components/CollectionPage.tsx#L148) | Rendered copy | Pick for me | CollectionPage(); filters.view !== 'table' &amp;&amp; |
-| [src/components/CollectionPage.tsx:158](../src/components/CollectionPage.tsx#L158) | Rendered copy | Leul's 100: the Core 50 and 50 more essentials. | CollectionPage(); filters.view !== 'table' &amp;&amp; |
-| [src/components/CollectionPage.tsx:183](../src/components/CollectionPage.tsx#L183) | Live region | This collection copy does not include ${author.shortName}'s original ratings yet. No substitute values are shown. Refresh original ratings | CollectionPage(); collection.status === 'ready' is true; !collection.data.collection.authorRatingsAreOriginal &amp;&amp; |
-| [src/components/CollectionPage.tsx:184](../src/components/CollectionPage.tsx#L184) | Rendered copy | This collection copy does not include ${author.shortName}'s original ratings yet. No substitute values are shown. | CollectionPage(); collection.status === 'ready' is true; !collection.data.collection.authorRatingsAreOriginal &amp;&amp; |
-| [src/components/CollectionPage.tsx:188](../src/components/CollectionPage.tsx#L188) | Rendered copy | Refresh original ratings | CollectionPage(); collection.status === 'ready' is true; !collection.data.collection.authorRatingsAreOriginal &amp;&amp; |
-| [src/components/CollectionPage.tsx:263](../src/components/CollectionPage.tsx#L263) | Label/help | Games in this view | CollectionPage(); collection.status === 'ready' is true; results.length is true; filters.view === 'table' is false |
-| [src/components/CollectionPage.tsx:291](../src/components/CollectionPage.tsx#L291) | Rendered copy | ${results.length &gt; 1 ? 'Showing ' : ''} ${formatResultRange(results.length, 1, Math.min(visibleCount, results.length))} from The 100 | CollectionPage(); collection.status === 'ready' is true; results.length is true |
-| [src/components/CollectionPage.tsx:296](../src/components/CollectionPage.tsx#L296) | Rendered copy | Show ${Math.min(PAGE_SIZE, results.length - visibleCount)} more | CollectionPage(); collection.status === 'ready' is true; results.length is true; visibleCount &lt; results.length is true |
-| [src/components/CollectionPage.tsx:311](../src/components/CollectionPage.tsx#L311) | Rendered copy | ${showExtended ? 'End of the curated matches.' : "You're at the end of this view."} | CollectionPage(); collection.status === 'ready' is true; results.length is true; visibleCount &lt; results.length is false |
-| [src/components/CollectionPage.tsx:313](../src/components/CollectionPage.tsx#L313) | Message/fragment | End of the curated matches. | CollectionPage(); collection.status === 'ready' is true; results.length is true; visibleCount &lt; results.length is false; showExtended is true |
-| [src/components/CollectionPage.tsx:313](../src/components/CollectionPage.tsx#L313) | Message/fragment | You're at the end of this view. | CollectionPage(); collection.status === 'ready' is true; results.length is true; visibleCount &lt; results.length is false; showExtended is false |
-| [src/components/CollectionPage.tsx:319](../src/components/CollectionPage.tsx#L319) | Rendered copy | No matches in ${author.shortName}'s original 100 for this view. | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is true |
-| [src/components/CollectionPage.tsx:325](../src/components/CollectionPage.tsx#L325) | Rendered copy | ${filters.list === 'later' &amp;&amp; savedCount === 0 ? 'Play later is empty' : filters.list === 'completed' &amp;&amp; completedCount === 0 ? 'No completed games yet' : 'No matching games'} | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false |
-| [src/components/CollectionPage.tsx:327](../src/components/CollectionPage.tsx#L327) | Message/fragment | Play later is empty | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false; filters.list === 'later' &amp;&amp; savedCount === 0 is true |
-| [src/components/CollectionPage.tsx:329](../src/components/CollectionPage.tsx#L329) | Message/fragment | No completed games yet | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false; filters.list === 'later' &amp;&amp; savedCount === 0 is false; filters.list === 'completed' &amp;&amp; completedCount === 0 is true |
-| [src/components/CollectionPage.tsx:330](../src/components/CollectionPage.tsx#L330) | Message/fragment | No matching games | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false; filters.list === 'later' &amp;&amp; savedCount === 0 is false; filters.list === 'completed' &amp;&amp; completedCount === 0 is false |
-| [src/components/CollectionPage.tsx:332](../src/components/CollectionPage.tsx#L332) | Rendered copy | ${filters.list === 'later' &amp;&amp; savedCount === 0 ? 'Choose a bookmark to add a game to Play later, including games from other catalogs.' : filters.list === 'completed' &amp;&amp; completedCount === 0 ? 'Open a game and mark it completed. Your personal progress never changes its place in the collection.' : 'Try a shorter search or loosen a filter. Your saved additions are searched alongside the original 100.'} | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false |
-| [src/components/CollectionPage.tsx:334](../src/components/CollectionPage.tsx#L334) | Message/fragment | Choose a bookmark to add a game to Play later, including games from other catalogs. | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false; filters.list === 'later' &amp;&amp; savedCount === 0 is true |
-| [src/components/CollectionPage.tsx:336](../src/components/CollectionPage.tsx#L336) | Message/fragment | Open a game and mark it completed. Your personal progress never changes its place in the collection. | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false; filters.list === 'later' &amp;&amp; savedCount === 0 is false; filters.list === 'completed' &amp;&amp; completedCount === 0 is true |
-| [src/components/CollectionPage.tsx:337](../src/components/CollectionPage.tsx#L337) | Message/fragment | Try a shorter search or loosen a filter. Your saved additions are searched alongside the original 100. | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false; filters.list === 'later' &amp;&amp; savedCount === 0 is false; filters.list === 'completed' &amp;&amp; completedCount === 0 is false |
-| [src/components/CollectionPage.tsx:339](../src/components/CollectionPage.tsx#L339) | Rendered copy | Browse all 100 | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false |
-| [src/components/CollectionPage.tsx:372](../src/components/CollectionPage.tsx#L372) | Live region | The collection couldn't load. ${collection.error} Try again Download the workbook | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is true |
-| [src/components/CollectionPage.tsx:373](../src/components/CollectionPage.tsx#L373) | Rendered copy | The collection couldn't load. | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is true |
-| [src/components/CollectionPage.tsx:374](../src/components/CollectionPage.tsx#L374) | Rendered copy | ${collection.error} | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is true |
-| [src/components/CollectionPage.tsx:376](../src/components/CollectionPage.tsx#L376) | Rendered copy | Try again | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is true |
-| [src/components/CollectionPage.tsx:380](../src/components/CollectionPage.tsx#L380) | Rendered copy | Download the workbook | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is true |
-| [src/components/CollectionPage.tsx:386](../src/components/CollectionPage.tsx#L386) | Live region | Opening the collection… One hundred games. Just a moment. | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is false |
-| [src/components/CollectionPage.tsx:387](../src/components/CollectionPage.tsx#L387) | Rendered copy | Opening the collection… | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is false |
-| [src/components/CollectionPage.tsx:388](../src/components/CollectionPage.tsx#L388) | Rendered copy | One hundred games. Just a moment. | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is false |
-| [src/components/CollectionPage.tsx:412](../src/components/CollectionPage.tsx#L412) | Rendered copy | PLAY 100 | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:418](../src/components/CollectionPage.tsx#L418) | Rendered copy | Red Dead Redemption 2 | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:423](../src/components/CollectionPage.tsx#L423) | Rendered copy | Mass Effect 2 | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:428](../src/components/CollectionPage.tsx#L428) | Rendered copy | The Witcher 3 | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:432](../src/components/CollectionPage.tsx#L432) | Rendered copy | THE COMPLETE COLLECTION / .XLSX | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:436](../src/components/CollectionPage.tsx#L436) | Rendered copy | THE WORKBOOK. ALL 100 TO KEEP. | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:441](../src/components/CollectionPage.tsx#L441) | Rendered copy | Take all 100 with you. The enhanced workbook keeps the original order, complete score snapshots and notes in one filterable collection. | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:445](../src/components/CollectionPage.tsx#L445) | Rendered copy | Download the workbook XLSX | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:449](../src/components/CollectionPage.tsx#L449) | Label/help | Download the workbook, XLSX | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:452](../src/components/CollectionPage.tsx#L452) | Rendered copy | XLSX | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:454](../src/components/CollectionPage.tsx#L454) | Rendered copy | The curated collection, not your personal progress. | CollectionPage(); secondPass is true |
-| [src/components/CollectionPage.tsx:455](../src/components/CollectionPage.tsx#L455) | Rendered copy | Or download the untouched original Excel | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:128](../src/components/CollectionPage.tsx#L128) | Rendered copy | GOOD GAMES. GREAT ESCAPES. | CollectionPage(); filters.view !== 'table' &amp;&amp; |
+| [src/components/CollectionPage.tsx:131](../src/components/CollectionPage.tsx#L131) | Rendered copy | GREAT ESCAPES. | CollectionPage(); filters.view !== 'table' &amp;&amp; |
+| [src/components/CollectionPage.tsx:133](../src/components/CollectionPage.tsx#L133) | Rendered copy | One hundred games worth making time for. Find your next world. | CollectionPage(); filters.view !== 'table' &amp;&amp; |
+| [src/components/CollectionPage.tsx:138](../src/components/CollectionPage.tsx#L138) | Rendered copy | Explore all 100 | CollectionPage(); filters.view !== 'table' &amp;&amp; |
+| [src/components/CollectionPage.tsx:151](../src/components/CollectionPage.tsx#L151) | Rendered copy | Pick for me | CollectionPage(); filters.view !== 'table' &amp;&amp; |
+| [src/components/CollectionPage.tsx:161](../src/components/CollectionPage.tsx#L161) | Rendered copy | Leul's 100: the Core 50 and 50 more essentials. | CollectionPage(); filters.view !== 'table' &amp;&amp; |
+| [src/components/CollectionPage.tsx:186](../src/components/CollectionPage.tsx#L186) | Live region | This collection copy does not include ${author.shortName}'s original ratings yet. No substitute values are shown. Refresh original ratings | CollectionPage(); collection.status === 'ready' is true; !collection.data.collection.authorRatingsAreOriginal &amp;&amp; |
+| [src/components/CollectionPage.tsx:187](../src/components/CollectionPage.tsx#L187) | Rendered copy | This collection copy does not include ${author.shortName}'s original ratings yet. No substitute values are shown. | CollectionPage(); collection.status === 'ready' is true; !collection.data.collection.authorRatingsAreOriginal &amp;&amp; |
+| [src/components/CollectionPage.tsx:191](../src/components/CollectionPage.tsx#L191) | Rendered copy | Refresh original ratings | CollectionPage(); collection.status === 'ready' is true; !collection.data.collection.authorRatingsAreOriginal &amp;&amp; |
+| [src/components/CollectionPage.tsx:266](../src/components/CollectionPage.tsx#L266) | Label/help | Games in this view | CollectionPage(); collection.status === 'ready' is true; results.length is true; filters.view === 'table' is false |
+| [src/components/CollectionPage.tsx:294](../src/components/CollectionPage.tsx#L294) | Rendered copy | ${results.length &gt; 1 ? 'Showing ' : ''} ${formatResultRange(results.length, 1, Math.min(visibleCount, results.length))} from The 100 | CollectionPage(); collection.status === 'ready' is true; results.length is true |
+| [src/components/CollectionPage.tsx:299](../src/components/CollectionPage.tsx#L299) | Rendered copy | Show ${Math.min(PAGE_SIZE, results.length - visibleCount)} more | CollectionPage(); collection.status === 'ready' is true; results.length is true; visibleCount &lt; results.length is true |
+| [src/components/CollectionPage.tsx:314](../src/components/CollectionPage.tsx#L314) | Rendered copy | ${showExtended ? 'End of the curated matches.' : "You're at the end of this view."} | CollectionPage(); collection.status === 'ready' is true; results.length is true; visibleCount &lt; results.length is false |
+| [src/components/CollectionPage.tsx:316](../src/components/CollectionPage.tsx#L316) | Message/fragment | End of the curated matches. | CollectionPage(); collection.status === 'ready' is true; results.length is true; visibleCount &lt; results.length is false; showExtended is true |
+| [src/components/CollectionPage.tsx:316](../src/components/CollectionPage.tsx#L316) | Message/fragment | You're at the end of this view. | CollectionPage(); collection.status === 'ready' is true; results.length is true; visibleCount &lt; results.length is false; showExtended is false |
+| [src/components/CollectionPage.tsx:322](../src/components/CollectionPage.tsx#L322) | Rendered copy | No matches in ${author.shortName}'s original 100 for this view. | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is true |
+| [src/components/CollectionPage.tsx:328](../src/components/CollectionPage.tsx#L328) | Rendered copy | ${filters.list === 'later' &amp;&amp; savedCount === 0 ? 'Play later is empty' : filters.list === 'completed' &amp;&amp; completedCount === 0 ? 'No completed games yet' : 'No matching games'} | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false |
+| [src/components/CollectionPage.tsx:330](../src/components/CollectionPage.tsx#L330) | Message/fragment | Play later is empty | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false; filters.list === 'later' &amp;&amp; savedCount === 0 is true |
+| [src/components/CollectionPage.tsx:332](../src/components/CollectionPage.tsx#L332) | Message/fragment | No completed games yet | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false; filters.list === 'later' &amp;&amp; savedCount === 0 is false; filters.list === 'completed' &amp;&amp; completedCount === 0 is true |
+| [src/components/CollectionPage.tsx:333](../src/components/CollectionPage.tsx#L333) | Message/fragment | No matching games | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false; filters.list === 'later' &amp;&amp; savedCount === 0 is false; filters.list === 'completed' &amp;&amp; completedCount === 0 is false |
+| [src/components/CollectionPage.tsx:335](../src/components/CollectionPage.tsx#L335) | Rendered copy | ${filters.list === 'later' &amp;&amp; savedCount === 0 ? 'Choose a bookmark to add a game to Play later, including games from other catalogs.' : filters.list === 'completed' &amp;&amp; completedCount === 0 ? 'Open a game and mark it completed. Your personal progress never changes its place in the collection.' : 'Try a shorter search or loosen a filter. Your saved additions are searched alongside the original 100.'} | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false |
+| [src/components/CollectionPage.tsx:337](../src/components/CollectionPage.tsx#L337) | Message/fragment | Choose a bookmark to add a game to Play later, including games from other catalogs. | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false; filters.list === 'later' &amp;&amp; savedCount === 0 is true |
+| [src/components/CollectionPage.tsx:339](../src/components/CollectionPage.tsx#L339) | Message/fragment | Open a game and mark it completed. Your personal progress never changes its place in the collection. | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false; filters.list === 'later' &amp;&amp; savedCount === 0 is false; filters.list === 'completed' &amp;&amp; completedCount === 0 is true |
+| [src/components/CollectionPage.tsx:340](../src/components/CollectionPage.tsx#L340) | Message/fragment | Try a shorter search or loosen a filter. Your saved additions are searched alongside the original 100. | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false; filters.list === 'later' &amp;&amp; savedCount === 0 is false; filters.list === 'completed' &amp;&amp; completedCount === 0 is false |
+| [src/components/CollectionPage.tsx:342](../src/components/CollectionPage.tsx#L342) | Rendered copy | Browse all 100 | CollectionPage(); collection.status === 'ready' is true; results.length is false; showExtended is false |
+| [src/components/CollectionPage.tsx:375](../src/components/CollectionPage.tsx#L375) | Live region | The collection couldn't load. ${collection.error} Try again Download the workbook | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is true |
+| [src/components/CollectionPage.tsx:376](../src/components/CollectionPage.tsx#L376) | Rendered copy | The collection couldn't load. | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is true |
+| [src/components/CollectionPage.tsx:377](../src/components/CollectionPage.tsx#L377) | Rendered copy | ${collection.error} | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is true |
+| [src/components/CollectionPage.tsx:379](../src/components/CollectionPage.tsx#L379) | Rendered copy | Try again | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is true |
+| [src/components/CollectionPage.tsx:383](../src/components/CollectionPage.tsx#L383) | Rendered copy | Download the workbook | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is true |
+| [src/components/CollectionPage.tsx:389](../src/components/CollectionPage.tsx#L389) | Live region | Opening the collection… One hundred games. Just a moment. | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is false |
+| [src/components/CollectionPage.tsx:390](../src/components/CollectionPage.tsx#L390) | Rendered copy | Opening the collection… | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is false |
+| [src/components/CollectionPage.tsx:391](../src/components/CollectionPage.tsx#L391) | Rendered copy | One hundred games. Just a moment. | CollectionPage(); collection.status === 'ready' is false; collection.status === 'error' is false |
+| [src/components/CollectionPage.tsx:415](../src/components/CollectionPage.tsx#L415) | Rendered copy | PLAY 100 | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:421](../src/components/CollectionPage.tsx#L421) | Rendered copy | Red Dead Redemption 2 | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:426](../src/components/CollectionPage.tsx#L426) | Rendered copy | Mass Effect 2 | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:431](../src/components/CollectionPage.tsx#L431) | Rendered copy | The Witcher 3 | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:435](../src/components/CollectionPage.tsx#L435) | Rendered copy | THE COMPLETE COLLECTION / .XLSX | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:439](../src/components/CollectionPage.tsx#L439) | Rendered copy | THE WORKBOOK. ALL 100 TO KEEP. | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:444](../src/components/CollectionPage.tsx#L444) | Rendered copy | Take all 100 with you. The enhanced workbook keeps the original order, complete score snapshots and notes in one filterable collection. | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:448](../src/components/CollectionPage.tsx#L448) | Rendered copy | Download the workbook XLSX | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:452](../src/components/CollectionPage.tsx#L452) | Label/help | Download the workbook, XLSX | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:455](../src/components/CollectionPage.tsx#L455) | Rendered copy | XLSX | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:457](../src/components/CollectionPage.tsx#L457) | Rendered copy | The curated collection, not your personal progress. | CollectionPage(); secondPass is true |
+| [src/components/CollectionPage.tsx:458](../src/components/CollectionPage.tsx#L458) | Rendered copy | Or download the untouched original Excel | CollectionPage(); secondPass is true |
 ## src/components/compare-tray/compare-drag-controller.ts
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -3619,6 +3620,11 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 | [src/first-paint/boot.js:195](../src/first-paint/boot.js#L195) | Message/fragment | SCRIPT | start(); when its owning surface/operation is used |
 | [src/first-paint/boot.js:211](../src/first-paint/boot.js#L211) | Message/fragment | DOMContentLoaded | start(); document.readyState === 'loading' is true |
 | [src/first-paint/boot.js:228](../src/first-paint/boot.js#L228) | Message/fragment | DOMContentLoaded | afterPaint(); when its owning surface/operation is used |
+## src/first-paint/shell-render.tsx
+
+| Source | Kind | Copy or expression | Showing condition / owner |
+| --- | --- | --- | --- |
+| [src/first-paint/shell-render.tsx:32](../src/first-paint/shell-render.tsx#L32) | Rendered copy | Skip to the collection | renderShell(); when its owning surface/operation is used |
 ## src/hooks/useAccountLibrary.ts
 
 | Source | Kind | Copy or expression | Showing condition / owner |

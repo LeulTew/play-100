@@ -1,4 +1,6 @@
+import { useContext } from 'react';
 import type { MouseEvent } from 'react';
+import { StaticShellContext } from '../../first-paint/static-shell';
 import type { AppPage } from '../../lib/types';
 import type { MyGamesTab } from '../../lib/my-games-navigation';
 import { Icon } from '../Icon';
@@ -28,6 +30,8 @@ export function MobileNav({
   onMenu,
   onIntent,
 }: MobileNavProps) {
+  // The static shell disables the menu button, which only the app can run.
+  const staticShell = useContext(StaticShellContext);
   const intent = (destination: AppPage) => ({
     onPointerEnter: () => onIntent?.(destination),
     onFocus: () => onIntent?.(destination),
@@ -87,7 +91,12 @@ export function MobileNav({
           <span>Ranking</span>
         </a>
       )}
-      <button aria-haspopup="dialog" aria-expanded={menuOpen} onClick={(event) => onMenu(event.currentTarget)}>
+      <button
+        aria-haspopup="dialog"
+        aria-expanded={menuOpen}
+        onClick={(event) => onMenu(event.currentTarget)}
+        disabled={staticShell || undefined}
+      >
         <Icon name="menu" width="20" height="20" />
         <span>Menu</span>
       </button>

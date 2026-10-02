@@ -1,4 +1,6 @@
+import { useContext } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
+import { StaticShellContext } from '../../first-paint/static-shell';
 import type { AppPage } from '../../lib/types';
 import { Icon } from '../Icon';
 import CountUp from '../bits/CountUp';
@@ -42,6 +44,8 @@ export function AppHeader({
   onAccount,
   onIntent,
 }: AppHeaderProps) {
+  // The static shell disables the buttons only the app can run.
+  const staticShell = useContext(StaticShellContext);
   const intent = (destination: AppPage) => ({
     onPointerEnter: () => onIntent?.(destination),
     onFocus: () => onIntent?.(destination),
@@ -102,6 +106,7 @@ export function AppHeader({
           className="saved-nav"
           aria-label={`Play later, ${savedCount} ${savedCount === 1 ? 'game' : 'games'}`}
           onClick={onQueue}
+          disabled={staticShell || undefined}
         >
           <Icon name="bookmark" width="19" height="19" />
           <span className="saved-nav-label">Play later</span>{' '}
@@ -122,6 +127,7 @@ export function AppHeader({
           aria-haspopup="dialog"
           aria-expanded={menuOpen}
           onClick={(event) => onMenu(event.currentTarget)}
+          disabled={staticShell || undefined}
         >
           <Icon name="menu" width="20" height="20" />
           Menu

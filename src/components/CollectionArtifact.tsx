@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import type { ComponentType } from 'react';
 import { AfterFirstPaint } from './AfterFirstPaint';
 import type { CollectionSceneHandle } from './scene/CollectionScene';
+import { StaticShellContext } from '../first-paint/static-shell';
 import { createMemoizedModule } from '../lib/memoized-module';
 import { followScrolling } from '../lib/scroll-settle';
 import './scene/artifact.css';
@@ -90,12 +91,26 @@ function hasCoarsePointer() {
   );
 }
 
+/**
+ * The caption the first commit shows in each state the boot script can name before the app starts (data-boot-art).
+ * The static first-paint shell carries them all, and its CSS shows the named one (docs/first-paint-shell.md).
+ */
+const FIRST_CAPTIONS = {
+  reduced: 'Illustrated view · reduced motion',
+  lite: 'Illustrated view · Lite mode',
+  pending: 'Illustrated view',
+  saving: 'Illustrated view · saving resources',
+  tap: 'Illustrated view · tap Fan out for 3D',
+  ready: 'Illustrated view',
+} as const;
+
 export default function CollectionArtifact({
   quality,
   pending = false,
   reducedMotion,
   constrained,
 }: CollectionArtifactProps) {
+  const staticShell = useContext(StaticShellContext);
   const captionId = useId();
   const rootRef = useRef<HTMLElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -372,27 +387,33 @@ export default function CollectionArtifact({
   const motifShown = illustration.failed && !showing;
   // One caption until the view settles: waiting for and loading the 3D scene both read as the illustration they show.
   const explanation = motionReduced
-    ? 'Illustrated view · reduced motion'
+    ? FIRST_CAPTIONS.reduced
     : quality === 'lite'
       ? pending
-        ? 'Illustrated view'
-        : 'Illustrated view · Lite mode'
+        ? FIRST_CAPTIONS.pending
+        : FIRST_CAPTIONS.lite
       : quality === 'auto' && constrained
-        ? 'Illustrated view · saving resources'
+        ? FIRST_CAPTIONS.saving
         : needsInteraction
-          ? 'Illustrated view · tap Fan out for 3D'
-          : (state.reason ?? (state.ready ? '3D view' : 'Illustrated view'));
+          ? FIRST_CAPTIONS.tap
+          : (state.reason ?? (state.ready ? '3D view' : FIRST_CAPTIONS.ready));
+  // The static shell (src/first-paint/shell-render.tsx) names no scene status or activation yet. It carries every first
+  // caption, and the Fan out control for the states that show it, for its CSS to choose from (data-boot-art), and names
+  // its caption itself: useId's ids belong to the app's own render.
+  const caption = staticShell ? 'p100-shell-art-caption' : captionId;
 
   return (
     <figure
       ref={rootRef}
       className="collection-artifact"
       data-render-mode={renderMode}
-      data-scene-status={status}
+      data-scene-status={staticShell ? undefined : status}
       data-fanned={canInteract && fanned}
-      data-activation={canInteract ? (needsInteraction ? 'on-demand' : 'automatic') : 'static'}
+      data-activation={
+        staticShell ? undefined : canInteract ? (needsInteraction ? 'on-demand' : 'automatic') : 'static'
+      }
       aria-label={motifShown ? 'Static sleeve motif' : undefined}
-      aria-describedby={captionId}
+      aria-describedby={caption}
     >
       <div ref={stageRef} className="artifact-stage" aria-hidden="true">
         {/* Decorative and absolutely positioned: it paints after the first screen's text, and moves nothing. */}
@@ -403,11 +424,21 @@ export default function CollectionArtifact({
         <div ref={hostRef} className="artifact-canvas" />
       </div>
       <figcaption ref={footerRef} className="artifact-footer">
-        <div id={captionId} className="artifact-caption">
+        <div id={caption} className="artifact-caption">
           <span className="artifact-caption-title">{motifShown ? 'Static sleeve motif' : 'The 100 game sleeves'}</span>
-          <span className="artifact-status">{motifShown ? 'Art unavailable' : explanation}</span>
+          <span className="artifact-status">
+            {staticShell
+              ? Object.entries(FIRST_CAPTIONS).map(([art, text]) => (
+                  <span key={art} data-shell-art={art}>
+                    {text}
+                  </span>
+                ))
+              : motifShown
+                ? 'Art unavailable'
+                : explanation}
+          </span>
         </div>
-        {canInteract && (
+        {(canInteract || staticShell) && (
           <button
             type="button"
             className="artifact-control"
@@ -420,6 +451,8 @@ export default function CollectionArtifact({
               setFanned((value) => !value);
             }}
             aria-label={fanned ? 'Stack up the collection sleeves' : 'Fan out the collection sleeves'}
+            data-shell-art={staticShell ? 'tap ready' : undefined}
+            disabled={staticShell || undefined}
           >
             <svg
               viewBox="0 0 20 20"
