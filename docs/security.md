@@ -54,6 +54,36 @@ own per-instance admission (4 active / 30 per minute). Beacons are best-effort
 and are not visitor analytics or a complete error census. Counts can be spoofed;
 they are diagnostic hints, not trusted security evidence.
 
+**Spike alerts and the functions' only credential (R24).** Both report
+endpoints can raise an alert on a spike (thresholds and reasoning in
+[operations](release-operations.md#11-daily-and-post-deploy-operational-checks)).
+That needs `PRODUCTION_ALERT_GITHUB_TOKEN`: a fine-grained personal access
+token for `LeulTew/play-100` only, with Issues read and write and a one-year
+expiry, stored as a Sensitive, Production-only Vercel variable
+([runbook](security-release-runbook.md#production-alert-token)). Without it the
+endpoints behave and log exactly as before. It is the only credential any
+function holds, and only `api/_lib/production-alert.ts` reads it. It goes only
+to `api.github.com`, for this repository's issue endpoints, with redirects
+refused and a 5-second budget, and it is never logged. Any other kind of token
+turns the alert off, so a classic token, which cannot be limited to one
+repository, is never used. Vite exposes only `VITE_` variables to the client,
+so the token never reaches the browser bundle.
+
+Blast radius: until it is revoked or expires, whoever holds the token can
+create, edit, close and comment on issues and manage labels and milestones in
+this public repository, under the owner's name. It cannot read private data,
+push code, change settings, or reach other repositories, Firebase or Vercel. A
+post carries only fixed categories (error class and area, or CSP directive,
+allow-listed origin and route template), counts, the window and the deployment
+ID: never a URL with a query, a user agent, an IP or an account identifier.
+Reports are anonymous, so forged reports can raise a false alert, at most one
+post per function instance per hour, which also uses up that instance's post
+for the hour; per-instance admission still caps each endpoint. The report that
+posts answers only after the post, which adds up to 5 s to that one report's
+response, at most once per instance per hour; its sender, a browser beacon or
+CSP report, doesn't wait for the response. A failed post is swallowed and
+shows only in that report's log line, as `alert: failed` and `alertStatus`.
+
 The project owner reviews these signals on a fault or abuse signal and by
 2026-10-02 with the WAF decision, following the
 [daily and post-deploy checks](release-operations.md#11-daily-and-post-deploy-operational-checks).

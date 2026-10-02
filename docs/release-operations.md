@@ -1295,18 +1295,57 @@ with the owner's readback.
 Owner: project owner; check daily and after each authorized production deployment,
 and review by 2026-10-02 with the WAF decision or immediately on an abuse signal.
 
-**Automatic alert (owner's choice, 2026-10-01).** The `Production alert`
-workflow (`.github/workflows/production-alert.yml`) runs daily at 06:30 UTC,
-after the 06:00 cron. It requests the home page and the fixed
+**Automatic alert (owner's choice, 2026-10-01; hourly since R24).** The
+`Production alert` workflow (`.github/workflows/production-alert.yml`) runs at
+30 minutes past every hour. It requests the home page and the fixed
 `/api/operational-probe` once each, without retries or query parameters. If
-either fails, it opens one issue titled "Production alert: the daily check
-failed" (or comments on the open one) and fails the run, so GitHub emails the
-owner. The next passing run closes the issue. To test the channel, run it
-manually with **drill** checked; that reports a simulated failure. The repository
-is public, so the run uses no Actions quota. GitHub pauses scheduled workflows
-after 60 days without repository activity; if that happens, re-enable the
-workflow in the Actions tab. The alert covers availability and the probe's
-three checks only; the manual checks below still apply.
+either fails, it opens one issue titled "Production alert: the production check
+failed" (it still finds an open one under the old title, "the daily check
+failed"), or comments on the open one, and fails the run, so GitHub emails the
+owner. It does so only when the failure is new or has changed: each report
+carries a hidden state marker, and while the same failure persists the hourly
+runs only warn. The next passing run closes the issue. To test the channel, run
+it manually with **drill** checked; each drill reports a simulated failure. The
+repository is public, so the runs use no Actions quota. GitHub pauses scheduled
+workflows after 60 days without repository activity; if that happens, re-enable
+the workflow in the Actions tab. The probe caches each result for 15 minutes,
+so the hourly calls add at most 24 rounds of its four upstream requests a day.
+
+**Client report alerts (R24).** The two report functions push their own alert
+to one GitHub issue, labelled `client-report-spike`, when
+`PRODUCTION_ALERT_GITHUB_TOKEN` is set (see the
+[runbook](security-release-runbook.md#production-alert-token)); without it they
+do nothing extra and log nothing extra. Each function instance counts the
+reports it accepted over a rolling hour (`api/_lib/production-alert.ts`):
+- five client error reports naming one error class and area: a page load sends
+  at most four reports, so this needs at least two page loads;
+- twenty client error reports of any category, so at least five page loads;
+- three CSP violations in main documents, which the policy should never
+  produce; three rather than one tolerate a stray extension script. The sign-in
+  helper documents' violations are not counted.
+
+The report that reaches a threshold posts once, and its own 204 waits for the
+post: that adds up to 5 s to that one report's response, at most once per
+instance per hour. The senders are browser beacons and CSP reports, which don't
+wait for the response. The instance then waits an hour before it can post
+again, whether the post worked or not. A post comments on the open labelled
+issue, or opens it, unless the issue already has that exact text. It contains
+the fixed categories and counts, the window and the deployment ID, never a URL
+with a query, a user agent or an address. The report's own log line gains
+`alert`: `created`, `commented`, `duplicate`, or `failed` with `alertStatus` (the
+GitHub status, or 0 when the request failed or got no answer within 5 s); a
+failure is recorded nowhere else. Counts are per instance and come from
+anonymous reports, so a spread-out spike can stay under the thresholds and
+forged reports can raise a false alert (at most one post per instance per hour;
+admission still bounds each endpoint). The functions post with the owner's
+token, and GitHub doesn't notify people of their own activity, so the hourly
+workflow acknowledges each new spike post with one comment and fails that run,
+which emails the owner. It closes the issue after 24 hours without a new spike.
+On a spike, open the deployment's logs and compare the `client-error-count` or
+`csp-count` lines with the categories in the issue, as in step 4 below.
+
+The alerts cover availability, the probe's three checks and these report
+spikes; the manual checks below still apply.
 
 1. In the Vercel project, open **Settings → Cron Jobs**. Confirm the job is
    enabled and `/api/operational-probe` is scheduled at `0 6 * * *` (UTC; allow

@@ -27,6 +27,10 @@ variables in Vercel: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`,
 `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`, and
 `VITE_FIREBASE_REQUIRED=true`. Missing required configuration fails the build;
 see [online saving](online-saving.md). Nothing is pulled into the stage.
+Besides Vercel's system variables, the functions read one optional runtime
+variable, the Sensitive, Production-only `PRODUCTION_ALERT_GITHUB_TOKEN` for
+report spike alerts; see the
+[runbook](security-release-runbook.md#production-alert-token).
 
 From that staging directory in WSL fish, replace the placeholder with the full
 reviewed commit SHA:
