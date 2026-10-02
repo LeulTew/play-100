@@ -576,6 +576,28 @@ never adopt a stale server. Preserve `dist` and its environment after this build
 Any offline-build expansion must use a separate build/evidence directory and
 manifest; never describe it as this configured candidate.
 
+**Browser-floor smoke.** The partitions above run current Chromium only. The
+floor smoke (`tests/floor-smoke.spec.ts`, `playwright.floor.config.ts`) runs the
+flows an older engine breaks first on Firefox, WebKit and, when
+`PLAY100_FLOOR_CHROMIUM` names its `chrome.exe`, an old Chromium near the
+README floor (Chrome 94). Each test also removes `URLSearchParams.prototype.size`.
+It covers a game detail opened through its link (`?game=`), Discover filters and
+paging keeping the query, the My games tabs, the outdated-browser boot notice and,
+on a configured build, the Google sign-in return path. It is never part of
+`test:e2e`. Install the two engines once, then run it against this same build
+(`PLAY100_TEST_BUILD` unset or `production`):
+
+```powershell
+npx --no-install playwright install firefox webkit
+$env:PLAY100_FLOOR_CHROMIUM = '<path to an old Chromium chrome.exe>'  # optional
+$env:PLAYWRIGHT_JSON_OUTPUT_NAME = "$evidence\e2e-floor.json"
+npm run test:floor -- --reporter=list,json
+if ($LASTEXITCODE -ne 0) { throw 'Floor smoke failed' }
+Remove-Item Env:PLAYWRIGHT_JSON_OUTPUT_NAME, Env:PLAY100_FLOOR_CHROMIUM -ErrorAction SilentlyContinue
+```
+
+Without `PLAY100_FLOOR_CHROMIUM` only `floor-firefox` and `floor-webkit` run.
+
 For cloud-UI use three terminals in this **same checkout**. Terminal A:
 
 ```powershell

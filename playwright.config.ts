@@ -18,10 +18,13 @@ const sourceFixtureSpecs = [
   '**/ranking-removal.spec.ts',
   '**/route-list-motion.spec.ts',
 ];
+// The browser-floor smoke runs only under playwright.floor.config.ts (npm run test:floor), on Firefox, WebKit and an
+// old Chromium.
+export const floorSmokeSpec = '**/floor-smoke.spec.ts';
 export default defineConfig({
   testDir: './tests',
   testMatch: developmentFixtures ? sourceFixtureSpecs : '**/*.spec.ts',
-  testIgnore: developmentFixtures ? [] : sourceFixtureSpecs,
+  testIgnore: developmentFixtures ? [] : [...sourceFixtureSpecs, floorSmokeSpec],
   fullyParallel: true,
   forbidOnly: gate.forbidOnly,
   workers: process.env.CI ? 2 : 3,
