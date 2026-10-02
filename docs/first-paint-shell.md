@@ -104,7 +104,10 @@ the script, so strings, templates and regular expressions keep their values, eve
 where their text looks like a comment or spans lines, and a script that is not
 valid JavaScript fails the build. It minifies to the source's own ES2019 (optional
 catch bindings) and adds no later syntax, because the script must still show the
-failure notice where the app's ES2022 modules cannot run. Line endings are
+failure notice where the app's ES2022 modules cannot run. This fallback itself
+needs Chrome 66, Firefox 58 or Safari 11.1: optional catch bindings and emitted
+template literals prevent older engines from parsing the boot script. Those
+engines get a blank page, not the notice. Line endings are
 normalized first, so the hash is the same from any checkout. The script accepts
 the document only at `/` without
 `view=table`, `game` or `catalogs=off`, derives the artifact caption state React

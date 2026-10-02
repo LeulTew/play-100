@@ -169,9 +169,115 @@ redacted JSON report and command log, not only a summary of its result.
 
 The committed runner is the default entry point. It follows the release operator's
 ordered local partitions, pins **Node 24.21.0**, refuses occupied suite ports
-(including IPv6), and stops on the first failure without retries or cleanup of
-evidence. The old, disabled hosted workflow was removed rather than kept as a
+(including IPv6), and stops on the first failure without cleanup of evidence.
+Every partition is zero-retry except the isolated FLAKE-01 film-download
+partition described below. The old, disabled hosted workflow was removed rather than kept as a
 second, incomplete definition. No CI, push or deployment is performed.
+
+### Lean release mode
+
+The full `npm run release:gate` **remains the default**. Lean mode is supported
+when the release operator schedules the required partitions separately to fit
+shared-host, device-lab or foreground screen-reader windows. It is an evidence
+collection mode, not a shorter list of checks or a deployment command. Every
+required result must cover the same clean candidate tree; rebasing an unchanged
+tree is acceptable, carrying a receipt from a different tree is not. Freeze
+source, the lockfile and the intermittent register before collecting evidence.
+Any change to them requires a new candidate and matching evidence.
+
+Required evidence identifiers in the lean index:
+
+| Identifier | Required evidence |
+| --- | --- |
+| `static` | TypeScript app and Functions checks, ESLint/Prettier, data and discovery validators; exact commands and exits |
+| `units` | Relevant complete unit and mounted-browser suites, with native reports and no unexplained skips |
+| `configured-build`, `configured-csp`, `configured-budgets` | Configured build and its `check:csp` / `check:budgets` reports |
+| `offline-build`, `offline-csp`, `offline-budgets` | Separate unconfigured/offline build and its `check:csp` / `check:budgets` reports |
+| `e2e-production`, `e2e-development`, `e2e-offline` | Production, source-fixture development and offline end-to-end partitions |
+| `films-download` | The isolated native film case on desktop and mobile; retain both attempts if the sole rerun is needed |
+| `cloud-rules` | Real emulator rules suite, tested rules digest, and required race/convergence repetitions |
+| `cloud-ui-desktop`, `cloud-ui-mobile` | Both cloud UI projects, including one-worker rule-loading checks and required sync repetitions |
+| `floor-smoke` | Browser-floor smoke receipt |
+| `sw-probe` | Strict configured two-version service-worker campaign; validation-only mode is not release evidence |
+| `rollback-drill` | Rollback rehearsal and its compatibility-floor checks |
+| `apb2` | Complete APB2 startup/performance campaign and retained failures/limits |
+| `test-lab`, `ios-safari` | Test Lab and iOS Safari receipts with device/runtime and tested-build identity |
+| `screen-reader` | Real reader version, spoken output, keyboard/focus outcomes and tested-build identity |
+| `gitleaks` | Full reachable-history scan, pinned scanner identity and redacted native result |
+| `npm-audit`, `npm-signatures` | Audit and signature receipts for both installed build profiles; advisories remain visible for review |
+
+Keep raw logs, native reports and artifacts outside the checkout. At execution
+time record each file in a JSON index with its full tested tree, byte count,
+SHA-256, UTC recording time and result. Include every evidence file; multiple
+files may share an identifier. For the film partition, use one receipt bundle
+per attempt (with its log, native report and artifacts inside), numbered 1 and
+optionally 2. Neither edit a failed receipt into a pass nor relabel an old
+receipt with the current tree.
+
+```json
+{
+  "schemaVersion": 1,
+  "tree": "FULL_40_CHARACTER_CANDIDATE_TREE",
+  "evidence": [
+    {
+      "check": "static",
+      "file": "static-receipt.json",
+      "tree": "FULL_40_CHARACTER_TESTED_TREE",
+      "sha256": "RECORDED_64_CHARACTER_SHA256",
+      "bytes": 1234,
+      "recordedAt": "2026-10-02T01:00:00.000Z",
+      "result": "passed"
+    }
+  ]
+}
+```
+
+This is a shape example, not an accepted complete index: all table identifiers
+are mandatory. Paths resolve relative to the index. Allowed results are
+`passed`; `failed` only for film attempt 1 followed by passed attempt 2; and
+`review-required` only for `npm-audit`. A second film failure stops release.
+Missing, blocked or not-yet-run reader/device checks cannot be encoded as passes.
+
+```powershell
+npm run release:manifest -- C:\release\evidence\lean-manifest.json --lean C:\release\evidence\index.json
+if ($LASTEXITCODE -ne 0) { throw 'Lean evidence is incomplete, changed or belongs to another tree' }
+```
+
+This extends the existing typed `release:manifest` command; its native-report
+mode stays available. Lean collection needs no `dist` or running server. It
+binds the current commit/tree, `package-lock.json`, `docs/intermittents.md`, the
+index and every listed file's digest, size and recorded tree. It refuses
+missing/changed files, other-tree evidence, dirty source, duplicate files,
+in-checkout output and overwrite of an existing manifest. Where a JSON report
+declares `tree` or `source.tree`, or a text log has a `tree:` header, those
+identities must also match; the index cannot override a report's own provenance.
+
+The index is the release operator's provenance record, not independent proof
+that an arbitrary report ran on that tree. Review command headers, native
+results, device build identity and completeness before accepting it. The
+collector does not execute checks, approve audit advisories, reinterpret
+performance failures or authorize deployment. `reviewRequired: true` must
+receive an explicit advisory decision before promotion. A waiver or cross-tree
+carry-forward needs separate owner review and is not a passing lean manifest.
+
+### Isolated FLAKE-01 partition
+
+The full runner excludes exactly the named native film playback/download case
+from production e2e and runs it separately as `films-download` on desktop and
+mobile. Other tests in `tests/films.spec.ts` stay in production e2e; development
+fixtures are unchanged. Playwright itself always uses `--retries=0`.
+
+The first run writes `films-download-attempt-1.*` and a distinct results
+directory. On failure, keep every file and run that partition once more with
+`films-download-attempt-2.*`. Stop on a second failure; never restart another
+partition to obtain green. Playback, seek, switching, focus, native download
+and byte-identical SHA-256 assertions are unchanged. The successful aggregate
+receipt binds both attempts' log/exit/report bytes, including an explicitly
+missing native report if the first runner failed before writing it. The
+manifest includes the final native report and this exception receipt; it does
+not erase or relabel the first failure. See [FLAKE-01](intermittents.md#flake-01-phase-2-conclusion).
+
+### Full runner setup
 
 Prepare a separate clean offline checkout at the **same full candidate SHA**,
 with matching installed dependencies, as described in section 3. The runner
@@ -197,6 +303,11 @@ if ($LASTEXITCODE -ne 0) { throw 'Gate stopped; investigate retained evidence be
 
 The evidence directory must not exist and must be outside both checkouts.
 Dry-run prints the entire plan without starting servers, tests or builds.
+The full plan includes the three-engine floor smoke and the APB2 hook below.
+Before starting, set `PLAY100_FLOOR_CHROMIUM` to an installed, reviewed old
+Chromium executable and install the matching Playwright Firefox/WebKit engines.
+There is no two-engine substitute in the full gate. The runner also refuses to
+start if the committed `release:apb2` package script is absent.
 Execution first runs `npm audit signatures` against the installed tree in each
 checkout, before any static check or test. Each signature check must succeed;
 its log hash and exit receipt are bound into that checkout's release manifest.
@@ -411,11 +522,23 @@ readback requirements in §9 still apply.
 ### APB2 v3.2 campaign protocol
 
 APB2 remains a separately frozen performance campaign, not a result implied by
-`release:gate` or the SW probe. The committed runner port is **pending**; do not
+the SW probe. The full `release:gate` includes a typed, fail-closed APB2 hook.
+The committed runner port is **pending** on this source baseline; do not
 substitute a smaller benchmark or claim a campaign pass from unit checks.
 Until the full fixture/collector graph is ported, retain the reviewed v3.2 frozen
 artifact set and its native suite, freeze, preview, source-binding and capture
 receipts together. Do not use files still changing during the active gate.
+
+The hook calls `npm run release:apb2 -- --evidence NEW_DIRECTORY` with
+`PLAY100_APB2_SOURCE_COMMIT` and `PLAY100_APB2_SOURCE_TREE` set to the full
+candidate identities. The port must write `NEW_DIRECTORY/receipt.json`
+conforming to `Apb2GateReceipt` in `scripts/release-gate.ts`: `schemaVersion: 1`,
+`source: { sha, tree }`, and `status: "passed"` only after its complete campaign
+passes. Retain and bind the native artifacts in that receipt; do not merely
+echo the environment as proof. The gate verifies the exit and exact source
+identity and hashes the receipt in its final configured manifest. Missing
+runner, receipt, wrong identity or failed status blocks the gate; there is no
+skip, fabricated pass, or fallback to a smaller benchmark.
 
 The v3.2 amendment changes only fixture IndexedDB opens to the source-bound
 `DB_VERSION` (3 for R22), read lazily through validated
@@ -562,7 +685,8 @@ Invoke-RecordedCheck csp { npm run check:csp }
 Invoke-RecordedCheck budget-check { npm run check:budgets -- --json "$evidence\budgets.json" }
 $env:PLAY100_TEST_BUILD = 'production'
 $env:PLAYWRIGHT_JSON_OUTPUT_NAME = "$evidence\e2e-production.json"
-npm run test:e2e -- --reporter=list,json
+$filmCase = 'optional films stay unloaded until Watch, play and seek natively, switch without overlap and restore focus'
+npm run test:e2e -- --reporter=list,json --retries=0 --grep-invert "$filmCase"
 if ($LASTEXITCODE -ne 0) { throw 'Production e2e failed' }
 $env:PLAY100_TEST_BUILD = 'development'
 $env:PLAYWRIGHT_JSON_OUTPUT_NAME = "$evidence\e2e-development.json"
@@ -575,6 +699,14 @@ Each config starts its own strict server on 4187. Stop any other server first;
 never adopt a stale server. Preserve `dist` and its environment after this build.
 Any offline-build expansion must use a separate build/evidence directory and
 manifest; never describe it as this configured candidate.
+
+The production command deliberately excludes the native film case. Run and
+record the [isolated film partition](#isolated-flake-01-partition) as well before
+calling these diagnostic commands release coverage. `release:gate` handles its
+two-project invocation, immutable attempt paths and one-rerun limit. For a lean
+run, use `tests/films.spec.ts --grep "$filmCase"` with `--retries=0`, distinct
+report/output paths for each attempt, and both desktop/mobile projects; retain
+the two passing selected cases and any first failed attempt in the lean index.
 
 **Browser-floor smoke.** The partitions above run current Chromium only. The
 floor smoke (`tests/floor-smoke.spec.ts`, `playwright.floor.config.ts`) runs the
@@ -596,7 +728,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Floor smoke failed' }
 Remove-Item Env:PLAYWRIGHT_JSON_OUTPUT_NAME, Env:PLAY100_FLOOR_CHROMIUM -ErrorAction SilentlyContinue
 ```
 
-Without `PLAY100_FLOOR_CHROMIUM` only `floor-firefox` and `floor-webkit` run.
+Without `PLAY100_FLOOR_CHROMIUM` this standalone command runs only
+`floor-firefox` and `floor-webkit`. That is partial coverage, not the full
+`release:gate` floor partition, which requires all three engines and all 15
+configured cases with no skips.
 
 For cloud-UI use three terminals in this **same checkout**. Terminal A:
 
@@ -760,6 +895,11 @@ environment and unchanged `dist`, lockfile and clean source. Create
 `decisions.json` in `$evidence` with both arrays:
 `{"carryForward":[],"waivers":[]}`. Replace empty arrays only with the explicit
 reasoned records defined in [the manifest documentation](../README.md#portable-local-release-evidence).
+
+The native-report command below illustrates collection of the named partitions,
+not a complete release certificate. Use the full runner's generated manifests
+or the complete [lean index](#lean-release-mode) to bind the isolated film
+attempts, floor smoke, APB2 and every other required receipt as well.
 
 ```powershell
 if (git status --porcelain) { throw 'Commit or investigate source changes before release' }

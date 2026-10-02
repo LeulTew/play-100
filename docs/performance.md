@@ -90,7 +90,8 @@ What changed for those phones (R24):
   `resize-observer-loop.spec.ts` replays the visit without `URLSearchParams.size`.
 
 Measured on 2 October 2026 under that profile. Before is live production (Release 7); after is the integrated R24
-build after the typed Windows PWA check repair, served locally with production headers. Playwright's Chromium gives medians of five first visits
+build after the typed Windows PWA check repair (tree `7d23b21610e81728ae72a2764fb7d964a0756101`),
+served locally with production headers. Playwright's Chromium gives medians of five first visits
 per build; Chromium 106.0.5249, the phone's engine, driven over the DevTools protocol, one visit per build:
 
 | Metric | Before | After | Change | Chromium 106, before → after |
@@ -115,7 +116,8 @@ runs as two tasks of 250–300 ms, about a second after it.
 
 ## R22 figures
 
-Configured build of the R22 candidate (tree `63c5500d`, after the Played-toggle test scoping repair), the release figures, which `budgets.json`
+Configured build of the R22 candidate (main commit `352117813fde9bf9233e3347abaed1eb2d7ee8c1`,
+tree `63c5500d4de6a602954a10b686a3519c06095861`), the release figures, which `budgets.json`
 records as `release`. Every figure was within its cap, 14 of 14. R23 applied the policy to them, lowering four caps:
 
 | Metric | Measured | Cap at R22 | Cap from R23 |
@@ -138,7 +140,8 @@ records as `release`. Every figure was within its cap, 14 of 14. R23 applied the
 Eager is 155,764 bytes of JavaScript and 17,308 of CSS, gzip9; the offline build measures 172,978. The offline core is
 44 public files plus 2 metadata entries.
 
-R22 itself lowered the caps on an intermediate tree (with the first `app-shared` group and the CSS
+R22 itself lowered the caps on the tree of main commit `64460f7aaab842e5fae295d19bc07fd79799d595`
+(with the first `app-shared` group and the CSS
 removals), where they stayed until R23. App CSS lost 1,731 bytes (180 gzip9) by removing rules and declarations that
 never applied and merging rules written twice, and each cap with room dropped to its measurement there plus the
 margin:
@@ -159,7 +162,8 @@ margin:
 | `largestRouteGzipBytes` | 279,529 | 282,325 |
 
 That tree's eager total was over its cap: R22 had added about 2.9 KB of eager JavaScript gzip9 (156,053 to 158,913).
-The candidate brought it back under the unchanged cap with two changes: deferred saved artwork and consolidated eager dependencies. Beyond The 100's saved additions
+The candidate brought it back under the unchanged cap with two changes in main
+commit `69da09cc65b6e2027a362b0d6e311dfab78d5218`: deferred saved artwork and consolidated eager dependencies. Beyond The 100's saved additions
 load their artwork through the existing dynamic catalog module instead of a static hook import. The `app-shared`
 group takes the entry's whole static closure (`includeDependenciesRecursively`), so the eager code ships as the
 entry, `app-shared` and the Rolldown runtime rather than as separate shared chunks. `budgets.json` `notes.r22` and

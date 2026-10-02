@@ -71,8 +71,12 @@ layer is responsible, and a reliable fix, remain unproved; the netlog is not an
 independent packet capture.
 
 No product or test-server workaround is retained. Playback, switching, focus,
-native download and SHA-256 assertions stay unchanged. Re-run the spec once,
+native download and SHA-256 assertions stay unchanged. The release runner now
+isolates that named native-download case from the rest of production e2e as
+`films-download`, with both browser projects. Re-run that partition once,
 retain both attempts, and stop if it fails twice; do not retry until green.
+Every other partition remains zero-retry. See the
+[partition and receipt contract](release-operations.md#isolated-flake-01-partition).
 Two discriminators remain **untried**: the same test with Google Chrome under
 WSL/Linux, and elevated WFP filter enumeration (`netsh wfp show filters`).
 `winsock-catalog.txt` lists only Microsoft base providers; that does not
