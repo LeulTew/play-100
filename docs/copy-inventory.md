@@ -2,6 +2,7 @@
 
 Source-derived read-through inventory for Play 100. Regenerate with
 `npx tsx scripts/copy-inventory.ts`; verify with `--check`.
+The unit-test gate regenerates this inventory and rejects stale content or source references.
 
 ## Scope and reading convention
 

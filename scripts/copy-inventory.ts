@@ -235,6 +235,7 @@ export function renderInventory(entries: CopyEntry[], files: number): string {
     '',
     'Source-derived read-through inventory for Play 100. Regenerate with',
     '`npx tsx scripts/copy-inventory.ts`; verify with `--check`.',
+    'The unit-test gate regenerates this inventory and rejects stale content or source references.',
     '',
     '## Scope and reading convention',
     '',
@@ -297,14 +298,19 @@ export function renderInventory(entries: CopyEntry[], files: number): string {
   return `${lines.join('\n')}\n`;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const files = sourceFiles(process.cwd());
+export function collectInventory(root: string): { entries: CopyEntry[]; fileCount: number } {
+  const files = sourceFiles(root);
   const htmlFiles = ['index.html', 'public/404.html', 'public/pwa/offline.html'];
   const entries = [
-    ...files.flatMap((file) => extractCopy(file, readFileSync(path.resolve(file), 'utf8'))),
-    ...htmlFiles.flatMap((file) => extractHtmlCopy(file, readFileSync(path.resolve(file), 'utf8'))),
+    ...files.flatMap((file) => extractCopy(file, readFileSync(path.resolve(root, file), 'utf8'))),
+    ...htmlFiles.flatMap((file) => extractHtmlCopy(file, readFileSync(path.resolve(root, file), 'utf8'))),
   ].sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
-  const output = renderInventory(entries, files.length + htmlFiles.length);
+  return { entries, fileCount: files.length + htmlFiles.length };
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const { entries, fileCount } = collectInventory(process.cwd());
+  const output = renderInventory(entries, fileCount);
   const target = path.resolve('docs', 'copy-inventory.md');
   if (process.argv.includes('--check')) {
     if (readFileSync(target, 'utf8') !== output) throw new Error('Copy inventory is stale. Regenerate it from source.');
@@ -315,7 +321,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (!destination) throw new Error('--json requires an output path.');
     writeFileSync(destination, JSON.stringify(entries, null, 2));
   }
-  console.log(
-    `Copy inventory: ${entries.length} entries across ${files.length + htmlFiles.length} production source files.`,
-  );
+  console.log(`Copy inventory: ${entries.length} entries across ${fileCount} production source files.`);
 }
