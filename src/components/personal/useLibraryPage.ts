@@ -156,10 +156,18 @@ export function useLibraryPage({
   }
   const holdQueuePage = tab === 'later' && pendingEdits;
   useEffect(() => {
-    // The removal dialog resolves its neighboring focus before the resulting URL clamp advances navigation.
-    if (active && usesUrlPage && !holdQueuePage && libraryPage !== boundedPage && removing.length === 0)
+    // Removal handoffs (the dialog's and the queue's) resolve neighboring focus before the URL clamp advances navigation.
+    // A queue handoff clears its ref when removedQueue is followed, which re-runs this clamp.
+    if (
+      active &&
+      usesUrlPage &&
+      !holdQueuePage &&
+      !queueRemoval.current &&
+      libraryPage !== boundedPage &&
+      removing.length === 0
+    )
       changeUrlPage(boundedPage, 'replace');
-  }, [active, usesUrlPage, holdQueuePage, libraryPage, boundedPage, removing.length, changeUrlPage]);
+  }, [active, usesUrlPage, holdQueuePage, removedQueue, libraryPage, boundedPage, removing.length, changeUrlPage]);
   const current = useRef({ active, tab, definition, total: records.length, offset: page.offset, libraryPage, state });
   useLayoutEffect(() => {
     if (current.current.active !== active || current.current.definition !== definition) generation.current += 1;
