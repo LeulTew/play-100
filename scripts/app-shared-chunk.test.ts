@@ -1,9 +1,8 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { RUNTIME_MODULE_ID } from 'rolldown';
 import { describe, expect, it } from 'vitest';
-import { APP_SHARED_MODULES, ROLLDOWN_RUNTIME_MODULE, isAppSharedModule } from './app-shared-chunk.ts';
+import { APP_SHARED_MODULES, isAppSharedModule } from './app-shared-chunk.ts';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 
@@ -25,12 +24,5 @@ describe('app-shared chunk modules', () => {
     expect(isAppSharedModule('/repo/src/cloud/OnlineController.tsx')).toBe(false);
     expect(isAppSharedModule('/repo/src/components/IconButton.tsx')).toBe(false);
     expect(isAppSharedModule('/repo/node_modules/react/index.js')).toBe(false);
-  });
-
-  // Vite 8 bundles with Rolldown, whose runtime module this id must stay.
-  it("takes Rolldown's runtime helpers, by the runtime's exact module id", () => {
-    expect(ROLLDOWN_RUNTIME_MODULE).toBe(RUNTIME_MODULE_ID);
-    expect(isAppSharedModule(ROLLDOWN_RUNTIME_MODULE)).toBe(true);
-    expect(isAppSharedModule('/repo/src/rolldown/runtime.js')).toBe(false);
   });
 });

@@ -46,9 +46,7 @@ HEAD. The test needs the full history, not a shallow clone.
   entry's whole static closure in one chunk, so already-eager modules are not split into small chunks of their own,
   without adding steering imports to that eager closure.
   [`scripts/app-shared-chunk.ts`](../scripts/app-shared-chunk.ts) lists the modules that anchor it; dynamic imports
-  stay separate, and the eager-module guard checks that boundary. The group also takes Rolldown's runtime helpers,
-  which every chunk that uses them loads after `app-shared`, instead of leaving them a small eager chunk and offline-core
-  file of their own. A second group gives each idle-preloaded tool that the
+  stay separate, and the eager-module guard checks that boundary. A second group gives each idle-preloaded tool that the
   deferred online bridge also loads statically its own chunk (`google-intent`, `comparison-game-filter` and
   `friend-comparison-intent`), so the offline core can precache it; without it Rolldown folds them into an unnamed
   shared chunk. [`scripts/preloaded-tool-chunks.ts`](../scripts/preloaded-tool-chunks.ts) lists them and finds their
