@@ -28,8 +28,9 @@ test('send classic WebDriver JSON and preserve non-success response envelopes', 
         text += chunk;
       });
       incoming.on('end', () => {
+        const body: unknown = JSON.parse(text);
         response.writeHead(400, { 'Content-Type': 'application/json' });
-        response.end(JSON.stringify({ value: { method: incoming.method, body: JSON.parse(text) } }));
+        response.end(JSON.stringify({ value: { method: incoming.method, body } }));
       });
     },
     async (url) => {
