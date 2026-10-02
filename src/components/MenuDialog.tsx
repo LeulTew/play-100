@@ -8,6 +8,8 @@ import { visibleFocusTarget } from '../lib/dialog-focus';
 import { DataUseLink } from './DataUseLink';
 import { Dialog } from './Dialog';
 import { Icon } from './Icon';
+import { AuthorLinks } from './AuthorLinks';
+import { author } from '../lib/author';
 
 interface MenuDialogProps {
   page: AppPage;
@@ -256,6 +258,12 @@ export function MenuDialog({
           </section>
         </div>
       </nav>
+      <div className="author-block menu-author">
+        <p>
+          Curated by <strong>{author.fullName}</strong>
+        </p>
+        <AuthorLinks />
+      </div>
     </Dialog>
   );
 }

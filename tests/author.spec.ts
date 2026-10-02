@@ -82,9 +82,23 @@ test('shared creator footer links are present on every route', async ({ page }) 
     await page.goto(route);
     const footer = page.locator('.author-footer');
     await expect(footer).toContainText(author.fullName);
-    await expect(footer.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute('href', author.githubUrl);
-    await expect(footer.getByRole('link', { name: 'LinkedIn' })).toHaveAttribute('href', author.linkedinUrl);
-    await expect(footer.getByRole('link', { name: 'Telegram @fabbin' })).toHaveAttribute('href', author.telegramUrl);
+    await expect(
+      footer.getByRole('link', { name: 'Leul on GitHub (opens in a new tab)', exact: true }),
+    ).toHaveAttribute('href', author.githubProfileUrl);
+    await expect(
+      footer.getByRole('link', { name: 'Leul on LinkedIn (opens in a new tab)', exact: true }),
+    ).toHaveAttribute('href', author.linkedinUrl);
+    await expect(
+      footer.getByRole('link', { name: 'Leul on Telegram, @fabbin (opens in a new tab)', exact: true }),
+    ).toHaveAttribute('href', author.telegramUrl);
+    await expect(footer.getByRole('link', { name: 'Email Leul at leulman2@gmail.com', exact: true })).toHaveAttribute(
+      'href',
+      `mailto:${author.email}`,
+    );
+    await expect(page.locator('.footer-tools').getByRole('link', { name: 'Source code', exact: true })).toHaveAttribute(
+      'href',
+      author.githubUrl,
+    );
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
 });

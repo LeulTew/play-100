@@ -76,6 +76,7 @@ describe('generated public PWA build closure', () => {
     expect(files).toContain('/assets/route4-12345678.js');
     expect(files).toContain('/assets/brand-12345678.woff2');
     expect(files).toContain('/data/collection.json');
+    expect(files).toContain('/icons/author-links.svg');
     expect(files).toContain('/data/discovery/catalog.v1.json');
     expect(files).toContain('/pwa/fallback.css');
     expect(files.some((file) => /OnlineController|CollectionScene|\.woff$|\.mp4$|\.xlsx$/.test(file))).toBe(false);

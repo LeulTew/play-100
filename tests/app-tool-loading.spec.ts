@@ -161,7 +161,12 @@ test('the dialogs warm on the footer buttons that open them, not on its other li
         ),
     );
   const footer = page.locator('.site-footer');
-  for (const name of ['GitHub', 'Enhanced spreadsheet', 'Data use (opens in a new tab)']) {
+  for (const name of [
+    'Leul on GitHub (opens in a new tab)',
+    'Source code',
+    'Enhanced spreadsheet',
+    'Data use (opens in a new tab)',
+  ]) {
     await footer.getByRole('link', { name, exact: true }).focus();
     await settled();
     await settled();

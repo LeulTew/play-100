@@ -46,6 +46,15 @@ attribution. Each enhanced sheet has a bottom hyperlink block and print-footer
 credit, outside the 100-record tables. The untouched original archive is not branded
 or modified.
 
+The website uses the owner's GitHub profile, LinkedIn, Telegram and email
+through one `AuthorLinks` component in the footer, About and Menu. `githubUrl`
+remains the repository's Source code link; `githubProfileUrl` is the personal
+profile. The same public author fields are mirrored into the canonical and
+served collection JSON, without changing game records or workbook text.
+Brand paths live in `/icons/author-links.svg`, not eager JavaScript. The
+monochrome sprite is explicitly precached for offline links; its sources and
+licences are recorded in `/credits.txt`.
+
 ## Rebuild or update the source
 
 The provided Python generator is retained, not reimplemented:

@@ -100,6 +100,7 @@ const publicFiles = new Set([
   '/pwa/icon-maskable-512.png',
   '/pwa/apple-touch-icon.png',
   '/data/collection.json',
+  '/icons/author-links.svg',
   '/data/discovery/catalog.v1.json',
 ]);
 

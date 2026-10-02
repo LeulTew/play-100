@@ -39,6 +39,7 @@ describe('public social metadata', () => {
     expect(new URL(meta('og:image')).origin).toBe(new URL(meta('og:url')).origin);
     expect(meta('og:type')).toBe('website');
     expect(meta('og:site_name')).toBe('Play 100');
+    expect(meta('author', 'name')).toBe('Leul Tewodros Agonafer');
   });
 
   it('defines explicit Twitter fields that match Open Graph without fallback', () => {

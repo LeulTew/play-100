@@ -52,6 +52,18 @@ The creator can inspect consenting account profiles and ranking summaries.
 The creator UI does not load private notes, but the database operator can
 technically access stored private data.
 
+Author contact icons
+/icons/author-links.svg uses the GitHub, LinkedIn and Telegram paths from
+Simple Icons 11.15.0, dedicated under CC0 1.0 Universal:
+https://github.com/simple-icons/simple-icons/tree/11.15.0/icons
+https://github.com/simple-icons/simple-icons/blob/11.15.0/LICENSE.md
+https://creativecommons.org/publicdomain/zero/1.0/
+GitHub: github.svg; LinkedIn: linkedin.svg; Telegram: telegram.svg.
+The envelope is an original geometric email icon.
+The marks identify links to the curator's own profiles, not endorsements.
+Brand names and marks remain their owners' trademarks; CC0 does not waive
+trademark rights. LinkedIn's profile-link mark guidance: https://brand.linkedin.com/
+
 Firebase JavaScript SDK 12.19.0 - Google LLC
 Apache License 2.0, with the bundled protobuf BSD notice.
 https://github.com/firebase/firebase-js-sdk

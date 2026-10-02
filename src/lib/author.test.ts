@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parseCollection, filterGames } from './collection';
-import { author, authorRatingText } from './author';
+import { author, authorLinks, authorRatingText } from './author';
 import { defaultFilters } from './url';
 import { recordFromGame } from './personal-types';
 import { applyPersonalAction, emptyPersonalLibrary } from './personal-library';
@@ -69,9 +69,26 @@ describe('public creator ratings stay separate from visitor opinions', () => {
   it('uses only the verified public identity links', () => {
     expect(author.fullName).toBe('Leul Tewodros Agonafer');
     expect(author.githubUrl).toBe('https://github.com/LeulTew/play-100');
+    expect(author.githubProfileUrl).toBe('https://github.com/LeulTew');
+    expect(author.email).toBe('leulman2@gmail.com');
     expect(author.linkedinUrl).toBe('https://www.linkedin.com/in/leul-t-agonafer-861bb3336/');
     expect(author.telegramUrl).toBe('https://t.me/fabbin');
-    expect(author).not.toHaveProperty('email');
     expect(author).not.toHaveProperty('phone');
+    expect(authorLinks.map(([icon]) => icon)).toEqual(['github', 'linkedin', 'telegram', 'email']);
+    expect(authorLinks.map(([, , href]) => href)).toEqual([
+      author.githubProfileUrl,
+      author.linkedinUrl,
+      author.telegramUrl,
+      `mailto:${author.email}`,
+    ]);
+    const publicData: unknown = JSON.parse(
+      readFileSync(new URL('../../public/data/collection.json', import.meta.url), 'utf8'),
+    );
+    const canonicalData: unknown = JSON.parse(
+      readFileSync(new URL('../../data/collection.json', import.meta.url), 'utf8'),
+    );
+    expect(publicData).toMatchObject({ collection: { author } });
+    expect(canonicalData).toEqual(publicData);
+    expect(JSON.parse(readFileSync(new URL('../../data/author.json', import.meta.url), 'utf8'))).toEqual(author);
   });
 });
