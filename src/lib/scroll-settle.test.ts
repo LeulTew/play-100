@@ -12,7 +12,7 @@ function page() {
     clearTimeout: (id?: number) => globalThis.clearTimeout(id),
   });
   const added = vi.spyOn(target, 'addEventListener');
-  const settle = createScrollSettle(target as unknown as Window, { now: () => Date.now() });
+  const settle = createScrollSettle(target, { now: () => Date.now() });
   const scroll = () => target.dispatchEvent(new Event('scroll'));
   return { settle, scroll, added };
 }
