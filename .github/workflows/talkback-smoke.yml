@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [google_apis, google_apis_playstore]
+        target: [google_apis]
     env:
       TARGET_ORIGIN: ${{ inputs.target_origin || 'https://play-100-collection.vercel.app' }}
       OUT: artifacts/talkback-${{ matrix.target }}

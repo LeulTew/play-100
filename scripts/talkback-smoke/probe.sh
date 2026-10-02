@@ -20,24 +20,30 @@ run adb shell 'settings get secure tts_default_synth'
 
 run adb shell "echo '_ --disable-fre --no-default-browser-check --no-first-run' > /data/local/tmp/chrome-command-line"
 run adb shell 'am set-debug-app --persistent com.android.chrome'
+run adb shell pm grant com.android.chrome android.permission.POST_NOTIFICATIONS
+
+log 'set verbose log level before first start'
+file="/data/user_de/0/$TB/shared_prefs/${TB}_preferences.xml"
+run adb shell "mkdir -p /data/user_de/0/$TB/shared_prefs; ls -la /data/user_de/0/$TB/shared_prefs"
 
 run adb shell settings put secure enabled_accessibility_services "$TB/com.google.android.marvin.talkback.TalkBackService"
 run adb shell settings put secure accessibility_enabled 1
 sleep 15
-run adb shell 'dumpsys accessibility | grep -iE "talkback|enabled services|bound services" | head -10'
-run adb shell "ls -la /data/user_de/0/$TB/shared_prefs /data/data/$TB/shared_prefs"
-
-log 'set verbose log level'
 run adb shell settings put secure enabled_accessibility_services null
 sleep 3
 run adb shell am force-stop "$TB"
-for dir in "/data/user_de/0/$TB/shared_prefs" "/data/data/$TB/shared_prefs"; do
-  file="$dir/${TB}_preferences.xml"
-  run adb shell "ls $file && head -c 3000 $file"
-  run adb shell "if [ -f $file ]; then sed -i 's#</map>#<string name=\"pref_log_level\">2</string></map>#' $file; grep pref_log_level $file; fi"
-done
+run adb shell "sed -i 's#</map>#<string name=\"pref_log_level\">2</string></map>#' $file; grep -c pref_log_level $file; ls -la $file"
+run adb shell "restorecon $file; chown \$(stat -c %u:%g /data/user_de/0/$TB) $file"
 run adb shell settings put secure enabled_accessibility_services "$TB/com.google.android.marvin.talkback.TalkBackService"
-sleep 15
+run adb shell settings put secure accessibility_enabled 1
+sleep 20
+run adb shell 'dumpsys accessibility | grep -iE "bound services|enabled services" | head -4'
+tbpid=$(adb shell pidof $TB | tr -d '\r')
+log "talkback pid $tbpid"
+adb logcat -d -v threadtime > "$out/logcat-before.txt"
+grep -E "^\S+ \S+ +$tbpid " "$out/logcat-before.txt" > "$out/talkback-before.txt"
+log "talkback lines before browsing: $(wc -l < "$out/talkback-before.txt")"
+head -40 "$out/talkback-before.txt" | tee -a "$out/probe.txt"
 
 run adb logcat -c
 run adb shell am start -a android.intent.action.VIEW -d "${TARGET_ORIGIN}/" com.android.chrome
@@ -52,6 +58,7 @@ adb shell input keyevent 111
 sleep 4
 adb exec-out screencap -p > "$out/04-escape.png"
 adb logcat -d -v threadtime > "$out/logcat.txt"
-log 'talkback lines'
-grep -iE 'talkback|speech|speak|tts' "$out/logcat.txt" | head -200 | tee -a "$out/probe.txt"
+grep -E "^\S+ \S+ +$tbpid " "$out/logcat.txt" > "$out/talkback.txt"
+log "talkback lines while browsing: $(wc -l < "$out/talkback.txt")"
+grep -vE 'CompatibilityChange|Choreographer' "$out/talkback.txt" | head -300 | tee -a "$out/probe.txt"
 exit 0
