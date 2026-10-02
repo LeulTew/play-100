@@ -588,11 +588,20 @@ Production only, after promotion; preview origins are referrer-blocked.
 
    The Console must show no CSP violation, and the helper's inline script must
    run (sign-in completes).
-3. `curl -i -X POST https://play-100-collection.vercel.app/__/auth/handler`
+3. In the main document after each return, with the R24 policy (Google only in
+   script-src; see [security](security.md#headers-auth-proxy-and-supply-chain)):
+   - from `apis.google.com`, Network shows only the scripts `/js/api.js` and
+     the `gapi.iframes` module, with no fetch or XHR;
+   - the only frame is the app's own `/__/auth/iframe`;
+   - the Console shows no CSP violation, except possibly one blocked
+     `connect-src` request to `https://apis.google.com/js/gen_204`. That is
+     gapi's sampled telemetry ping, blocked by design; any other violation
+     fails the smoke.
+4. `curl -i -X POST https://play-100-collection.vercel.app/__/auth/handler`
    returns 405 with `Allow: GET, HEAD`. `curl -I` on both documents returns 200
    with the headers above and a fresh nonce. HEAD does not fetch the upstream
    helper, so only step 2's GET loads show that the helper template still loads.
-4. Any failure, or a Vercel function log `Auth helper upstream refused.` with
+5. Any failure, or a Vercel function log `Auth helper upstream refused.` with
    `reason: drift`: use **Instant Rollback** to the previous release's
    deployment. Every Release 1 or later deployment also serves the fresh-nonce
    helper, so this undoes the release's other changes but not the helper; only

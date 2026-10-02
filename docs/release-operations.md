@@ -48,7 +48,7 @@ risk for each waiver; an earlier client-first exception is not standing approval
 | Firebase owner identity | Set `_owner/config.uid` to the verified owner UID while keeping `email`; reopen and confirm both fields. Do not publish the UID in receipts. |
 | Three Firestore indexes | Collection scope: `entries`: `format ASC, epoch ASC, active ASC, entry.title ASC`; `entries`: `format ASC, epoch ASC, active ASC, entry.position ASC`; `friendPairs`: `participants CONTAINS, creatorUid ASC, state ASC, updatedAt ASC`. All three must show Enabled; delete nothing. |
 | Firebase rules | Owner publishes reviewed `firestore.rules`; the R20 SHA-256 is `c6368628bcbc7a22896ab19ab569c20b24f2d6f33fdfcee2cad5b7e98754abb1` (111,757 bytes), and it may be published only while Release 7 or later is serving, so that the client explains the R13 refusals in plain text: a forced line break in a name or title, and a control or format character in a report reason, whose line breaks the client turns into spaces. R20 changes one statement from R13, so that a creator can still hide a live profile after its owner advanced the publication control alone; it refuses nothing new. The R12 title, name and cancel-hold refusals already need Release 6 or later, and handle claims Release 5 or later. It supersedes the unpublished R13 rules `75381577…`, R12 (Release 6) rules `8e645497…` and R11 (Release 5) rules `6c8ebcb2…`; publish none of them. Copy published text back, compare its hash, record publication time and retain the previous rules archive. A later changed rules file requires a new explicit reviewed hash, not reuse of this receipt. |
-| Real Google Auth | Production desktop and mobile sign-in, link and reauthentication return signed in without CSP errors; emulator tests cannot certify real credentials, MFA or provider configuration. Reaching Google's sign-in page shows only that the redirect started; it is not a pass. |
+| Real Google Auth | Production desktop and mobile sign-in, link and reauthentication return signed in without CSP errors, apart from gapi's blocked `gen_204` telemetry ping ([runbook smoke](security-release-runbook.md#auth-helper-fresh-nonce-smoke-sec-01), step 3); emulator tests cannot certify real credentials, MFA or provider configuration. Reaching Google's sign-in page shows only that the redirect started; it is not a pass. |
 | WAF `api-per-ip` | Review seven days of Log hits; switch Log to 429 **no earlier than 2026-10-02**. Record review, decision and switch time. Log mode records matches and blocks nothing, so the rule is not an active control before that switch. Do not invent a completed switch or modify the log-only OWASP rules. |
 | Device and assistive technology | Physical low-end/mobile and iOS Safari, keyboard and screen-reader journeys, OS installation/launch/uninstall, real multi-window/two-version updates. Record devices and results or explicit waivers. Chromium emulation is not physical-device evidence. |
 
@@ -1059,7 +1059,11 @@ three checks only; the manual checks below still apply.
    not visitor identities. A rejected body or 429 can be abuse or admission
    pressure; counts are untrusted hints, and absent reports do not prove health.
    Browsers can suppress beacons, and offline or unrecovered startup failures
-   may never report.
+   may never report. An occasional `connect-src` count blocking
+   `https://apis.google.com` is expected: since R24 the main policy blocks
+   gapi's sampled telemetry ping on a page returning from Google (see
+   [security](security.md#headers-auth-proxy-and-supply-chain)). A rise in it,
+   or a `frame-src` count for `https://accounts.google.com`, needs investigation.
 
 Record UTC, deployment/build identity, last observed probe status, affected
 categories and the investigation/rollback decision in the release evidence;

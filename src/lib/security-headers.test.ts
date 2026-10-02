@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import configuration from '../../vercel.json';
 import { AUTH_HELPER_UPSTREAM } from '../../api/auth-helper';
+import { directiveSources } from '../../scripts/first-paint/csp';
 import { gatePlan } from '../../scripts/release-gate';
 import { MAIN_DOCUMENT_RULE, matchingRules, routePattern } from './vercel-routes';
 
@@ -38,8 +39,22 @@ describe('S3 header and supply-chain boundaries', () => {
         .some((header) => header.key === 'Cross-Origin-Embedder-Policy'),
     ).toBe(false);
     expect(headers['Content-Security-Policy']).not.toContain('play100-online-48823b32.firebaseapp.com');
-    expect(headers['Content-Security-Policy']).toContain("frame-src 'self' https://accounts.google.com");
     expect(configuration.installCommand).toBe('npm ci');
+  });
+  it('names Google in the main policy only as the gapi script host', () => {
+    // R24 (docs/security.md, "Google hosts"): after a real production Google sign-in and reauthentication, the main
+    // document had loaded only scripts from apis.google.com, fetched nothing there and framed only its own
+    // /__/auth/iframe. The trip to accounts.google.com is a top-level navigation, which frame-src does not govern.
+    const policy = headers['Content-Security-Policy']!;
+    expect(directiveSources(policy, 'script-src')).toContain('https://apis.google.com');
+    expect(directiveSources(policy, 'connect-src')).toEqual([
+      "'self'",
+      'https://identitytoolkit.googleapis.com',
+      'https://securetoken.googleapis.com',
+      'https://firestore.googleapis.com',
+    ]);
+    expect(directiveSources(policy, 'frame-src')).toEqual(["'self'"]);
+    expect(policy).not.toContain('accounts.google.com');
   });
   it('pins two-year HSTS on the app and auth helper without claiming preload for a shared suffix', () => {
     const hsts = 'max-age=63072000; includeSubDomains';

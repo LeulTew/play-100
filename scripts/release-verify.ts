@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { freshNonces, helperNonce } from '../src/lib/auth-helper-nonce.js';
+import { directiveSources } from './first-paint/csp.ts';
 export { freshNonces, helperNonce } from '../src/lib/auth-helper-nonce.js';
 import { isMainDocumentRule } from '../src/lib/vercel-routes.js';
 
@@ -132,6 +133,14 @@ export function compareDocumentHeaders(actual: Headers, expected: Record<string,
     name: 'CSP excludes firebaseinstallations',
     pass: Boolean(csp) && !/firebaseinstallations/i.test(csp),
     measured: { present: /firebaseinstallations/i.test(csp) },
+  });
+  // R24: Google stays only in script-src, for gapi. Like the check above, this fails even if vercel.json lists them.
+  const connectsToGapi = (directiveSources(csp, 'connect-src') ?? []).includes('https://apis.google.com');
+  const framesGoogleAccounts = (directiveSources(csp, 'frame-src') ?? []).includes('https://accounts.google.com');
+  checks.push({
+    name: 'CSP excludes the unused Google connect and frame hosts',
+    pass: Boolean(csp) && !connectsToGapi && !framesGoogleAccounts,
+    measured: { connectsToGapi, framesGoogleAccounts },
   });
   return checks;
 }
