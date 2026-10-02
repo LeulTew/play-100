@@ -39,6 +39,9 @@ HEAD. The test needs the full history, not a shallow clone.
 - **CSS.** Before adding a rule, check whether one already sets the value: a base rule, a shorter media query that
   already covers the width, or a later rule in `shared-responsive.css`. Delete styles with the markup they style.
   `npx tsx scripts/css-unused.ts` lists classes that no source file produces.
+- **Generated data.** Every page loads the cards' cover sizes
+  ([`cover-sizes.json`](../src/generated/cover-sizes.json), written by `npm run prepare:assets`). They are a list
+  indexed by rank, not an object keyed by slug, whose slugs took four fifths of its bytes.
 - **Chunks.** Rolldown chooses the chunks. The `app-shared` group in [`vite.config.ts`](../vite.config.ts) keeps the
   entry's whole static closure in one chunk, so already-eager modules are not split into small chunks of their own,
   without adding steering imports to that eager closure.
