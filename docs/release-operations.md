@@ -1172,7 +1172,13 @@ gate's builds and environment:
   (36971172335 against 36971170036). `e2e-prod` stays headless. The
   `browser_env` input overrides this (`default`, `unthrottled`, `xvfb-headed`,
   `xvfb-headed-mobile`), and `identity.json` records the value used as
-  `browserEnv`;
+  `browserEnv`. Headless desktop still stalls the same way in
+  `root-navigation-guards.spec.ts:277` (10 of 20 in 36983920198; 20 of 20
+  passed headed in 36984473196; see [the register](intermittents.md)): if it
+  fails in `e2e-offline`, rerun that one test once with
+  `browser_env=xvfb-headed`, `project=desktop` and
+  `specs=tests/root-navigation-guards.spec.ts`, keep both attempts, and stop if
+  the headed rerun also fails;
 - `cloud-rules` and `cloud-ui` use Java 21 and the pinned `firebase-tools`
   emulators (`demo-play100`, auth and Firestore). `cloud-rules` starts a fresh
   `emulators:exec` for each repeat, as the convergence loop does. `cloud-ui`
