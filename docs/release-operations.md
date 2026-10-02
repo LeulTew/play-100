@@ -127,6 +127,19 @@ Guidepup types, and lints the whole folder with
 `SR_SMOKE_LINT=1 npx eslint scripts/screen-reader-smoke`; the reader jobs
 type-check again after their own `npm ci`.
 
+Before its journeys, the VoiceOver job runs `voiceover-preflight.sh`, because
+`guidepup setup` grants Apple Events with `INSERT OR IGNORE`: a runner whose TCC
+database already denies the client, or whose job starts under an unlisted parent
+process, refuses with error -1743. The script upserts the grants for the job's
+real process chain and Node, restarts `tccd`, and checks AppleScript control up
+to four times. If control still fails, it stops the job with diagnostics in
+`artifacts/voiceover/voiceover-preflight.txt`. It runs only on GitHub-hosted
+runners, never on a workstation. Two consecutive runs of harness `e367b781`
+against app `033daa99` passed every NVDA and VoiceOver journey:
+[36977503773](https://github.com/LeulTew/play-100/actions/runs/36977503773) and
+[36977530151](https://github.com/LeulTew/play-100/actions/runs/36977530151).
+The GitHub-hosted-only guard was added after those runs.
+
 ### TalkBack smoke (Android, exploratory)
 
 `.github/workflows/talkback-smoke.yml` runs TalkBack in an Android emulator on a Linux KVM runner and records its speech from logcat. Speech logging is at verbose level, and every `Actors: act() … action=SPEAK` line is kept. It drives Chrome with real `adb input` key events (Tab, Shift+Tab, Enter, Escape) and reads focus through a read-only CDP query.
@@ -134,10 +147,10 @@ type-check again after their own `npm ci`.
 Dispatch:
 
 ```
-gh workflow run talkback-smoke.yml --repo LeulTew/play-100 --ref leultew-r24-talkback -f target_origin=<origin>
+gh workflow run talkback-smoke.yml --repo LeulTew/play-100 --ref <branch with this workflow> -f target_origin=<origin>
 ```
 
-Receipt from run [36975406748](https://github.com/LeulTew/play-100/actions/runs/36975406748) on production:
+Receipt from run [36975406748](https://github.com/LeulTew/play-100/actions/runs/36975406748) on production. The run concluded `failure` because (c) didn't complete. It ran the harness at commit `0e844f397478beeb082c59e686225bd82afaed48`. The following harness commit, which reuses Chrome between journeys and retries the CDP query, hasn't run yet.
 
 - TalkBack 14.2.0.618048417, Chrome 113.0.5672.136;
 - emulator API 34 `google_apis` x86_64;
