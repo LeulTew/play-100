@@ -137,6 +137,20 @@ case "$SUITE" in
     playwright_args playwright.cloud.config.ts "$workers"
     run_playwright playwright "${args[@]}"
     ;;
+  floor)
+    # The gate's floor-smoke partition: Firefox, WebKit and the old Chromium on the configured build, two workers.
+    : "${PLAY100_FLOOR_CHROMIUM:?The floor suite needs the old Chromium}"
+    export PLAY100_FLOOR_CHROMIUM
+    args=(test --config playwright.floor.config.ts --forbid-only --retries=0 "--workers=${WORKERS:-2}"
+      "--repeat-each=$REPEAT" --trace=retain-on-failure --reporter=list,json,junit "--output=$OUT/test-results"
+      --project=floor-firefox --project=floor-webkit --project=floor-chromium)
+    if [[ -n "${GREP:-}" ]]; then args+=(--grep "$GREP"); fi
+    args+=("${specs[@]}")
+    PLAY100_TEST_BUILD=production run_playwright playwright "${args[@]}"
+    # The gate wants all 15 configured cases per pass with no skips.
+    node -e 'const s=require(process.argv[1]).stats; console.log(JSON.stringify(s)); if (s.skipped || s.unexpected || s.flaky) process.exit(1); if (!process.argv[2] && s.expected !== 15 * Number(process.argv[3])) { console.error(`Expected ${15 * Number(process.argv[3])} passes`); process.exit(1); }' \
+      "$OUT/playwright.json" "${GREP:-}${SPECS:-}" "$REPEAT"
+    ;;
   lighthouse)
     bash "$here/lighthouse.sh"
     ;;

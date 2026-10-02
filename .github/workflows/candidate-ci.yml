@@ -26,13 +26,14 @@ on:
           - lighthouse
           - checks
           - csp-refresh
+          - floor
       specs:
         description: Space-separated spec paths (empty runs the suite's whole config)
         type: string
         required: false
         default: ''
       project:
-        description: Playwright project (ignored by cloud-rules and lighthouse)
+        description: Playwright project (ignored by cloud-rules, lighthouse and floor, which runs all three floor engines)
         type: choice
         required: false
         default: both
@@ -76,6 +77,8 @@ jobs:
       WORKFLOW_SHA: ${{ github.workflow_sha }}
       OUT: ${{ github.workspace }}/evidence
       CI_TOOLS: ${{ github.workspace }}/_ci/.github/candidate-ci
+      # Typed helpers from the workflow's own ref, run with the candidate's tsx so they work at any SHA.
+      CI_SCRIPTS: ${{ github.workspace }}/_ci/scripts/candidate-ci
     steps:
       - name: Validate inputs
         run: |
@@ -101,7 +104,9 @@ jobs:
           ref: ${{ github.workflow_sha }}
           path: _ci
           persist-credentials: false
-          sparse-checkout: .github/candidate-ci
+          sparse-checkout: |
+            .github/candidate-ci
+            scripts/candidate-ci
           sparse-checkout-cone-mode: false
 
       - name: Confirm the exact commit
@@ -135,10 +140,35 @@ jobs:
       - name: Install the Playwright browser
         if: inputs.suite != 'cloud-rules' && inputs.suite != 'csp-refresh'
         working-directory: candidate
-        run: npx --no-install playwright install --with-deps chromium
+        run: npx --no-install playwright install --with-deps chromium ${{ inputs.suite == 'floor' && 'firefox webkit' || '' }}
+
+      # The floor smoke's old Chromium: the official snapshot at the Chrome 106 branch-base position (1036826, Chromium
+      # 106.0.5249.0), pinned by SHA-256 (Google's stored MD5 for the object matches too).
+      - name: Cache the floor Chromium
+        if: inputs.suite == 'floor'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ runner.temp }}/floor-chromium
+          key: floor-chromium-linux-1036826-5377b504a94f648108f07c2edc819f2621e7ebf37669b986e462fa80af577584
+
+      - name: Install the floor Chromium
+        if: inputs.suite == 'floor'
+        env:
+          FLOOR_DIR: ${{ runner.temp }}/floor-chromium
+          FLOOR_URL: https://commondatastorage.googleapis.com/chromium-browser-snapshots/Linux_x64/1036826/chrome-linux.zip
+          FLOOR_SHA256: 5377b504a94f648108f07c2edc819f2621e7ebf37669b986e462fa80af577584
+        run: |
+          set -euo pipefail
+          mkdir -p "$FLOOR_DIR"
+          if [[ ! -f "$FLOOR_DIR/chrome-linux.zip" ]]; then curl -fsSL --retry 3 -o "$FLOOR_DIR/chrome-linux.zip" "$FLOOR_URL"; fi
+          echo "$FLOOR_SHA256  $FLOOR_DIR/chrome-linux.zip" | sha256sum -c -
+          rm -rf "$FLOOR_DIR/chrome-linux"
+          unzip -q "$FLOOR_DIR/chrome-linux.zip" -d "$FLOOR_DIR"
+          "$FLOOR_DIR/chrome-linux/chrome" --version
+          echo "PLAY100_FLOOR_CHROMIUM=$FLOOR_DIR/chrome-linux/chrome" >> "$GITHUB_ENV"
 
       - name: Build (configured)
-        if: inputs.suite == 'e2e-prod' || inputs.suite == 'lighthouse'
+        if: inputs.suite == 'e2e-prod' || inputs.suite == 'lighthouse' || inputs.suite == 'floor'
         working-directory: candidate
         env:
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
@@ -190,11 +220,12 @@ jobs:
         env:
           SUITE_OUTCOME: ${{ steps.suite.outcome }}
           LIGHTHOUSE_DIR: ${{ inputs.suite == 'lighthouse' && format('{0}/lighthouse', env.CI_TOOLS) || '' }}
+          FONT_CELLS_DIR: ${{ inputs.suite == 'lighthouse' && format('{0}/lighthouse', env.OUT) || '' }}
         run: |
           set -euo pipefail
           mkdir -p "$OUT"
           if [[ "$SUITE" == cloud-* ]] && command -v java >/dev/null; then export JAVA_VERSION_LINE="$(java -version 2>&1 | head -n 1)"; fi
-          node "$CI_TOOLS/identity.mjs" "$OUT/identity.json"
+          npx --no-install tsx "$CI_SCRIPTS/identity.ts" "$OUT/identity.json"
           for log in firebase-debug.log firestore-debug.log; do
             if [[ -f "$log" ]]; then cp "$log" "$OUT/"; fi
           done
