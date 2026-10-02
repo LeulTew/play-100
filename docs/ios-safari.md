@@ -30,12 +30,18 @@ The typed harness then saves three collection games, opens
 `/my-games?tab=queue`, holds the first row's drag handle for 600 ms and moves
 it down one row using a genuine W3C touch pointer. It checks the exact IDs
 and titles before and after the swap, then verifies the same order after a
-real reload. Before/after screenshots and the actual gesture payload are retained.
+real reload. The finger remains at its destination for 200 ms before release,
+allowing the final hover position to settle. Before/after screenshots, the actual
+gesture payload, trusted touch events and drag announcements are retained,
+including when the order assertion fails.
 No move-button, DOM-event or storage-writing substitute is used.
 
 It opens a game detail and touches Share, requires the native iOS
 `ActivityListView` or Copy option, captures the open sheet, dismisses it
-natively and verifies its disappearance. A DOM observer checks that no
+natively and verifies its disappearance. It scrolls the detail's Share control
+into view on smaller screens. Dismissal uses Close/Cancel where provided,
+otherwise the native popup dismissal region exposed by iOS 26.
+A DOM observer checks that no
 fallback toast, detail notice or manual share dialog appears during native
 sharing or cancellation.
 

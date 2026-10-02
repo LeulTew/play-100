@@ -88,13 +88,50 @@ async function queueReorder(context: SmokeContext) {
   const [from, to] = handles;
   assert.ok(from && to, 'Both visible drag handles are required.');
   await context.capture('09-queue-before-drag');
-  const gesture = await context.drag(from, to);
-  await context.waitFor(
-    `const records = (${JSON.stringify(expected)});
-    const ids = [...document.querySelectorAll(${JSON.stringify(rows)})].map(row => row.dataset.recordId);
-    return JSON.stringify(ids) === JSON.stringify(records.map(record => record.id));`,
-    'touch drag swapped the first two queue rows',
-  );
+  await context.execute(`
+    const state = window.__iosDragEvidence = { events: [], changes: [] };
+    state.types = ['pointerdown','pointermove','pointerup','pointercancel','touchstart','touchmove','touchend','touchcancel'];
+    state.listener = event => {
+      if (state.events.length >= 100) return;
+      const point = event.changedTouches?.[0] || event;
+      state.events.push({ type: event.type, trusted: event.isTrusted, atMs: performance.now(),
+        x: point.clientX, y: point.clientY, pointerType: event.pointerType,
+        target: event.target.closest('button')?.getAttribute('aria-label') });
+    };
+    for (const type of state.types) addEventListener(type, state.listener, true);
+    state.observer = new MutationObserver(() => {
+      const change = {
+        dragging: document.querySelector('.personal-row.is-dragging')?.dataset.recordId || null,
+        announcement: document.querySelector('[id^="DndLiveRegion"]')?.textContent || '',
+      };
+      if (state.changes.length < 100 && JSON.stringify(change) !== JSON.stringify(state.changes.at(-1))) {
+        state.changes.push(change);
+      }
+    });
+    state.observer.observe(document.body, { subtree: true, attributes: true, childList: true, characterData: true });
+  `);
+  let gesture: unknown;
+  try {
+    gesture = await context.drag(from, to);
+    await context.waitFor(
+      `const records = (${JSON.stringify(expected)});
+      const ids = [...document.querySelectorAll(${JSON.stringify(rows)})].map(row => row.dataset.recordId);
+      return JSON.stringify(ids) === JSON.stringify(records.map(record => record.id));`,
+      'touch drag swapped the first two queue rows',
+    );
+  } finally {
+    const touch = await context.execute(`
+      const state = window.__iosDragEvidence;
+      state.observer.disconnect();
+      for (const type of state.types) removeEventListener(type, state.listener, true);
+      return { events: state.events, changes: state.changes };
+    `);
+    const observed = await context.execute<QueueRecord[]>(queueSnapshot);
+    await context.artifact(
+      '09-queue-observed.json',
+      JSON.stringify({ before, expected, observed, gesture, touch }, null, 2),
+    );
+  }
   const after = await context.execute<QueueRecord[]>(queueSnapshot);
   assert.deepEqual(after, expected);
   await context.capture('09-queue-after-drag');
@@ -143,6 +180,9 @@ async function nativeShare(context: SmokeContext) {
   `);
   let sheetOpened = false;
   try {
+    await context.execute(
+      'document.querySelector(".game-dialog[open] .share-detail").scrollIntoView({ block: "center" });',
+    );
     await context.click('.game-dialog[open] .share-detail');
     await context.nativeAction(async () => {
       const deadline = Date.now() + 15_000;
@@ -164,9 +204,15 @@ async function nativeShare(context: SmokeContext) {
           context,
           'type == "XCUIElementTypeButton" AND visible == true AND (label == "Close" OR label == "Cancel")',
         );
-        assert.equal(close.length, 1, 'The native share sheet must expose one dismissal button.');
-        assert.ok(close[0]);
-        await context.nativeTouch(close[0]);
+        assert.ok(close.length <= 1, 'The native share sheet dismissal button must be unambiguous.');
+        if (close[0]) {
+          await context.nativeTouch(close[0]);
+        } else {
+          const outside = await nativeElements(context, 'name == "PopoverDismissRegion" AND visible == true');
+          assert.equal(outside.length, 1, 'A native sheet without Close must expose one popup dismissal region.');
+          assert.ok(outside[0]);
+          await context.nativeTouch(outside[0]);
+        }
         const deadline = Date.now() + 10_000;
         let remaining = await nativeElements(context, sheetPredicate);
         while (remaining.length && Date.now() < deadline) {
