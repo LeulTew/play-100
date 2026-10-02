@@ -172,13 +172,16 @@ other controls, not the text rectangle that can fall under Safari's
 browser-toolbar shadow, then returns to
 the web context for assertions. Zoom is accounted for explicitly. It requires
 one accessibility anchor, a visible control and a trusted click;
-it never substitutes JavaScript-generated clicks. Native accessibility trees
+it never substitutes JavaScript-generated clicks. The typed harness sends W3C
+pointer actions with `pointerType: touch`, integer native viewport coordinates
+and an explicit press/release. Its JSON records the actual action payload beside
+each calibrated point. Native accessibility trees
 are uploaded alongside screenshots for diagnosing missing or ambiguous targets.
 The search evidence records `visualViewport` scale and offsets rather than
 hiding zoom. Appium's redundant Safari reset is skipped: every job already
 creates a fresh simulator with no browsing history or production cache.
 The harness dismisses Safari 26's known first-run browser help popover through
-its native Close button and closes the search keyboard through Safari's Done
+its native Close button, verifies that it disappears, and closes the search keyboard through Safari's Done
 button before returning to The 100. These browser-only actions are recorded
 separately; no application overlays, input styles or navigation state are
 modified.
@@ -196,7 +199,7 @@ The harness is TypeScript executed by `tsx` on the repository's pinned Node
 the local release gate's `tsc -b` and Vitest unit project therefore cover them.
 Run the focused unit checks with
 `npm exec -- vitest run --project unit --maxWorkers=1 scripts/ios-safari-smoke`.
-The inventory job also checks types, focused lint, formatting and these thirteen tests
+The inventory job also checks types, focused lint, formatting and the focused tests
 before starting any simulator job.
 
 `scripts/ios-safari-smoke/package-lock.json` locks Appium, XCUITest and their
