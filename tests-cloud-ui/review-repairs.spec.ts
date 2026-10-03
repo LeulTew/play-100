@@ -178,11 +178,19 @@ test('a guest inline rating keeps its original save target while another tab res
       }) as typeof window.setTimeout;
     }, PERSONAL_RATING_DEBOUNCE_MS);
     await page.getByRole('spinbutton', { name: `Your rating / 10 for ${title}`, exact: true }).fill('7.2');
-    await expect
-      .poll(() =>
-        page.evaluate(() => (window as unknown as { heldRatingSaves: { count: number } }).heldRatingSaves.count),
-      )
-      .toBeGreaterThan(0);
+    // A coarse pointer schedules no debounce: its rating waits for the field to be left (8e38c997). Either way the edit
+    // must stay pending until the account restore makes its field exit and save.
+    if (await page.evaluate(() => window.matchMedia('(pointer: coarse)').matches)) {
+      expect(
+        await page.evaluate(() => (window as unknown as { heldRatingSaves: { count: number } }).heldRatingSaves.count),
+      ).toBe(0);
+    } else {
+      await expect
+        .poll(() =>
+          page.evaluate(() => (window as unknown as { heldRatingSaves: { count: number } }).heldRatingSaves.count),
+        )
+        .toBeGreaterThan(0);
+    }
     expect((await readLibrary(page)).ranking).toEqual([]);
     await signIn(peer, email);
     await expect.poll(async () => (await readLibrary(page)).ranking[0]?.score).toBe(7.2);

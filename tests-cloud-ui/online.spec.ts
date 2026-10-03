@@ -57,7 +57,10 @@ test('verified opt-in copies a guest library and a second browser loads the acco
     expect((await readAccount(peer, uid)).state.ranking[0]?.score).toBe(8.4);
     expect((await readLibrary(peer)).ranking).toEqual([]);
     await peer.goto('/my-rankings');
-    await peer.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true }).fill('9.1');
+    const peerRating = peer.getByRole('spinbutton', { name: `Your rating / 10 for ${game.title}`, exact: true });
+    await peerRating.fill('9.1');
+    // A coarse pointer saves a rating when its field is left (8e38c997), so the phone keyboard stays open while typing.
+    await peerRating.press('Tab');
     await expect.poll(async () => (await readAccount(peer, uid)).state.ranking[0]?.score).toBe(9.1);
     await expect.poll(async () => (await readAccount(page, uid)).state.ranking[0]?.score, { timeout: 30000 }).toBe(9.1);
     await page.getByRole('button', { name: 'Sign out', exact: true }).click();

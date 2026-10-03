@@ -412,7 +412,9 @@ test('an old private write is denied atomically while durable local edits surviv
       score: 8.5,
     });
   }, uid);
-  await expect(page.locator('.sync-panel [role="alert"]')).toContainText('did not authorize', { timeout: 30000 });
+  await expect(page.locator('.sync-panel [role="alert"]')).toContainText('This action is not allowed right now.', {
+    timeout: 30000,
+  });
   expect(stripped).toBeGreaterThan(0);
   expect((await readAccount(page, uid)).sync.dirty).toBe(true);
   expect((await readAccount(page, uid)).state.ranking[0]?.score).toBe(8.5);
