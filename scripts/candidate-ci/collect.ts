@@ -48,7 +48,21 @@ const inside = path.relative(checkout, out);
 if (!inside || (!inside.startsWith('..') && !path.isAbsolute(inside)))
   throw new Error('--out must be outside the checkout: the release manifest rejects evidence inside it.');
 
-const gh = (args: string[], timeout = 120_000) => execFileSync('gh', args, { encoding: 'utf8', timeout }).trim();
+// A dropped connection or a GitHub hiccup ("unexpected EOF") would otherwise end a long --wait collection, or lose one
+// run's artifact; each call gets up to three attempts.
+const GH_ATTEMPTS = 3;
+const pause = (ms: number) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const gh = (args: string[], timeout = 120_000) => {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return execFileSync('gh', args, { encoding: 'utf8', timeout }).trim();
+    } catch (error) {
+      if (attempt === GH_ATTEMPTS) throw error;
+      console.warn(`gh ${args.slice(0, 2).join(' ')} attempt ${attempt} failed: ${String(error).split('\n')[0]}`);
+      pause(attempt * 15_000);
+    }
+  }
+};
 
 interface RunState {
   status: string;
@@ -109,17 +123,29 @@ const states = await settledStates();
 for (const run of runsFile.runs) {
   const state = states.get(run.runId)!;
   const target = path.join(out, run.entry.id);
-  rmSync(target, { recursive: true, force: true });
-  mkdirSync(target, { recursive: true });
-  try {
-    gh(['run', 'download', String(run.runId), '--repo', repo, '-D', target, '-p', 'candidate-ci-*'], 900_000);
-  } catch (error) {
-    console.error(`${run.entry.id}: no artifact (${String(error).split('\n')[0]})`);
+  let downloaded = false;
+  for (let attempt = 1; attempt <= GH_ATTEMPTS && !downloaded; attempt++) {
+    // Each attempt starts from an empty folder, so a partial download never mixes into the next one.
+    rmSync(target, { recursive: true, force: true });
+    mkdirSync(target, { recursive: true });
+    try {
+      execFileSync('gh', ['run', 'download', String(run.runId), '--repo', repo, '-D', target, '-p', 'candidate-ci-*'], {
+        encoding: 'utf8',
+        timeout: 900_000,
+      });
+      downloaded = true;
+    } catch (error) {
+      console.error(`${run.entry.id}: artifact download attempt ${attempt} failed (${String(error).split('\n')[0]})`);
+      if (attempt < GH_ATTEMPTS) pause(attempt * 15_000);
+    }
   }
   const identities = existsSync(target) ? findIdentity(target) : [];
   if (identities.length > 1) throw new Error(`${run.entry.id}: more than one identity.json in ${run.url}.`);
   if (!identities.length) {
-    items.push({ run, conclusion: state.conclusion, counts: null, tree: null, dir: run.entry.id, report: null });
+    // Evidence that can't be fetched or identified never passes: the entry fails with the reason as its conclusion.
+    const conclusion = downloaded ? 'no-identity' : 'no-artifact';
+    items.push({ run, conclusion, counts: null, tree: null, dir: run.entry.id, report: null });
+    console.log(`${run.entry.id}: failed (${conclusion}) ${run.url}`);
     continue;
   }
   const identityPath = identities[0]!;

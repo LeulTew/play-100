@@ -1295,8 +1295,11 @@ stops collection. It then writes:
 
 - `summary.md` and `summary.json`: entry, suite, project, spec, repeat, passed,
   failed, skipped, result and run URL. An entry passes only if its run
-  succeeded, it passed at least one test, nothing failed, and the count equals
-  `expectedPassed` when set. Skips depend on the runner. Playwright never reports
+  succeeded, its artifact downloaded with exactly one `identity.json`, it passed
+  at least one test, nothing failed, and the count equals `expectedPassed` when
+  set. A run whose artifact can't be downloaded after three attempts, or holds no
+  identity, fails as `no-artifact` or `no-identity`; every `gh` call is retried
+  the same way, so a dropped connection doesn't end a `--wait` collection. Skips depend on the runner. Playwright never reports
   deselected tests, so its skips are the specs' own designed `test.skip`
   conditions (desktop-only cases on the mobile project and the like); they are
   kept, as the release gate's partitions keep them, unless the entry sets
