@@ -10,7 +10,7 @@ import './scene/artifact.css';
 const sceneModule = createMemoizedModule(() => import('./scene/CollectionScene'));
 
 interface IllustrationState {
-  component: ComponentType<{ fanned: boolean }> | null;
+  component: ComponentType<{ fanned: boolean; constrained: boolean }> | null;
   failed: boolean;
 }
 
@@ -419,7 +419,11 @@ export default function CollectionArtifact({
         {/* Decorative and absolutely positioned: it paints after the first screen's text, and moves nothing. */}
         <AfterFirstPaint>
           <DeferredArtifactStill onLoad={onIllustrationLoad} />
-          {Still ? <Still fanned={canInteract && stillFanned} /> : illustration.failed ? <SleeveMotif /> : null}
+          {Still ? (
+            <Still fanned={canInteract && stillFanned} constrained={constrained} />
+          ) : illustration.failed ? (
+            <SleeveMotif />
+          ) : null}
         </AfterFirstPaint>
         <div ref={hostRef} className="artifact-canvas" />
       </div>

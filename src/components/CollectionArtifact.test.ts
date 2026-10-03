@@ -17,8 +17,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function LoadedStill({ fanned }: { fanned: boolean }) {
-  return createElement('svg', { className: 'artifact-still', 'data-fanned': fanned });
+function LoadedStill({ fanned, constrained }: { fanned: boolean; constrained: boolean }) {
+  return createElement('svg', { className: 'artifact-still', 'data-fanned': fanned, 'data-constrained': constrained });
 }
 
 function startLoading() {
@@ -115,6 +115,14 @@ describe('collection illustration fallback', () => {
     expect(html).toContain('Illustrated view · Lite mode');
     expect(html).toContain('The 100 game sleeves');
     expect(html).not.toMatch(/data-artifact-fallback|Static sleeve motif|Art unavailable/);
+  });
+
+  it.each([false, true])('tells the loaded still whether the device is constrained (%s)', (constrained) => {
+    vi.mocked(useState).mockReturnValueOnce([{ component: LoadedStill, failed: false }, vi.fn()]);
+    const html = renderToStaticMarkup(
+      createElement(CollectionArtifact, { quality: 'auto', reducedMotion: false, constrained }),
+    );
+    expect(html).toContain(`<svg class="artifact-still" data-fanned="false" data-constrained="${constrained}">`);
   });
 
   it('allows a rendered 3D frame to supersede a failed still without mislabelling the scene', () => {

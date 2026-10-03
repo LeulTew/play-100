@@ -33,13 +33,6 @@
   transform-origin: 0 0;
 }
 
-/* A constrained device (useCapabilities) draws the still's sleeves, prints and numbering without its ground shadow,
-   faint rules and print motifs. On the 2 GB Galaxy A03s, whose WebView rasters on the thread that also draws the app's
-   frames, the whole drawing's first raster held that thread for 1.2-1.8 s (docs/performance.md, "Low-end phones"). */
-html[data-constrained] .artifact-still-detail {
-  display: none;
-}
-
 .artifact-canvas {
   visibility: hidden;
 }
