@@ -97,7 +97,7 @@ for (const width of [320, 393, 1024, 1280]) {
       .getByRole('dialog', { name: 'Menu', exact: true })
       .getByRole('button', { name: 'About & credits', exact: true })
       .click();
-    await verifyAuthorGeometry(page.locator('dialog[open] .author-block'));
+    await verifyAuthorGeometry(page.locator('dialog[open] div.author-block'));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 
