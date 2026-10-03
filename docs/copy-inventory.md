@@ -2519,39 +2519,39 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/CollectionExtrasFallback.tsx:19](../src/components/CollectionExtrasFallback.tsx#L19) | Message/fragment | Rank | columns(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:20](../src/components/CollectionExtrasFallback.tsx#L20) | Message/fragment | Game | columns(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:21](../src/components/CollectionExtrasFallback.tsx#L21) | Message/fragment | Year | columns(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:24](../src/components/CollectionExtrasFallback.tsx#L24) | Message/fragment | Average | columns(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:28](../src/components/CollectionExtrasFallback.tsx#L28) | Live region | Loading ratings table… | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:32](../src/components/CollectionExtrasFallback.tsx#L32) | Rendered copy | ${author.shortName}'s rank-based workbook ratings are separate from critic scores. — means unavailable. Critic averages include both Metacritic columns. Edit your own ratings in My games → Ranking. | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:35](../src/components/CollectionExtrasFallback.tsx#L35) | Rendered copy | My games → Ranking | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:51](../src/components/CollectionExtrasFallback.tsx#L51) | Rendered copy | ${label} ${scale &amp;&amp; &lt;small&gt;{scale}&lt;/small&gt;} | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:53](../src/components/CollectionExtrasFallback.tsx#L53) | Rendered copy | ${scale} | TableFallback(); scale &amp;&amp; |
-| [src/components/CollectionExtrasFallback.tsx:79](../src/components/CollectionExtrasFallback.tsx#L79) | Rendered copy | #${String(game.rank).padStart(2, '0')} | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:80](../src/components/CollectionExtrasFallback.tsx#L80) | Rendered copy | ${game.title} | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:82](../src/components/CollectionExtrasFallback.tsx#L82) | Rendered copy | ${game.genre} · ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:99](../src/components/CollectionExtrasFallback.tsx#L99) | Rendered copy | Played | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:101](../src/components/CollectionExtrasFallback.tsx#L101) | Rendered copy | Completed | TableFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:136](../src/components/CollectionExtrasFallback.tsx#L136) | Live region | Loading additional games… | ExtendedFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:145](../src/components/CollectionExtrasFallback.tsx#L145) | Rendered copy | ${record.year ?? 'Game'} | ExtendedFallback(); !online.artwork.has(record.id) &amp;&amp; |
-| [src/components/CollectionExtrasFallback.tsx:145](../src/components/CollectionExtrasFallback.tsx#L145) | Message/fragment | Game | ExtendedFallback(); !online.artwork.has(record.id) &amp;&amp;; record.year ?? |
-| [src/components/CollectionExtrasFallback.tsx:146](../src/components/CollectionExtrasFallback.tsx#L146) | Rendered copy | Artwork unavailable | ExtendedFallback(); !online.artwork.has(record.id) &amp;&amp; |
-| [src/components/CollectionExtrasFallback.tsx:152](../src/components/CollectionExtrasFallback.tsx#L152) | Rendered copy | ${record.title} | ExtendedFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:154](../src/components/CollectionExtrasFallback.tsx#L154) | Rendered copy | ${[record.year, catalogGenreLabel(record)].filter((value) =&gt; value !== null).join(' · ') &#124;&#124; 'Game'} | ExtendedFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:155](../src/components/CollectionExtrasFallback.tsx#L155) | Message/fragment | Game | ExtendedFallback(); [record.year, catalogGenreLabel(record)].filter((value) =&gt; value !== null).join(' · ') &#124;&#124; |
-| [src/components/CollectionExtrasFallback.tsx:158](../src/components/CollectionExtrasFallback.tsx#L158) | Rendered copy | ${state.records[record.id] ? 'In My games' : 'Add to My games'} | ExtendedFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:160](../src/components/CollectionExtrasFallback.tsx#L160) | Message/fragment | Add to My games | ExtendedFallback(); state.records[record.id] is false |
-| [src/components/CollectionExtrasFallback.tsx:160](../src/components/CollectionExtrasFallback.tsx#L160) | Message/fragment | In My games | ExtendedFallback(); state.records[record.id] is true |
-| [src/components/CollectionExtrasFallback.tsx:163](../src/components/CollectionExtrasFallback.tsx#L163) | Rendered copy | Pin | ExtendedFallback(); onPin &amp;&amp; |
-| [src/components/CollectionExtrasFallback.tsx:170](../src/components/CollectionExtrasFallback.tsx#L170) | Rendered copy | More actions | ExtendedFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:178](../src/components/CollectionExtrasFallback.tsx#L178) | Rendered copy | Search online | ExtendedFallback(); online.eligible &amp;&amp; !online.remoteEnabled &amp;&amp; |
-| [src/components/CollectionExtrasFallback.tsx:188](../src/components/CollectionExtrasFallback.tsx#L188) | Rendered copy | Loading additional games… | ExtendedFallback(); !records.length &amp;&amp; |
-| [src/components/CollectionExtrasFallback.tsx:194](../src/components/CollectionExtrasFallback.tsx#L194) | Message/fragment | The original order, ratings and workbook. | filmSummaries(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:198](../src/components/CollectionExtrasFallback.tsx#L198) | Message/fragment | Find games, pin a shortlist and compare shared rankings. | filmSummaries(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:216](../src/components/CollectionExtrasFallback.tsx#L216) | Rendered copy | ${film.title} | FilmsFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:217](../src/components/CollectionExtrasFallback.tsx#L217) | Rendered copy | ${film.description} | FilmsFallback(); when its owning surface/operation is used |
-| [src/components/CollectionExtrasFallback.tsx:218](../src/components/CollectionExtrasFallback.tsx#L218) | Rendered copy | 0:22 · Watch film | FilmsFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:20](../src/components/CollectionExtrasFallback.tsx#L20) | Message/fragment | Rank | columns(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:21](../src/components/CollectionExtrasFallback.tsx#L21) | Message/fragment | Game | columns(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:22](../src/components/CollectionExtrasFallback.tsx#L22) | Message/fragment | Year | columns(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:25](../src/components/CollectionExtrasFallback.tsx#L25) | Message/fragment | Average | columns(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:29](../src/components/CollectionExtrasFallback.tsx#L29) | Live region | Loading ratings table… | body(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:33](../src/components/CollectionExtrasFallback.tsx#L33) | Rendered copy | ${author.shortName}'s rank-based workbook ratings are separate from critic scores. — means unavailable. Critic averages include both Metacritic columns. Edit your own ratings in My games → Ranking. | body(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:36](../src/components/CollectionExtrasFallback.tsx#L36) | Rendered copy | My games → Ranking | body(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:52](../src/components/CollectionExtrasFallback.tsx#L52) | Rendered copy | ${label} ${scale &amp;&amp; &lt;small&gt;{scale}&lt;/small&gt;} | body(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:54](../src/components/CollectionExtrasFallback.tsx#L54) | Rendered copy | ${scale} | body(); scale &amp;&amp; |
+| [src/components/CollectionExtrasFallback.tsx:80](../src/components/CollectionExtrasFallback.tsx#L80) | Rendered copy | #${String(game.rank).padStart(2, '0')} | body(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:81](../src/components/CollectionExtrasFallback.tsx#L81) | Rendered copy | ${game.title} | body(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:83](../src/components/CollectionExtrasFallback.tsx#L83) | Rendered copy | ${game.genre} · ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | body(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:100](../src/components/CollectionExtrasFallback.tsx#L100) | Rendered copy | Played | body(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:102](../src/components/CollectionExtrasFallback.tsx#L102) | Rendered copy | Completed | body(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:144](../src/components/CollectionExtrasFallback.tsx#L144) | Live region | Loading additional games… | ExtendedFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:153](../src/components/CollectionExtrasFallback.tsx#L153) | Rendered copy | ${record.year ?? 'Game'} | ExtendedFallback(); !online.artwork.has(record.id) &amp;&amp; |
+| [src/components/CollectionExtrasFallback.tsx:153](../src/components/CollectionExtrasFallback.tsx#L153) | Message/fragment | Game | ExtendedFallback(); !online.artwork.has(record.id) &amp;&amp;; record.year ?? |
+| [src/components/CollectionExtrasFallback.tsx:154](../src/components/CollectionExtrasFallback.tsx#L154) | Rendered copy | Artwork unavailable | ExtendedFallback(); !online.artwork.has(record.id) &amp;&amp; |
+| [src/components/CollectionExtrasFallback.tsx:160](../src/components/CollectionExtrasFallback.tsx#L160) | Rendered copy | ${record.title} | ExtendedFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:162](../src/components/CollectionExtrasFallback.tsx#L162) | Rendered copy | ${[record.year, catalogGenreLabel(record)].filter((value) =&gt; value !== null).join(' · ') &#124;&#124; 'Game'} | ExtendedFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:163](../src/components/CollectionExtrasFallback.tsx#L163) | Message/fragment | Game | ExtendedFallback(); [record.year, catalogGenreLabel(record)].filter((value) =&gt; value !== null).join(' · ') &#124;&#124; |
+| [src/components/CollectionExtrasFallback.tsx:166](../src/components/CollectionExtrasFallback.tsx#L166) | Rendered copy | ${state.records[record.id] ? 'In My games' : 'Add to My games'} | ExtendedFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:168](../src/components/CollectionExtrasFallback.tsx#L168) | Message/fragment | Add to My games | ExtendedFallback(); state.records[record.id] is false |
+| [src/components/CollectionExtrasFallback.tsx:168](../src/components/CollectionExtrasFallback.tsx#L168) | Message/fragment | In My games | ExtendedFallback(); state.records[record.id] is true |
+| [src/components/CollectionExtrasFallback.tsx:171](../src/components/CollectionExtrasFallback.tsx#L171) | Rendered copy | Pin | ExtendedFallback(); onPin &amp;&amp; |
+| [src/components/CollectionExtrasFallback.tsx:178](../src/components/CollectionExtrasFallback.tsx#L178) | Rendered copy | More actions | ExtendedFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:186](../src/components/CollectionExtrasFallback.tsx#L186) | Rendered copy | Search online | ExtendedFallback(); online.eligible &amp;&amp; !online.remoteEnabled &amp;&amp; |
+| [src/components/CollectionExtrasFallback.tsx:196](../src/components/CollectionExtrasFallback.tsx#L196) | Rendered copy | Loading additional games… | ExtendedFallback(); !records.length &amp;&amp; |
+| [src/components/CollectionExtrasFallback.tsx:202](../src/components/CollectionExtrasFallback.tsx#L202) | Message/fragment | The original order, ratings and workbook. | filmSummaries(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:206](../src/components/CollectionExtrasFallback.tsx#L206) | Message/fragment | Find games, pin a shortlist and compare shared rankings. | filmSummaries(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:224](../src/components/CollectionExtrasFallback.tsx#L224) | Rendered copy | ${film.title} | FilmsFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:225](../src/components/CollectionExtrasFallback.tsx#L225) | Rendered copy | ${film.description} | FilmsFallback(); when its owning surface/operation is used |
+| [src/components/CollectionExtrasFallback.tsx:226](../src/components/CollectionExtrasFallback.tsx#L226) | Rendered copy | 0:22 · Watch film | FilmsFallback(); when its owning surface/operation is used |
 ## src/components/CollectionFilms.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -3472,37 +3472,37 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/RatingsTable.tsx:102](../src/components/RatingsTable.tsx#L102) | Message/fragment | Your edit has not saved. Correct the highlighted rating or note before leaving. | openRanking(); saved is false |
-| [src/components/RatingsTable.tsx:108](../src/components/RatingsTable.tsx#L108) | Message/fragment | Your edit could not be saved. Keep this page open and retry. | openRanking(); operation rejected or threw; isCurrent() is true |
-| [src/components/RatingsTable.tsx:124](../src/components/RatingsTable.tsx#L124) | Label/help | {scale ? &#96;${label} ${scale}&#96; : label} | sortedHeader(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:138](../src/components/RatingsTable.tsx#L138) | Rendered copy | ${label} ${scale &amp;&amp; &lt;small&gt;{scale}&lt;/small&gt;} | sortedHeader(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:140](../src/components/RatingsTable.tsx#L140) | Rendered copy | ${scale} | sortedHeader(); scale &amp;&amp; |
-| [src/components/RatingsTable.tsx:150](../src/components/RatingsTable.tsx#L150) | Rendered copy | ${author.shortName}'s rank-based workbook ratings are separate from critic scores. — means unavailable. Critic averages include both Metacritic columns. Edit your own ratings in My games → Ranking . | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:153](../src/components/RatingsTable.tsx#L153) | Rendered copy | My games → Ranking | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:170](../src/components/RatingsTable.tsx#L170) | Label/help | Rankings and ratings table; scroll horizontally for all scores | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:190](../src/components/RatingsTable.tsx#L190) | Rendered copy | Select games | RatingsTable(); selecting &amp;&amp; |
-| [src/components/RatingsTable.tsx:193](../src/components/RatingsTable.tsx#L193) | Message/fragment | Rank | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:194](../src/components/RatingsTable.tsx#L194) | Message/fragment | Game | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:195](../src/components/RatingsTable.tsx#L195) | Message/fragment | Year | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:200](../src/components/RatingsTable.tsx#L200) | Label/help | {label} | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:209](../src/components/RatingsTable.tsx#L209) | Message/fragment | Average | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:225](../src/components/RatingsTable.tsx#L225) | Label/help | {&#96;Select ${game.title}&#96;} | RatingsTable(); selecting &amp;&amp; |
-| [src/components/RatingsTable.tsx:225](../src/components/RatingsTable.tsx#L225) | Message/fragment | Select ${game.title} | RatingsTable(); selecting &amp;&amp; |
-| [src/components/RatingsTable.tsx:233](../src/components/RatingsTable.tsx#L233) | Rendered copy | ${game.genre} · ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:239](../src/components/RatingsTable.tsx#L239) | Label/help | {game.authorRating?.rawValue} | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:245](../src/components/RatingsTable.tsx#L245) | Rendered copy | Original author rating unavailable | RatingsTable(); game.authorRating is false |
-| [src/components/RatingsTable.tsx:254](../src/components/RatingsTable.tsx#L254) | Rendered copy | Unavailable | RatingsTable(); game.critics[key] === null is true |
-| [src/components/RatingsTable.tsx:266](../src/components/RatingsTable.tsx#L266) | Label/help | {game.title} | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:274](../src/components/RatingsTable.tsx#L274) | Label/help | {game.title} | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:283](../src/components/RatingsTable.tsx#L283) | Label/help | {&#96;Play later: ${game.title}&#96;} | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:283](../src/components/RatingsTable.tsx#L283) | Message/fragment | Play later: ${game.title} | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:284](../src/components/RatingsTable.tsx#L284) | Label/help | Play later | RatingsTable(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:307](../src/components/RatingsTable.tsx#L307) | Live region | ${navigationError} | RatingsTable(); navigationError &amp;&amp; |
-| [src/components/RatingsTable.tsx:341](../src/components/RatingsTable.tsx#L341) | Rendered copy | #${String(game.rank).padStart(2, '0')} | RatingsGameLink(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:344](../src/components/RatingsTable.tsx#L344) | Rendered copy | ${game.title} | RatingsGameLink(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:364](../src/components/RatingsTable.tsx#L364) | Label/help | {&#96;${label} / ${scale}&#96;} | TableHeading(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:365](../src/components/RatingsTable.tsx#L365) | Rendered copy | ${label} / ${scale} | TableHeading(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:367](../src/components/RatingsTable.tsx#L367) | Rendered copy | / ${scale} | TableHeading(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:104](../src/components/RatingsTable.tsx#L104) | Message/fragment | Your edit has not saved. Correct the highlighted rating or note before leaving. | openRanking(); saved is false |
+| [src/components/RatingsTable.tsx:110](../src/components/RatingsTable.tsx#L110) | Message/fragment | Your edit could not be saved. Keep this page open and retry. | openRanking(); operation rejected or threw; isCurrent() is true |
+| [src/components/RatingsTable.tsx:126](../src/components/RatingsTable.tsx#L126) | Label/help | {scale ? &#96;${label} ${scale}&#96; : label} | sortedHeader(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:140](../src/components/RatingsTable.tsx#L140) | Rendered copy | ${label} ${scale &amp;&amp; &lt;small&gt;{scale}&lt;/small&gt;} | sortedHeader(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:142](../src/components/RatingsTable.tsx#L142) | Rendered copy | ${scale} | sortedHeader(); scale &amp;&amp; |
+| [src/components/RatingsTable.tsx:152](../src/components/RatingsTable.tsx#L152) | Rendered copy | ${author.shortName}'s rank-based workbook ratings are separate from critic scores. — means unavailable. Critic averages include both Metacritic columns. Edit your own ratings in My games → Ranking . | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:155](../src/components/RatingsTable.tsx#L155) | Rendered copy | My games → Ranking | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:172](../src/components/RatingsTable.tsx#L172) | Label/help | Rankings and ratings table; scroll horizontally for all scores | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:192](../src/components/RatingsTable.tsx#L192) | Rendered copy | Select games | body(); selecting &amp;&amp; |
+| [src/components/RatingsTable.tsx:195](../src/components/RatingsTable.tsx#L195) | Message/fragment | Rank | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:196](../src/components/RatingsTable.tsx#L196) | Message/fragment | Game | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:197](../src/components/RatingsTable.tsx#L197) | Message/fragment | Year | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:202](../src/components/RatingsTable.tsx#L202) | Label/help | {label} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:211](../src/components/RatingsTable.tsx#L211) | Message/fragment | Average | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:227](../src/components/RatingsTable.tsx#L227) | Label/help | {&#96;Select ${game.title}&#96;} | body(); selecting &amp;&amp; |
+| [src/components/RatingsTable.tsx:227](../src/components/RatingsTable.tsx#L227) | Message/fragment | Select ${game.title} | body(); selecting &amp;&amp; |
+| [src/components/RatingsTable.tsx:235](../src/components/RatingsTable.tsx#L235) | Rendered copy | ${game.genre} · ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:241](../src/components/RatingsTable.tsx#L241) | Label/help | {game.authorRating?.rawValue} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:247](../src/components/RatingsTable.tsx#L247) | Rendered copy | Original author rating unavailable | body(); game.authorRating is false |
+| [src/components/RatingsTable.tsx:256](../src/components/RatingsTable.tsx#L256) | Rendered copy | Unavailable | body(); game.critics[key] === null is true |
+| [src/components/RatingsTable.tsx:268](../src/components/RatingsTable.tsx#L268) | Label/help | {game.title} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:276](../src/components/RatingsTable.tsx#L276) | Label/help | {game.title} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:285](../src/components/RatingsTable.tsx#L285) | Label/help | {&#96;Play later: ${game.title}&#96;} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:285](../src/components/RatingsTable.tsx#L285) | Message/fragment | Play later: ${game.title} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:286](../src/components/RatingsTable.tsx#L286) | Label/help | Play later | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:309](../src/components/RatingsTable.tsx#L309) | Live region | ${navigationError} | body(); navigationError &amp;&amp; |
+| [src/components/RatingsTable.tsx:344](../src/components/RatingsTable.tsx#L344) | Rendered copy | #${String(game.rank).padStart(2, '0')} | RatingsGameLink(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:347](../src/components/RatingsTable.tsx#L347) | Rendered copy | ${game.title} | RatingsGameLink(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:367](../src/components/RatingsTable.tsx#L367) | Label/help | {&#96;${label} / ${scale}&#96;} | TableHeading(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:368](../src/components/RatingsTable.tsx#L368) | Rendered copy | ${label} / ${scale} | TableHeading(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:370](../src/components/RatingsTable.tsx#L370) | Rendered copy | / ${scale} | TableHeading(); when its owning surface/operation is used |
 ## src/components/scene/CollectionScene.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |

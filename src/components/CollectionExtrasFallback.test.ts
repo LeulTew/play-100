@@ -12,6 +12,19 @@ import { emptySources } from '../lib/catalog-search-session';
 import ExtendedResults from './catalog/ExtendedResults';
 import { DeferredCollection } from './DeferredCollection';
 
+const tableProps = (): ComponentProps<typeof RatingsTable> => ({
+  games: [],
+  filters: defaultFilters,
+  progress: {},
+  selecting: false,
+  selected: new Set(),
+  busy: false,
+  onSelect: vi.fn(),
+  onOpen: vi.fn(),
+  onToggle: vi.fn(),
+  onSort: vi.fn(),
+});
+
 it('reserves the exact film listing text and frames without loading movies or artwork', () => {
   const onWatch = vi.fn();
   const html = renderToStaticMarkup(createElement(FilmsFallback, { onWatch }));
@@ -31,18 +44,7 @@ it('reserves the exact film listing text and frames without loading movies or ar
 });
 
 it('keeps one identical visible rating note before and after the table loads', () => {
-  const props: ComponentProps<typeof RatingsTable> = {
-    games: [],
-    filters: defaultFilters,
-    progress: {},
-    selecting: false,
-    selected: new Set(),
-    busy: false,
-    onSelect: vi.fn(),
-    onOpen: vi.fn(),
-    onToggle: vi.fn(),
-    onSort: vi.fn(),
-  };
+  const props = tableProps();
   const notes = [TableFallback, RatingsTable].map((component) => {
     const html = renderToStaticMarkup(createElement(component, props));
     expect(html.match(/class="ratings-explainer"/g)).toHaveLength(1);
@@ -54,6 +56,27 @@ it('keeps one identical visible rating note before and after the table loads', (
     return note.replace(/<[^>]+>/g, '');
   });
   expect(notes[0]).toBe(notes[1]);
+});
+
+it('keeps one parent-owned table frame and tray while embedded bodies omit their own copies', () => {
+  const props = {
+    ...tableProps(),
+    comparisonTray: createElement('button', { id: 'retained-tray' }, 'Compare tray'),
+  };
+  const deferred = renderToStaticMarkup(createElement(DeferredCollection, { input: { kind: 'table', props } }));
+  expect(deferred.match(/class="ratings-mode"/g)).toHaveLength(1);
+  expect(deferred.match(/class="ratings-tray-strip"/g)).toHaveLength(1);
+  expect(deferred.match(/id="retained-tray"/g)).toHaveLength(1);
+  for (const component of [TableFallback, RatingsTable]) {
+    const embedded = renderToStaticMarkup(createElement(component, { ...props, embedded: true }));
+    expect(embedded).not.toContain('class="ratings-mode"');
+    expect(embedded).not.toContain('class="ratings-tray-strip"');
+    expect(embedded).not.toContain('id="retained-tray"');
+    expect(embedded).toContain('class="ratings-scroll"');
+    const standalone = renderToStaticMarkup(createElement(component, props));
+    expect(standalone.match(/class="ratings-mode"/g)).toHaveLength(1);
+    expect(standalone.match(/id="retained-tray"/g)).toHaveLength(1);
+  }
 });
 
 it.each([

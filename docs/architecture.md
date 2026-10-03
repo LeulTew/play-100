@@ -486,8 +486,11 @@ the player can open. Unmount prevents a late import from publishing stale UI.
 The eager parent permanently owns the film section/heading and the
 additional-results labelled section/heading. Only their bodies swap from
 fallbacks to loaded UI, so fragment targets and focused headings do not detach
-during an import. The table has no linked ID; its existing outer deferred
-container and reserved frame remain mounted.
+during an import. The table's shared `ratings-mode` frame and interactive Compare
+tray also belong to that eager parent. Only the table body swaps: an arriving or
+failed chunk cannot remount the tray, close its open dialog, or replace its focused
+control and return target. Standalone table rendering retains its own frame;
+embedded bodies omit it and the independently owned tray.
 Terminal import failures retain a local guarded-reload action rather than
 clearing the collection or retrying cached failed imports.
 

@@ -31,6 +31,7 @@ interface RatingsTableProps {
   getCompareRecord?: (game: Game) => LibraryRecord;
   savedCopies?: (game: Game) => ReactNode;
   comparisonTray?: ReactNode;
+  embedded?: boolean;
 }
 
 // Which columns are frozen depends on the width: selection, Rank and Game hold the left edge on desktop (only
@@ -75,6 +76,7 @@ export default function RatingsTable({
   getCompareRecord,
   savedCopies,
   comparisonTray,
+  embedded = false,
 }: RatingsTableProps) {
   const { goToPage } = useUrlState();
   const { scope } = useLibraryMode();
@@ -144,8 +146,8 @@ export default function RatingsTable({
       </th>
     );
   };
-  return (
-    <div className="ratings-mode">
+  const body = (
+    <>
       <div className="ratings-explainer">
         <p>
           {author.shortName}'s rank-based workbook ratings are separate from critic scores. <strong>—</strong> means
@@ -302,14 +304,15 @@ export default function RatingsTable({
           </tbody>
         </table>
       </div>
-      {comparisonTray && <div className="ratings-tray-strip">{comparisonTray}</div>}
+      {!embedded && comparisonTray && <div className="ratings-tray-strip">{comparisonTray}</div>}
       {navigationError && (
         <p className="inline-error" role="alert">
           {navigationError}
         </p>
       )}
-    </div>
+    </>
   );
+  return embedded ? body : <div className="ratings-mode">{body}</div>;
 }
 
 function RatingsGameLink({
