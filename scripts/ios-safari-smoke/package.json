@@ -9,6 +9,6 @@
   "dependencies": {
     "appium": "3.8.0",
     "appium-xcuitest-driver": "12.13.3",
-    "tsx": "4.21.0"
+    "tsx": "4.23.15"
   }
 }
