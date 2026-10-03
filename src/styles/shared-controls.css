@@ -140,6 +140,9 @@
   font-size: 13px;
   line-height: 1.5;
 }
+.author-links {
+  margin-inline: -12px;
+}
 .author-links .icon-button {
   color: var(--ink);
 }
@@ -355,7 +358,8 @@
   font-weight: 450;
   line-height: 1.5;
   margin-top: 1px;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  text-wrap: balance;
 }
 .ratings-table thead .table-rank,
 .ratings-table thead .table-game {
