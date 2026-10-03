@@ -80,7 +80,7 @@ const surfaces: [string, () => ReactNode, RegExp[]][] = [
         filters: defaultFilters,
         progress: { [game.slug]: stored },
         selecting: false,
-        selected: new Set(),
+        selected: new Set<string>(),
         busy: true,
         onSelect: vi.fn(),
         onOpen: vi.fn(),
