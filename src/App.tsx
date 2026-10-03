@@ -14,6 +14,7 @@ import { ReloadGuardContext } from './lib/reload-guard-context';
 import { scrollCollectionIntoView } from './components/collection-landing';
 import { ONLINE_AVAILABLE, rememberOnlineRequest } from './lib/online-availability';
 import { LibraryModeContext } from './lib/library-mode';
+import { LibraryStateKnownContext } from './lib/library-state';
 import { useInvitation } from './hooks/useInvitation';
 import { useSearchShortcut } from './hooks/useSearchShortcut';
 import { useAppCapabilities } from './hooks/useAppCapabilities';
@@ -65,6 +66,8 @@ export default function App() {
   const { online, onlineOpening, currentOnline, libraryScope, libraryMode, headerLabel, headerIdentity } = onlineState;
   const library = online?.controller ?? guestLibrary;
   const libraryBusy = library.busy || library.status === 'loading' || onlineOpening;
+  // Saving keeps a known state; loading or opening an account library does not.
+  const libraryStateKnown = library.status !== 'loading' && !onlineOpening;
   const { activeScope, scopeEpoch, navigationGeneration, navigationEpoch, captureFocusGuard } =
     useNavigationScope(libraryScope);
   const { effectiveMotion, motionPending, capabilities } = useAppCapabilities(
@@ -324,69 +327,71 @@ export default function App() {
               >
                 {(tray, artwork, previewLoading, previewModuleError) => (
                   <LibraryModeContext.Provider value={libraryMode}>
-                    <AppShell
-                      app={{
-                        page,
-                        gamesView,
-                        titlePanel,
-                        publicHandle: url.publicHandle,
-                        openGame: url.openGame,
-                        getGameOpener: url.getGameOpener,
-                        closeGame,
-                        openProfile: url.openProfile,
-                        updateFilters: url.updateFilters,
-                        changeGamesView: url.changeGamesView,
-                        filters,
-                        selectedSlug,
-                        personalPage,
-                        invitation,
-                        cloudPage,
-                        privateLoading,
-                        collection,
-                        games,
-                        guestLibrary,
-                        library,
-                        libraryBusy,
-                        libraryScope,
-                        libraryLabel: headerLabel,
-                        online,
-                        onlineOpening,
-                        showOnline: ONLINE_AVAILABLE && (onlineState.onlineRequested || cloudPage),
-                        hintError: onlineState.hintError,
-                        hintBlocked: onlineState.hintBlocked,
-                        retryingLibraryOpening: onlineState.retryingOpening,
-                        headerIdentity,
-                        savedCount,
-                        completedCount,
-                        warning: library.error ?? library.warning,
-                        capabilities,
-                        effectiveMotion,
-                        motionPending,
-                        ...appPanel,
-                        offlineSettings,
-                        pwaEnabled,
-                        pwa,
-                        ...detail,
-                        rankingPosition,
-                        publicLookup,
-                        manualLink,
-                        sharing,
-                        toolFailure,
-                        motionBlocked,
-                        signInPurpose: currentSignInPurpose(signIn.signInTicket, panel === 'account'),
-                        getSignInReturnFocus: signIn.getSignInReturnFocus,
-                        captureFocusGuard,
-                        notices,
-                        pageHref,
-                        commands,
-                      }}
-                      mainRef={mainRef}
-                      motion={motion}
-                      tray={tray}
-                      artwork={artwork}
-                      previewLoading={previewLoading}
-                      previewModuleError={previewModuleError}
-                    />
+                    <LibraryStateKnownContext value={libraryStateKnown}>
+                      <AppShell
+                        app={{
+                          page,
+                          gamesView,
+                          titlePanel,
+                          publicHandle: url.publicHandle,
+                          openGame: url.openGame,
+                          getGameOpener: url.getGameOpener,
+                          closeGame,
+                          openProfile: url.openProfile,
+                          updateFilters: url.updateFilters,
+                          changeGamesView: url.changeGamesView,
+                          filters,
+                          selectedSlug,
+                          personalPage,
+                          invitation,
+                          cloudPage,
+                          privateLoading,
+                          collection,
+                          games,
+                          guestLibrary,
+                          library,
+                          libraryBusy,
+                          libraryScope,
+                          libraryLabel: headerLabel,
+                          online,
+                          onlineOpening,
+                          showOnline: ONLINE_AVAILABLE && (onlineState.onlineRequested || cloudPage),
+                          hintError: onlineState.hintError,
+                          hintBlocked: onlineState.hintBlocked,
+                          retryingLibraryOpening: onlineState.retryingOpening,
+                          headerIdentity,
+                          savedCount,
+                          completedCount,
+                          warning: library.error ?? library.warning,
+                          capabilities,
+                          effectiveMotion,
+                          motionPending,
+                          ...appPanel,
+                          offlineSettings,
+                          pwaEnabled,
+                          pwa,
+                          ...detail,
+                          rankingPosition,
+                          publicLookup,
+                          manualLink,
+                          sharing,
+                          toolFailure,
+                          motionBlocked,
+                          signInPurpose: currentSignInPurpose(signIn.signInTicket, panel === 'account'),
+                          getSignInReturnFocus: signIn.getSignInReturnFocus,
+                          captureFocusGuard,
+                          notices,
+                          pageHref,
+                          commands,
+                        }}
+                        mainRef={mainRef}
+                        motion={motion}
+                        tray={tray}
+                        artwork={artwork}
+                        previewLoading={previewLoading}
+                        previewModuleError={previewModuleError}
+                      />
+                    </LibraryStateKnownContext>
                   </LibraryModeContext.Provider>
                 )}
               </CompareTrayBindings>

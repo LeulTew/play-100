@@ -1,4 +1,5 @@
 import { Icon } from './Icon';
+import { useLibraryPressedState } from '../lib/library-state';
 
 export function CompletedToggle({
   title,
@@ -11,12 +12,13 @@ export function CompletedToggle({
   busy?: boolean;
   onChange: (value: boolean) => void;
 }) {
+  const pressed = useLibraryPressedState(completed);
   return (
     <button
       type="button"
       className="text-button completed-toggle"
       aria-disabled={busy || undefined}
-      aria-pressed={completed}
+      {...pressed}
       aria-label={`Completed: ${title}`}
       onClick={() => {
         if (!busy) onChange(!completed);

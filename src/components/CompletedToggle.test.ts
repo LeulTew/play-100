@@ -18,8 +18,15 @@ describe('CompletedToggle save focus', () => {
     expect(html).toContain('aria-label="Completed: Game"');
     expect(html.includes('aria-disabled="true"')).toBe(busy);
     expect(html).not.toContain('disabled=""');
-    const button: ReactElement<{ onClick: () => void }> = CompletedToggle(props);
-    button.props.onClick();
+    const rendered: { button?: ReactElement<{ onClick: () => void }> } = {};
+    renderToStaticMarkup(
+      createElement(function Probe() {
+        rendered.button = CompletedToggle(props);
+        return rendered.button;
+      }),
+    );
+    rendered.button?.props.onClick();
+    expect(rendered.button).toBeDefined();
     if (busy) expect(onChange).not.toHaveBeenCalled();
     else expect(onChange).toHaveBeenCalledExactlyOnceWith(!completed);
   });

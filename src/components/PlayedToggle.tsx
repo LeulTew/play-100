@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { Dialog } from './Dialog';
 import { useLibraryMode } from '../lib/library-mode';
+import { useLibraryStateKnown } from '../lib/library-state';
 
 export function PlayedToggle({
   id,
@@ -26,6 +27,7 @@ export function PlayedToggle({
   if (review.key !== key || review.eligible !== eligible) setReview({ key, eligible, open: false });
   const reviewOpen = (open: boolean) => setReview({ key, eligible, open });
   const label = 'Played';
+  const known = useLibraryStateKnown();
   return (
     <>
       <label className="check-control played-toggle" data-played-id={id}>
@@ -34,6 +36,7 @@ export function PlayedToggle({
           checked={played}
           // Pending, not disabled: disabling the focused checkbox during a save dropped keyboard focus.
           aria-disabled={busy || undefined}
+          aria-busy={!known || undefined}
           onChange={(event) => {
             if (busy) return;
             if (!event.target.checked && completed) reviewOpen(true);
