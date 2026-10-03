@@ -397,7 +397,7 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.discovery-help label {
+.discovery-help label:has(input, select) {
   min-height: 44px;
 }
 .discovery-notice {
