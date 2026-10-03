@@ -1706,4 +1706,32 @@ describe('ranking sharing steps run again after their commit applied', () => {
     expect((await getDocFromServer(generationRef)).exists()).toBe(true);
     expect((await getDocFromServer(registry)).data()).toEqual(before);
   });
+  it('clears a deleted account once when every account cleanup step runs again', async () => {
+    const a = await client();
+    const b = await client();
+    await connect(a, b);
+    await share(a);
+    await a.store.saveGroup(a.uid, { name: 'Private saved group', participantUids: [a.uid, b.uid] }, 0);
+    await a.store.revokeForDeletion(a.uid);
+    await runAgainAfterCommit(true);
+    expect(await a.store.cleanupDeleted(a.uid)).toMatchObject({ done: true });
+    expect((await a.store.listGroups(a.uid)).items).toHaveLength(0);
+    expect((await a.store.listRelations(a.uid)).items).toHaveLength(0);
+    expect(await a.store.identity(a.uid)).toBeNull();
+  });
+  it('still refuses a saved group that changed after it was read, and a gone one outside deletion', async () => {
+    const a = await client();
+    const b = await client();
+    await connect(a, b);
+    const first = await a.store.saveGroup(a.uid, { name: 'Saved group', participantUids: [a.uid, b.uid] }, 0);
+    const renamed = await a.store.saveGroup(
+      a.uid,
+      { id: first.id, name: 'Renamed group', participantUids: [a.uid, b.uid] },
+      first.revision,
+    );
+    await expect(a.store.deleteGroup(a.uid, first.id, first.revision, undefined, true)).rejects.toThrow(/changed/);
+    expect(await a.store.getGroup(a.uid, first.id)).toEqual(renamed);
+    await a.store.deleteGroup(a.uid, first.id, renamed.revision);
+    await expect(a.store.deleteGroup(a.uid, first.id, renamed.revision)).rejects.toThrow(/already deleted/);
+  });
 });

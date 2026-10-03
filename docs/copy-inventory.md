@@ -730,8 +730,8 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 | --- | --- | --- | --- |
 | [src/cloud/friend-groups.ts:78](../src/cloud/friend-groups.ts#L78) | Message output | 'This saved group changed. Reload before saving.' | existing(); (current?.revision ?? 0) !== expectedRevision is true |
 | [src/cloud/friend-groups.ts:78](../src/cloud/friend-groups.ts#L78) | Message/fragment | This saved group changed. Reload before saving. | existing(); (current?.revision ?? 0) !== expectedRevision is true |
-| [src/cloud/friend-groups.ts:114](../src/cloud/friend-groups.ts#L114) | Message output | 'This saved group changed or was already deleted.' | deleteGroup(); !snap.exists() &#124;&#124; parseFriendGroup(id, snap.data()).revision !== expectedRevision is true |
-| [src/cloud/friend-groups.ts:114](../src/cloud/friend-groups.ts#L114) | Message/fragment | This saved group changed or was already deleted. | deleteGroup(); !snap.exists() &#124;&#124; parseFriendGroup(id, snap.data()).revision !== expectedRevision is true |
+| [src/cloud/friend-groups.ts:118](../src/cloud/friend-groups.ts#L118) | Message output | 'This saved group changed or was already deleted.' | deleteGroup(); !snap.exists() &#124;&#124; parseFriendGroup(id, snap.data()).revision !== expectedRevision is true |
+| [src/cloud/friend-groups.ts:118](../src/cloud/friend-groups.ts#L118) | Message/fragment | This saved group changed or was already deleted. | deleteGroup(); !snap.exists() &#124;&#124; parseFriendGroup(id, snap.data()).revision !== expectedRevision is true |
 ## src/cloud/friend-invites.ts
 
 | Source | Kind | Copy or expression | Showing condition / owner |
