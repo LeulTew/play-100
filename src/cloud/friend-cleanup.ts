@@ -207,7 +207,7 @@ export async function cleanupDeleted(store: FriendStore, uid: string): Promise<F
     deleted += 1;
   }
   for (const group of groups.items) {
-    await store.deleteGroup(uid, group.id, group.revision, groupsCounted);
+    await store.deleteGroup(uid, group.id, group.revision, groupsCounted, true);
     deleted += 1;
   }
   for (const block of blocks.items) {

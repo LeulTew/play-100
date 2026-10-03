@@ -100,6 +100,7 @@ export async function deleteGroup(
   id: string,
   expectedRevision: number,
   quotaAvailable?: boolean,
+  deleting = false,
 ): Promise<void> {
   const ref = doc(store.db, 'friendGroups', friendUid(uid), 'items', friendUuid(id));
   online();
@@ -110,6 +111,9 @@ export async function deleteGroup(
       tx.get(ref),
       counted ? readQuotaSlots(tx, quota, 'groups') : Promise.resolve(null),
     ]);
+    // Deleting the account needs only the group gone, as it is when the SDK ran this transaction again after its own
+    // commit applied although the client was told it failed (docs/intermittents.md, REL-13).
+    if (!snap.exists() && deleting) return;
     if (!snap.exists() || parseFriendGroup(id, snap.data()).revision !== expectedRevision)
       conflict('This saved group changed or was already deleted.');
     tx.delete(ref);

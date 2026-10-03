@@ -337,8 +337,14 @@ export class FriendStore {
   ): Promise<FriendGroup> {
     return saveGroup(this, uid, input, expectedRevision);
   }
-  deleteGroup(uid: string, id: string, expectedRevision: number, quotaAvailable?: boolean): Promise<void> {
-    return deleteGroup(this, uid, id, expectedRevision, quotaAvailable);
+  deleteGroup(
+    uid: string,
+    id: string,
+    expectedRevision: number,
+    quotaAvailable?: boolean,
+    deleting = false,
+  ): Promise<void> {
+    return deleteGroup(this, uid, id, expectedRevision, quotaAvailable, deleting);
   }
   /** Reads identity and settings once, then pages each collection only until its own last page. */
   exportAll(uid: string, isCurrent: () => boolean): Promise<FriendExport> {
