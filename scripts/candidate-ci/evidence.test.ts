@@ -112,7 +112,15 @@ describe('outcome', () => {
     expect(outcome({ run: focus, conclusion: 'failure', counts: ok })).toBe('failed');
     expect(outcome({ run: focus, conclusion: 'success', counts: { ...ok, failed: 1 } })).toBe('failed');
     expect(outcome({ run: focus, conclusion: 'success', counts: { ...ok, passed: 0 } })).toBe('failed');
-    expect(outcome({ run: focus, conclusion: 'success', counts: null })).toBe('passed');
+  });
+
+  it('fails a run whose evidence is missing or unverified, accepting no counts only from Lighthouse', () => {
+    const lighthouse = runFor({ id: 'lighthouse', suite: 'lighthouse' });
+    expect(outcome({ run: focus, conclusion: 'success', counts: null })).toBe('failed');
+    expect(outcome({ run: focus, conclusion: 'no-artifact', counts: null })).toBe('failed');
+    expect(outcome({ run: focus, conclusion: 'no-identity', counts: null })).toBe('failed');
+    expect(outcome({ run: lighthouse, conclusion: 'success', counts: null })).toBe('passed');
+    expect(outcome({ run: lighthouse, conclusion: 'no-artifact', counts: null })).toBe('failed');
   });
 
   it('holds an entry to its expected passes', () => {

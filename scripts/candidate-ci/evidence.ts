@@ -208,7 +208,8 @@ export type Outcome = 'passed' | 'failed';
 export function outcome(item: Pick<Collected, 'run' | 'conclusion' | 'counts'>): Outcome {
   const { counts, conclusion, run } = item;
   if (conclusion !== 'success') return 'failed';
-  if (!counts) return 'passed';
+  // Only Lighthouse supplies no test counts; any other entry without counts has unverified evidence.
+  if (!counts) return run.entry.suite === 'lighthouse' ? 'passed' : 'failed';
   const filteredSkips = run.entry.suite === 'cloud-rules' && run.entry.grep !== '';
   const designedSkips = PLAYWRIGHT_SUITES.includes(run.entry.suite) && run.entry.expectedPassed === null;
   if (counts.failed || (counts.skipped && !filteredSkips && !designedSkips) || !counts.passed) return 'failed';
