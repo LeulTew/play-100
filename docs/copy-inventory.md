@@ -6,7 +6,7 @@ The unit-test gate regenerates this inventory and rejects stale content or sourc
 
 ## Scope and reading convention
 
-Scanned 389 production TS/TSX/JS files and standalone HTML fallbacks; 3790 source entries.
+Scanned 390 production TS/TSX/JS files and standalone HTML fallbacks; 3790 source entries.
 This is a deliberately inclusive inventory of rendered text, accessible labels,
 message outputs, message constants and validation/error strings. It includes the
 Discover help/source notes, Settings/backups/PWA, empty states, confirmations,
@@ -1429,14 +1429,14 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/cloud/OnlineController.tsx:250](../src/cloud/OnlineController.tsx#L250) | Label/help | {visibleError} | renderAuthPanel(); when its owning surface/operation is used |
-| [src/cloud/OnlineController.tsx:251](../src/cloud/OnlineController.tsx#L251) | Label/help | {visibleMessage} | renderAuthPanel(); when its owning surface/operation is used |
-| [src/cloud/OnlineController.tsx:280](../src/cloud/OnlineController.tsx#L280) | Live region | ${openInvitation.error} | OnlineController(); page === 'invite' &amp;&amp; openInvitation.error &amp;&amp; |
-| [src/cloud/OnlineController.tsx:285](../src/cloud/OnlineController.tsx#L285) | Rendered copy | Local emulator preview — no production account or cloud data connection. | OnlineController(); cloudPage &amp;&amp; EMULATOR_MODE &amp;&amp; |
-| [src/cloud/OnlineController.tsx:290](../src/cloud/OnlineController.tsx#L290) | Live region | Signed in. Persistence across refresh has not yet been confirmed. | OnlineController(); cloudPage &amp;&amp; identity &amp;&amp; session.sessionUnconfirmed &amp;&amp; |
-| [src/cloud/OnlineController.tsx:311](../src/cloud/OnlineController.tsx#L311) | Label/help | {visibleError} | OnlineController(); cloudPage &amp;&amp; |
-| [src/cloud/OnlineController.tsx:312](../src/cloud/OnlineController.tsx#L312) | Label/help | {visibleMessage} | OnlineController(); cloudPage &amp;&amp; |
-| [src/cloud/OnlineController.tsx:330](../src/cloud/OnlineController.tsx#L330) | Rendered copy | Sign in | OnlineController(); signInOpen &amp;&amp; |
+| [src/cloud/OnlineController.tsx:252](../src/cloud/OnlineController.tsx#L252) | Label/help | {visibleError} | renderAuthPanel(); when its owning surface/operation is used |
+| [src/cloud/OnlineController.tsx:253](../src/cloud/OnlineController.tsx#L253) | Label/help | {visibleMessage} | renderAuthPanel(); when its owning surface/operation is used |
+| [src/cloud/OnlineController.tsx:282](../src/cloud/OnlineController.tsx#L282) | Live region | ${openInvitation.error} | OnlineController(); page === 'invite' &amp;&amp; openInvitation.error &amp;&amp; |
+| [src/cloud/OnlineController.tsx:287](../src/cloud/OnlineController.tsx#L287) | Rendered copy | Local emulator preview — no production account or cloud data connection. | OnlineController(); cloudPage &amp;&amp; EMULATOR_MODE &amp;&amp; |
+| [src/cloud/OnlineController.tsx:292](../src/cloud/OnlineController.tsx#L292) | Live region | Signed in. Persistence across refresh has not yet been confirmed. | OnlineController(); cloudPage &amp;&amp; identity &amp;&amp; session.sessionUnconfirmed &amp;&amp; |
+| [src/cloud/OnlineController.tsx:313](../src/cloud/OnlineController.tsx#L313) | Label/help | {visibleError} | OnlineController(); cloudPage &amp;&amp; |
+| [src/cloud/OnlineController.tsx:314](../src/cloud/OnlineController.tsx#L314) | Label/help | {visibleMessage} | OnlineController(); cloudPage &amp;&amp; |
+| [src/cloud/OnlineController.tsx:333](../src/cloud/OnlineController.tsx#L333) | Rendered copy | Sign in | OnlineController(); signInOpen &amp;&amp; |
 ## src/cloud/OnlinePages.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -1969,34 +1969,34 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 | [src/components/app/DialogHost.tsx:107](../src/components/app/DialogHost.tsx#L107) | Error/validation | Settings must finish loading before they open. | ReadySettings(); !Settings is true |
 | [src/components/app/DialogHost.tsx:123](../src/components/app/DialogHost.tsx#L123) | Rendered copy | Opening game… | PendingCatalogDialog(); when its owning surface/operation is used |
 | [src/components/app/DialogHost.tsx:126](../src/components/app/DialogHost.tsx#L126) | Live region | Loading its details. | PendingCatalogDialog(); when its owning surface/operation is used |
-| [src/components/app/DialogHost.tsx:193](../src/components/app/DialogHost.tsx#L193) | Message/fragment | Game details | DialogHost(); detailOpen &amp;&amp;; onFailure |
-| [src/components/app/DialogHost.tsx:214](../src/components/app/DialogHost.tsx#L214) | Rendered copy | Game details | DialogHost(); detailOpen &amp;&amp;; metadataFailure &amp;&amp; |
-| [src/components/app/DialogHost.tsx:217](../src/components/app/DialogHost.tsx#L217) | Label/help | The catalog tools didn't load. | DialogHost(); detailOpen &amp;&amp;; metadataFailure &amp;&amp; |
-| [src/components/app/DialogHost.tsx:228](../src/components/app/DialogHost.tsx#L228) | Rendered copy | Opening game… | DialogHost(); detailOpen &amp;&amp;; loadingGame &amp;&amp; |
-| [src/components/app/DialogHost.tsx:231](../src/components/app/DialogHost.tsx#L231) | Live region | Looking up its public catalog metadata. | DialogHost(); detailOpen &amp;&amp;; loadingGame &amp;&amp; |
-| [src/components/app/DialogHost.tsx:242](../src/components/app/DialogHost.tsx#L242) | Rendered copy | The original game could not load. | DialogHost(); detailOpen &amp;&amp;; canonicalError &amp;&amp; |
-| [src/components/app/DialogHost.tsx:245](../src/components/app/DialogHost.tsx#L245) | Rendered copy | ${canonicalError.message} Your saved records have not changed. | DialogHost(); detailOpen &amp;&amp;; canonicalError &amp;&amp; |
-| [src/components/app/DialogHost.tsx:246](../src/components/app/DialogHost.tsx#L246) | Rendered copy | Reload The 100 | DialogHost(); detailOpen &amp;&amp;; canonicalError &amp;&amp; |
-| [src/components/app/DialogHost.tsx:259](../src/components/app/DialogHost.tsx#L259) | Rendered copy | ${page === 'collection' ? "That game isn't in this collection." : "That game isn't in the active library."} | DialogHost(); detailOpen &amp;&amp;; missingGame &amp;&amp; |
-| [src/components/app/DialogHost.tsx:261](../src/components/app/DialogHost.tsx#L261) | Message/fragment | That game isn't in this collection. | DialogHost(); detailOpen &amp;&amp;; missingGame &amp;&amp;; page === 'collection' is true |
-| [src/components/app/DialogHost.tsx:262](../src/components/app/DialogHost.tsx#L262) | Message/fragment | That game isn't in the active library. | DialogHost(); detailOpen &amp;&amp;; missingGame &amp;&amp;; page === 'collection' is false |
-| [src/components/app/DialogHost.tsx:264](../src/components/app/DialogHost.tsx#L264) | Rendered copy | ${page === 'collection' ? 'This link may be old or incomplete. All 100 games are still here.' : 'Guest and account libraries stay separate. Open the correct account, import your backup, or add this game from Discover.'} | DialogHost(); detailOpen &amp;&amp;; missingGame &amp;&amp; |
-| [src/components/app/DialogHost.tsx:266](../src/components/app/DialogHost.tsx#L266) | Message/fragment | This link may be old or incomplete. All 100 games are still here. | DialogHost(); detailOpen &amp;&amp;; missingGame &amp;&amp;; page === 'collection' is true |
-| [src/components/app/DialogHost.tsx:267](../src/components/app/DialogHost.tsx#L267) | Message/fragment | Guest and account libraries stay separate. Open the correct account, import your backup, or add this game from Discover. | DialogHost(); detailOpen &amp;&amp;; missingGame &amp;&amp;; page === 'collection' is false |
-| [src/components/app/DialogHost.tsx:269](../src/components/app/DialogHost.tsx#L269) | Rendered copy | Back to the collection | DialogHost(); detailOpen &amp;&amp;; missingGame &amp;&amp; |
-| [src/components/app/DialogHost.tsx:279](../src/components/app/DialogHost.tsx#L279) | Message/fragment | Menu | DialogHost(); menu &amp;&amp;; onFailure |
-| [src/components/app/DialogHost.tsx:297](../src/components/app/DialogHost.tsx#L297) | Message/fragment | Settings | DialogHost(); settings &amp;&amp;; onFailure |
-| [src/components/app/DialogHost.tsx:304](../src/components/app/DialogHost.tsx#L304) | Message/fragment | The notice | DialogHost(); panelNotice &amp;&amp;; onFailure |
-| [src/components/app/DialogHost.tsx:306](../src/components/app/DialogHost.tsx#L306) | Rendered copy | ${panelNotice.title} | DialogHost(); panelNotice &amp;&amp; |
-| [src/components/app/DialogHost.tsx:314](../src/components/app/DialogHost.tsx#L314) | Message/fragment | Sharing | DialogHost(); manualShare &amp;&amp;; onFailure |
-| [src/components/app/DialogHost.tsx:316](../src/components/app/DialogHost.tsx#L316) | Rendered copy | Copy this link | DialogHost(); manualShare &amp;&amp; |
-| [src/components/app/DialogHost.tsx:319](../src/components/app/DialogHost.tsx#L319) | Rendered copy | This browser couldn't share or copy automatically. Select this public link and copy it to send to a friend. Your private progress isn't included. | DialogHost(); manualShare &amp;&amp; |
-| [src/components/app/DialogHost.tsx:323](../src/components/app/DialogHost.tsx#L323) | Rendered copy | Shareable link | DialogHost(); manualShare &amp;&amp; |
-| [src/components/app/DialogHost.tsx:325](../src/components/app/DialogHost.tsx#L325) | Rendered copy | Select link to copy | DialogHost(); manualShare &amp;&amp; |
-| [src/components/app/DialogHost.tsx:343](../src/components/app/DialogHost.tsx#L343) | Label/help | Dialog recovery | DialogHost(); failure?.scope === scope &amp;&amp; failure.page === page &amp;&amp; |
-| [src/components/app/DialogHost.tsx:345](../src/components/app/DialogHost.tsx#L345) | Label/help | {&#96;${failure.label} ran into a problem. The rest of Play 100 is still available.&#96;} | DialogHost(); failure?.scope === scope &amp;&amp; failure.page === page &amp;&amp; |
-| [src/components/app/DialogHost.tsx:345](../src/components/app/DialogHost.tsx#L345) | Message/fragment | ${failure.label} ran into a problem. The rest of Play 100 is still available. | DialogHost(); failure?.scope === scope &amp;&amp; failure.page === page &amp;&amp; |
-| [src/components/app/DialogHost.tsx:348](../src/components/app/DialogHost.tsx#L348) | Rendered copy | Dismiss | DialogHost(); failure?.scope === scope &amp;&amp; failure.page === page &amp;&amp; |
+| [src/components/app/DialogHost.tsx:194](../src/components/app/DialogHost.tsx#L194) | Message/fragment | Game details | DialogHost(); detailOpen &amp;&amp;; onFailure |
+| [src/components/app/DialogHost.tsx:215](../src/components/app/DialogHost.tsx#L215) | Rendered copy | Game details | DialogHost(); detailOpen &amp;&amp;; metadataFailure &amp;&amp; |
+| [src/components/app/DialogHost.tsx:218](../src/components/app/DialogHost.tsx#L218) | Label/help | The catalog tools didn't load. | DialogHost(); detailOpen &amp;&amp;; metadataFailure &amp;&amp; |
+| [src/components/app/DialogHost.tsx:229](../src/components/app/DialogHost.tsx#L229) | Rendered copy | Opening game… | DialogHost(); detailOpen &amp;&amp;; loadingGame &amp;&amp; |
+| [src/components/app/DialogHost.tsx:232](../src/components/app/DialogHost.tsx#L232) | Live region | Looking up its public catalog metadata. | DialogHost(); detailOpen &amp;&amp;; loadingGame &amp;&amp; |
+| [src/components/app/DialogHost.tsx:243](../src/components/app/DialogHost.tsx#L243) | Rendered copy | The original game could not load. | DialogHost(); detailOpen &amp;&amp;; canonicalError &amp;&amp; |
+| [src/components/app/DialogHost.tsx:246](../src/components/app/DialogHost.tsx#L246) | Rendered copy | ${canonicalError.message} Your saved records have not changed. | DialogHost(); detailOpen &amp;&amp;; canonicalError &amp;&amp; |
+| [src/components/app/DialogHost.tsx:247](../src/components/app/DialogHost.tsx#L247) | Rendered copy | Reload The 100 | DialogHost(); detailOpen &amp;&amp;; canonicalError &amp;&amp; |
+| [src/components/app/DialogHost.tsx:260](../src/components/app/DialogHost.tsx#L260) | Rendered copy | ${page === 'collection' ? "That game isn't in this collection." : "That game isn't in the active library."} | DialogHost(); detailOpen &amp;&amp;; missingGame &amp;&amp; |
+| [src/components/app/DialogHost.tsx:262](../src/components/app/DialogHost.tsx#L262) | Message/fragment | That game isn't in this collection. | DialogHost(); detailOpen &amp;&amp;; missingGame &amp;&amp;; page === 'collection' is true |
+| [src/components/app/DialogHost.tsx:263](../src/components/app/DialogHost.tsx#L263) | Message/fragment | That game isn't in the active library. | DialogHost(); detailOpen &amp;&amp;; missingGame &amp;&amp;; page === 'collection' is false |
+| [src/components/app/DialogHost.tsx:265](../src/components/app/DialogHost.tsx#L265) | Rendered copy | ${page === 'collection' ? 'This link may be old or incomplete. All 100 games are still here.' : 'Guest and account libraries stay separate. Open the correct account, import your backup, or add this game from Discover.'} | DialogHost(); detailOpen &amp;&amp;; missingGame &amp;&amp; |
+| [src/components/app/DialogHost.tsx:267](../src/components/app/DialogHost.tsx#L267) | Message/fragment | This link may be old or incomplete. All 100 games are still here. | DialogHost(); detailOpen &amp;&amp;; missingGame &amp;&amp;; page === 'collection' is true |
+| [src/components/app/DialogHost.tsx:268](../src/components/app/DialogHost.tsx#L268) | Message/fragment | Guest and account libraries stay separate. Open the correct account, import your backup, or add this game from Discover. | DialogHost(); detailOpen &amp;&amp;; missingGame &amp;&amp;; page === 'collection' is false |
+| [src/components/app/DialogHost.tsx:270](../src/components/app/DialogHost.tsx#L270) | Rendered copy | Back to the collection | DialogHost(); detailOpen &amp;&amp;; missingGame &amp;&amp; |
+| [src/components/app/DialogHost.tsx:281](../src/components/app/DialogHost.tsx#L281) | Message/fragment | Menu | DialogHost(); menu &amp;&amp;; onFailure |
+| [src/components/app/DialogHost.tsx:299](../src/components/app/DialogHost.tsx#L299) | Message/fragment | Settings | DialogHost(); settings &amp;&amp;; onFailure |
+| [src/components/app/DialogHost.tsx:306](../src/components/app/DialogHost.tsx#L306) | Message/fragment | The notice | DialogHost(); panelNotice &amp;&amp;; onFailure |
+| [src/components/app/DialogHost.tsx:308](../src/components/app/DialogHost.tsx#L308) | Rendered copy | ${panelNotice.title} | DialogHost(); panelNotice &amp;&amp; |
+| [src/components/app/DialogHost.tsx:316](../src/components/app/DialogHost.tsx#L316) | Message/fragment | Sharing | DialogHost(); manualShare &amp;&amp;; onFailure |
+| [src/components/app/DialogHost.tsx:318](../src/components/app/DialogHost.tsx#L318) | Rendered copy | Copy this link | DialogHost(); manualShare &amp;&amp; |
+| [src/components/app/DialogHost.tsx:321](../src/components/app/DialogHost.tsx#L321) | Rendered copy | This browser couldn't share or copy automatically. Select this public link and copy it to send to a friend. Your private progress isn't included. | DialogHost(); manualShare &amp;&amp; |
+| [src/components/app/DialogHost.tsx:325](../src/components/app/DialogHost.tsx#L325) | Rendered copy | Shareable link | DialogHost(); manualShare &amp;&amp; |
+| [src/components/app/DialogHost.tsx:327](../src/components/app/DialogHost.tsx#L327) | Rendered copy | Select link to copy | DialogHost(); manualShare &amp;&amp; |
+| [src/components/app/DialogHost.tsx:345](../src/components/app/DialogHost.tsx#L345) | Label/help | Dialog recovery | DialogHost(); failure?.scope === scope &amp;&amp; failure.page === page &amp;&amp; |
+| [src/components/app/DialogHost.tsx:347](../src/components/app/DialogHost.tsx#L347) | Label/help | {&#96;${failure.label} ran into a problem. The rest of Play 100 is still available.&#96;} | DialogHost(); failure?.scope === scope &amp;&amp; failure.page === page &amp;&amp; |
+| [src/components/app/DialogHost.tsx:347](../src/components/app/DialogHost.tsx#L347) | Message/fragment | ${failure.label} ran into a problem. The rest of Play 100 is still available. | DialogHost(); failure?.scope === scope &amp;&amp; failure.page === page &amp;&amp; |
+| [src/components/app/DialogHost.tsx:350](../src/components/app/DialogHost.tsx#L350) | Rendered copy | Dismiss | DialogHost(); failure?.scope === scope &amp;&amp; failure.page === page &amp;&amp; |
 ## src/components/app/GlobalBanners.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -2044,37 +2044,37 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/app/RouteFallback.tsx:13](../src/components/app/RouteFallback.tsx#L13) | Message/fragment | My games | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:14](../src/components/app/RouteFallback.tsx#L14) | Message/fragment | My games | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:15](../src/components/app/RouteFallback.tsx#L15) | Message/fragment | My games | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:16](../src/components/app/RouteFallback.tsx#L16) | Message/fragment | Discover | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:17](../src/components/app/RouteFallback.tsx#L17) | Message/fragment | Account | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:18](../src/components/app/RouteFallback.tsx#L18) | Message/fragment | Publish ranking | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:19](../src/components/app/RouteFallback.tsx#L19) | Message/fragment | Community | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:20](../src/components/app/RouteFallback.tsx#L20) | Message/fragment | A shared ranking | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:21](../src/components/app/RouteFallback.tsx#L21) | Message/fragment | Creator desk | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:22](../src/components/app/RouteFallback.tsx#L22) | Message/fragment | Friends | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:23](../src/components/app/RouteFallback.tsx#L23) | Message/fragment | Player | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:24](../src/components/app/RouteFallback.tsx#L24) | Message/fragment | Invitation | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:25](../src/components/app/RouteFallback.tsx#L25) | Message/fragment | Compare rankings | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:26](../src/components/app/RouteFallback.tsx#L26) | Message/fragment | Friend sharing | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:27](../src/components/app/RouteFallback.tsx#L27) | Message/fragment | Shared games | titles(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:41](../src/components/app/RouteFallback.tsx#L41) | Rendered copy | ${blank} | row(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:53](../src/components/app/RouteFallback.tsx#L53) | Rendered copy | ${blank} | DiscoverControls(); narrow is false |
+| [src/components/app/RouteFallback.tsx:18](../src/components/app/RouteFallback.tsx#L18) | Message/fragment | My games | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:19](../src/components/app/RouteFallback.tsx#L19) | Message/fragment | My games | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:20](../src/components/app/RouteFallback.tsx#L20) | Message/fragment | My games | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:21](../src/components/app/RouteFallback.tsx#L21) | Message/fragment | Discover | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:22](../src/components/app/RouteFallback.tsx#L22) | Message/fragment | Account | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:23](../src/components/app/RouteFallback.tsx#L23) | Message/fragment | Publish ranking | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:24](../src/components/app/RouteFallback.tsx#L24) | Message/fragment | Community | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:25](../src/components/app/RouteFallback.tsx#L25) | Message/fragment | A shared ranking | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:26](../src/components/app/RouteFallback.tsx#L26) | Message/fragment | Creator desk | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:27](../src/components/app/RouteFallback.tsx#L27) | Message/fragment | Friends | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:28](../src/components/app/RouteFallback.tsx#L28) | Message/fragment | Player | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:29](../src/components/app/RouteFallback.tsx#L29) | Message/fragment | Invitation | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:30](../src/components/app/RouteFallback.tsx#L30) | Message/fragment | Compare rankings | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:31](../src/components/app/RouteFallback.tsx#L31) | Message/fragment | Friend sharing | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:32](../src/components/app/RouteFallback.tsx#L32) | Message/fragment | Shared games | titles(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:46](../src/components/app/RouteFallback.tsx#L46) | Rendered copy | ${blank} | row(); when its owning surface/operation is used |
 | [src/components/app/RouteFallback.tsx:58](../src/components/app/RouteFallback.tsx#L58) | Rendered copy | ${blank} | DiscoverControls(); narrow is false |
-| [src/components/app/RouteFallback.tsx:65](../src/components/app/RouteFallback.tsx#L65) | Rendered copy | ${blank} | DiscoverControls(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:66](../src/components/app/RouteFallback.tsx#L66) | Rendered copy | ${blank} | DiscoverControls(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:82](../src/components/app/RouteFallback.tsx#L82) | Message/fragment | My games | games(); !sheet &amp;&amp; |
-| [src/components/app/RouteFallback.tsx:94](../src/components/app/RouteFallback.tsx#L94) | Rendered copy | ${line} | content(); form is false; cards is true |
-| [src/components/app/RouteFallback.tsx:95](../src/components/app/RouteFallback.tsx#L95) | Rendered copy | ${line} ${line} | content(); form is false; cards is true |
-| [src/components/app/RouteFallback.tsx:110](../src/components/app/RouteFallback.tsx#L110) | Rendered copy | ${line} | content(); form is false; cards is false |
-| [src/components/app/RouteFallback.tsx:129](../src/components/app/RouteFallback.tsx#L129) | Live region | ${props.kind === 'private-library' ? 'Opening your guest or account library before allowing edits.' : &#96;Loading ${title}…&#96;} | status(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:131](../src/components/app/RouteFallback.tsx#L131) | Message/fragment | Opening your guest or account library before allowing edits. | status(); props.kind === 'private-library' is true |
-| [src/components/app/RouteFallback.tsx:132](../src/components/app/RouteFallback.tsx#L132) | Message/fragment | Loading ${title}… | status(); props.kind === 'private-library' is false |
-| [src/components/app/RouteFallback.tsx:145](../src/components/app/RouteFallback.tsx#L145) | Rendered copy | Sign in | RouteFallback(); sheet is true |
-| [src/components/app/RouteFallback.tsx:155](../src/components/app/RouteFallback.tsx#L155) | Rendered copy | ${title} | RouteFallback(); when its owning surface/operation is used |
-| [src/components/app/RouteFallback.tsx:159](../src/components/app/RouteFallback.tsx#L159) | Rendered copy | ${blank} | RouteFallback(); cards &amp;&amp; |
-| [src/components/app/RouteFallback.tsx:168](../src/components/app/RouteFallback.tsx#L168) | Rendered copy | ${blank} | RouteFallback(); games &amp;&amp; |
+| [src/components/app/RouteFallback.tsx:63](../src/components/app/RouteFallback.tsx#L63) | Rendered copy | ${blank} | DiscoverControls(); narrow is false |
+| [src/components/app/RouteFallback.tsx:70](../src/components/app/RouteFallback.tsx#L70) | Rendered copy | ${blank} | DiscoverControls(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:71](../src/components/app/RouteFallback.tsx#L71) | Rendered copy | ${blank} | DiscoverControls(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:87](../src/components/app/RouteFallback.tsx#L87) | Message/fragment | My games | games(); !sheet &amp;&amp; |
+| [src/components/app/RouteFallback.tsx:99](../src/components/app/RouteFallback.tsx#L99) | Rendered copy | ${line} | content(); form is false; cards is true |
+| [src/components/app/RouteFallback.tsx:100](../src/components/app/RouteFallback.tsx#L100) | Rendered copy | ${line} ${line} | content(); form is false; cards is true |
+| [src/components/app/RouteFallback.tsx:115](../src/components/app/RouteFallback.tsx#L115) | Rendered copy | ${line} | content(); form is false; cards is false |
+| [src/components/app/RouteFallback.tsx:134](../src/components/app/RouteFallback.tsx#L134) | Live region | ${props.kind === 'private-library' ? 'Opening your guest or account library before allowing edits.' : &#96;Loading ${title}…&#96;} | status(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:136](../src/components/app/RouteFallback.tsx#L136) | Message/fragment | Opening your guest or account library before allowing edits. | status(); props.kind === 'private-library' is true |
+| [src/components/app/RouteFallback.tsx:137](../src/components/app/RouteFallback.tsx#L137) | Message/fragment | Loading ${title}… | status(); props.kind === 'private-library' is false |
+| [src/components/app/RouteFallback.tsx:151](../src/components/app/RouteFallback.tsx#L151) | Rendered copy | Sign in | RouteFallback(); sheet is true |
+| [src/components/app/RouteFallback.tsx:161](../src/components/app/RouteFallback.tsx#L161) | Rendered copy | ${title} | RouteFallback(); when its owning surface/operation is used |
+| [src/components/app/RouteFallback.tsx:165](../src/components/app/RouteFallback.tsx#L165) | Rendered copy | ${blank} | RouteFallback(); cards &amp;&amp; |
+| [src/components/app/RouteFallback.tsx:174](../src/components/app/RouteFallback.tsx#L174) | Rendered copy | ${blank} | RouteFallback(); games &amp;&amp; |
 ## src/components/app/RouteHost.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -2802,8 +2802,8 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/Dialog.tsx:170](../src/components/Dialog.tsx#L170) | Message/fragment | Escape | Dialog(); onKeyDown |
-| [src/components/Dialog.tsx:189](../src/components/Dialog.tsx#L189) | Label/help | Close dialog | Dialog(); when its owning surface/operation is used |
+| [src/components/Dialog.tsx:180](../src/components/Dialog.tsx#L180) | Message/fragment | Escape | Dialog(); onKeyDown |
+| [src/components/Dialog.tsx:199](../src/components/Dialog.tsx#L199) | Label/help | Close dialog | Dialog(); when its owning surface/operation is used |
 ## src/components/ErrorBoundary.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -3497,37 +3497,37 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/RatingsTable.tsx:104](../src/components/RatingsTable.tsx#L104) | Message/fragment | Your edit has not saved. Correct the highlighted rating or note before leaving. | openRanking(); saved is false |
-| [src/components/RatingsTable.tsx:110](../src/components/RatingsTable.tsx#L110) | Message/fragment | Your edit could not be saved. Keep this page open and retry. | openRanking(); operation rejected or threw; isCurrent() is true |
-| [src/components/RatingsTable.tsx:126](../src/components/RatingsTable.tsx#L126) | Label/help | {scale ? &#96;${label} ${scale}&#96; : label} | sortedHeader(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:140](../src/components/RatingsTable.tsx#L140) | Rendered copy | ${label} ${scale &amp;&amp; &lt;small&gt;{scale}&lt;/small&gt;} | sortedHeader(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:142](../src/components/RatingsTable.tsx#L142) | Rendered copy | ${scale} | sortedHeader(); scale &amp;&amp; |
-| [src/components/RatingsTable.tsx:152](../src/components/RatingsTable.tsx#L152) | Rendered copy | ${author.shortName}'s rank-based workbook ratings are separate from critic scores. — means unavailable. Critic averages include both Metacritic columns. Edit your own ratings in My games → Ranking . | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:155](../src/components/RatingsTable.tsx#L155) | Rendered copy | My games → Ranking | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:172](../src/components/RatingsTable.tsx#L172) | Label/help | Rankings and ratings table; scroll horizontally for all scores | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:192](../src/components/RatingsTable.tsx#L192) | Rendered copy | Select games | body(); selecting &amp;&amp; |
-| [src/components/RatingsTable.tsx:195](../src/components/RatingsTable.tsx#L195) | Message/fragment | Rank | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:196](../src/components/RatingsTable.tsx#L196) | Message/fragment | Game | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:197](../src/components/RatingsTable.tsx#L197) | Message/fragment | Year | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:202](../src/components/RatingsTable.tsx#L202) | Label/help | {label} | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:211](../src/components/RatingsTable.tsx#L211) | Message/fragment | Average | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:227](../src/components/RatingsTable.tsx#L227) | Label/help | {&#96;Select ${game.title}&#96;} | body(); selecting &amp;&amp; |
-| [src/components/RatingsTable.tsx:227](../src/components/RatingsTable.tsx#L227) | Message/fragment | Select ${game.title} | body(); selecting &amp;&amp; |
-| [src/components/RatingsTable.tsx:235](../src/components/RatingsTable.tsx#L235) | Rendered copy | ${game.genre} · ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:241](../src/components/RatingsTable.tsx#L241) | Label/help | {game.authorRating?.rawValue} | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:247](../src/components/RatingsTable.tsx#L247) | Rendered copy | Original author rating unavailable | body(); game.authorRating is false |
-| [src/components/RatingsTable.tsx:256](../src/components/RatingsTable.tsx#L256) | Rendered copy | Unavailable | body(); game.critics[key] === null is true |
-| [src/components/RatingsTable.tsx:268](../src/components/RatingsTable.tsx#L268) | Label/help | {game.title} | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:276](../src/components/RatingsTable.tsx#L276) | Label/help | {game.title} | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:285](../src/components/RatingsTable.tsx#L285) | Label/help | {&#96;Play later: ${game.title}&#96;} | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:285](../src/components/RatingsTable.tsx#L285) | Message/fragment | Play later: ${game.title} | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:286](../src/components/RatingsTable.tsx#L286) | Label/help | Play later | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:309](../src/components/RatingsTable.tsx#L309) | Live region | ${navigationError} | body(); navigationError &amp;&amp; |
-| [src/components/RatingsTable.tsx:344](../src/components/RatingsTable.tsx#L344) | Rendered copy | #${String(game.rank).padStart(2, '0')} | RatingsGameLink(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:347](../src/components/RatingsTable.tsx#L347) | Rendered copy | ${game.title} | RatingsGameLink(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:367](../src/components/RatingsTable.tsx#L367) | Label/help | {&#96;${label} / ${scale}&#96;} | TableHeading(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:368](../src/components/RatingsTable.tsx#L368) | Rendered copy | ${label} / ${scale} | TableHeading(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:370](../src/components/RatingsTable.tsx#L370) | Rendered copy | / ${scale} | TableHeading(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:106](../src/components/RatingsTable.tsx#L106) | Message/fragment | Your edit has not saved. Correct the highlighted rating or note before leaving. | openRanking(); saved is false |
+| [src/components/RatingsTable.tsx:112](../src/components/RatingsTable.tsx#L112) | Message/fragment | Your edit could not be saved. Keep this page open and retry. | openRanking(); operation rejected or threw; isCurrent() is true |
+| [src/components/RatingsTable.tsx:128](../src/components/RatingsTable.tsx#L128) | Label/help | {scale ? &#96;${label} ${scale}&#96; : label} | sortedHeader(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:142](../src/components/RatingsTable.tsx#L142) | Rendered copy | ${label} ${scale &amp;&amp; &lt;small&gt;{scale}&lt;/small&gt;} | sortedHeader(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:144](../src/components/RatingsTable.tsx#L144) | Rendered copy | ${scale} | sortedHeader(); scale &amp;&amp; |
+| [src/components/RatingsTable.tsx:154](../src/components/RatingsTable.tsx#L154) | Rendered copy | ${author.shortName}'s rank-based workbook ratings are separate from critic scores. — means unavailable. Critic averages include both Metacritic columns. Edit your own ratings in My games → Ranking . | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:157](../src/components/RatingsTable.tsx#L157) | Rendered copy | My games → Ranking | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:174](../src/components/RatingsTable.tsx#L174) | Label/help | Rankings and ratings table; scroll horizontally for all scores | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:194](../src/components/RatingsTable.tsx#L194) | Rendered copy | Select games | body(); selecting &amp;&amp; |
+| [src/components/RatingsTable.tsx:197](../src/components/RatingsTable.tsx#L197) | Message/fragment | Rank | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:198](../src/components/RatingsTable.tsx#L198) | Message/fragment | Game | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:199](../src/components/RatingsTable.tsx#L199) | Message/fragment | Year | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:204](../src/components/RatingsTable.tsx#L204) | Label/help | {label} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:213](../src/components/RatingsTable.tsx#L213) | Message/fragment | Average | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:229](../src/components/RatingsTable.tsx#L229) | Label/help | {&#96;Select ${game.title}&#96;} | body(); selecting &amp;&amp; |
+| [src/components/RatingsTable.tsx:229](../src/components/RatingsTable.tsx#L229) | Message/fragment | Select ${game.title} | body(); selecting &amp;&amp; |
+| [src/components/RatingsTable.tsx:237](../src/components/RatingsTable.tsx#L237) | Rendered copy | ${game.genre} · ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:243](../src/components/RatingsTable.tsx#L243) | Label/help | {game.authorRating?.rawValue} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:249](../src/components/RatingsTable.tsx#L249) | Rendered copy | Original author rating unavailable | body(); game.authorRating is false |
+| [src/components/RatingsTable.tsx:258](../src/components/RatingsTable.tsx#L258) | Rendered copy | Unavailable | body(); game.critics[key] === null is true |
+| [src/components/RatingsTable.tsx:270](../src/components/RatingsTable.tsx#L270) | Label/help | {game.title} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:278](../src/components/RatingsTable.tsx#L278) | Label/help | {game.title} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:287](../src/components/RatingsTable.tsx#L287) | Label/help | {&#96;Play later: ${game.title}&#96;} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:287](../src/components/RatingsTable.tsx#L287) | Message/fragment | Play later: ${game.title} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:288](../src/components/RatingsTable.tsx#L288) | Label/help | Play later | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:311](../src/components/RatingsTable.tsx#L311) | Live region | ${navigationError} | body(); navigationError &amp;&amp; |
+| [src/components/RatingsTable.tsx:346](../src/components/RatingsTable.tsx#L346) | Rendered copy | #${String(game.rank).padStart(2, '0')} | RatingsGameLink(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:349](../src/components/RatingsTable.tsx#L349) | Rendered copy | ${game.title} | RatingsGameLink(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:369](../src/components/RatingsTable.tsx#L369) | Label/help | {&#96;${label} / ${scale}&#96;} | TableHeading(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:370](../src/components/RatingsTable.tsx#L370) | Rendered copy | ${label} / ${scale} | TableHeading(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:372](../src/components/RatingsTable.tsx#L372) | Rendered copy | / ${scale} | TableHeading(); when its owning surface/operation is used |
 ## src/components/scene/CollectionScene.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -3662,15 +3662,15 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/hooks/useAppPanel.ts:48](../src/hooks/useAppPanel.ts#L48) | Message output | { text: '', error: false } | dismissPanelMessage(); when its owning surface/operation is used |
-| [src/hooks/useAppPanel.ts:57](../src/hooks/useAppPanel.ts#L57) | Message/fragment | Settings | title(); next === 'about' is false |
-| [src/hooks/useAppPanel.ts:59](../src/hooks/useAppPanel.ts#L59) | Message output | { text: &#96;Opening ${title}…&#96;, error: false } | loadPanel(); alive.current &amp;&amp; generation.current === request is true |
-| [src/hooks/useAppPanel.ts:59](../src/hooks/useAppPanel.ts#L59) | Message/fragment | Opening ${title}… | loadPanel(); alive.current &amp;&amp; generation.current === request is true |
-| [src/hooks/useAppPanel.ts:65](../src/hooks/useAppPanel.ts#L65) | Message output | { text: '', error: false } | loadPanel(); when its owning surface/operation is used |
-| [src/hooks/useAppPanel.ts:76](../src/hooks/useAppPanel.ts#L76) | Message output | { text: &#96;${title} didn't load.&#96;, error: true } | loadPanel(); alive.current &amp;&amp; generation.current === request is true |
-| [src/hooks/useAppPanel.ts:85](../src/hooks/useAppPanel.ts#L85) | Message output | { text: '', error: false } | openPanel(); when its owning surface/operation is used |
-| [src/hooks/useAppPanel.ts:110](../src/hooks/useAppPanel.ts#L110) | Message output | { text: '', error: false } | cancel(); when its owning surface/operation is used |
-| [src/hooks/useAppPanel.ts:121](../src/hooks/useAppPanel.ts#L121) | Message/fragment | Escape | escape(); when its owning surface/operation is used |
+| [src/hooks/useAppPanel.ts:49](../src/hooks/useAppPanel.ts#L49) | Message output | { text: '', error: false } | dismissPanelMessage(); when its owning surface/operation is used |
+| [src/hooks/useAppPanel.ts:58](../src/hooks/useAppPanel.ts#L58) | Message/fragment | Settings | title(); next === 'about' is false |
+| [src/hooks/useAppPanel.ts:60](../src/hooks/useAppPanel.ts#L60) | Message output | { text: &#96;Opening ${title}…&#96;, error: false } | loadPanel(); alive.current &amp;&amp; generation.current === request is true |
+| [src/hooks/useAppPanel.ts:60](../src/hooks/useAppPanel.ts#L60) | Message/fragment | Opening ${title}… | loadPanel(); alive.current &amp;&amp; generation.current === request is true |
+| [src/hooks/useAppPanel.ts:66](../src/hooks/useAppPanel.ts#L66) | Message output | { text: '', error: false } | loadPanel(); when its owning surface/operation is used |
+| [src/hooks/useAppPanel.ts:77](../src/hooks/useAppPanel.ts#L77) | Message output | { text: &#96;${title} didn't load.&#96;, error: true } | loadPanel(); alive.current &amp;&amp; generation.current === request is true |
+| [src/hooks/useAppPanel.ts:86](../src/hooks/useAppPanel.ts#L86) | Message output | { text: '', error: false } | openPanel(); when its owning surface/operation is used |
+| [src/hooks/useAppPanel.ts:118](../src/hooks/useAppPanel.ts#L118) | Message output | { text: '', error: false } | cancel(); when its owning surface/operation is used |
+| [src/hooks/useAppPanel.ts:129](../src/hooks/useAppPanel.ts#L129) | Message/fragment | Escape | escape(); when its owning surface/operation is used |
 ## src/hooks/useCollection.ts
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -3758,7 +3758,7 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/hooks/useUrlState.ts:138](../src/hooks/useUrlState.ts#L138) | Error/validation | This profile handle is invalid. | openProfile(); !/^[a-z][a-z0-9_]{2,23}$/.test(handle) is true |
+| [src/hooks/useUrlState.ts:140](../src/hooks/useUrlState.ts#L140) | Error/validation | This profile handle is invalid. | openProfile(); !/^[a-z][a-z0-9_]{2,23}$/.test(handle) is true |
 ## src/lib/abort.ts
 
 | Source | Kind | Copy or expression | Showing condition / owner |

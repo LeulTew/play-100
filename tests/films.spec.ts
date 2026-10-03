@@ -216,7 +216,9 @@ test('hidden documents pause without resume and navigation unloads the player', 
   await openBrowsingFilters(page);
   await page.getByLabel('Year', { exact: true }).selectOption('2007');
   await page.locator('#collection-films').scrollIntoViewIfNeeded();
-  await page.getByRole('button', { name: filmName('Discover & compare', { narrow: isMobile }), exact: true }).click();
+  const current = await page.evaluate(() => ({ href: location.href, length: history.length }));
+  const opener = page.getByRole('button', { name: filmName('Discover & compare', { narrow: isMobile }), exact: true });
+  await opener.click();
   const video = page.locator('video');
   await expect.poll(() => video.evaluate((player: HTMLVideoElement) => player.readyState)).toBeGreaterThanOrEqual(1);
   await video.focus();
@@ -237,10 +239,15 @@ test('hidden documents pause without resume and navigation unloads the player', 
   });
   await page.goBack();
   await expect(page.locator('video')).toHaveCount(0);
-  expect(new URL(page.url()).searchParams.has('year')).toBe(false);
+  await expect(page).toHaveURL(current.href);
+  await expect(opener).toBeFocused();
+  expect(await page.evaluate(() => history.length)).toBe(current.length);
   expect(
     await page.evaluate(() =>
       window.previousFilm ? { paused: window.previousFilm.paused, src: window.previousFilm.getAttribute('src') } : null,
     ),
   ).toEqual({ paused: true, src: null });
+  await page.goBack();
+  expect(new URL(page.url()).searchParams.has('year')).toBe(false);
+  await expect(page.locator('video')).toHaveCount(0);
 });

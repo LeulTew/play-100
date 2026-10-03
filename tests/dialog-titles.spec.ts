@@ -258,10 +258,16 @@ test('Menu, Compare tray and signed-out Sign in titles restore their underlying 
     await expect(menu).toHaveCount(0);
     await expect(page).toHaveTitle('My games · Ranking | Play 100');
   }
+  const rankingLocation = await page.evaluate(() => ({ href: location.href, length: history.length }));
   await openMenu(page);
   await expect(page).toHaveTitle('Menu | Play 100');
   await page.goBack();
   await expect(menu).toHaveCount(0);
+  await expect(page).toHaveTitle('My games · Ranking | Play 100');
+  await expect(page).toHaveURL(rankingLocation.href);
+  await expect(page.getByRole('button', { name: 'Menu', exact: true })).toBeFocused();
+  expect(await page.evaluate(() => history.length)).toBe(rankingLocation.length);
+  await page.goBack();
   await expect(page).toHaveTitle('My games · Library | Play 100');
 
   await page.goto('/?catalogs=off');

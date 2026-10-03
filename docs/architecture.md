@@ -13,8 +13,27 @@ origins and DOM focus. A screen reader's browse-mode click need not focus that
 element first. Detail navigation retains the original opener through Next and
 Previous; URL-based openings use a matching rendered card when available.
 Settings, About and Menu retain their initial trigger through delayed loads.
+Sign-in loading and loaded dialogs share the recorded Account opener, including
+touch activation that did not move DOM focus.
 Closing prefers the recorded opener without scrolling, while a missing opener
 uses the existing visible, scoped fallback and reveal behavior.
+
+Same-document Back/Forward dismisses only the foreground utility sheet without
+consuming the browsing page's history entry. The history adapter records entry
+positions in namespaced state, preserving the app's existing state fields; it
+restores a traversed entry before closing the sheet and withholds both temporary
+popstate events from route/scope listeners. It adds no disposable sheet entries,
+so repeated open/Close/Escape cycles do not grow the history or leave a duplicate
+page between real destinations. Synthetic application events remain native to
+their existing handlers. URL-backed game dialogs keep their own `?game=` history
+step; nested confirmations use the foreground-sheet rule instead. A dismissed
+or replaced sheet cannot close a newer dialog when a restoration completes.
+Cross-document browser navigation remains ordinary navigation.
+
+The ratings table uses the shared library-state toggle attributes too: while the
+active library is unknown, Play later is busy and has no claimed pressed state.
+Once that same library is known, the control exposes its stored value rather
+than treating loading as an unpressed value.
 
 The intended initial heading or safe action has native `autofocus` before
 `showModal()`. A fallback focus call runs only if the browser did not focus it,

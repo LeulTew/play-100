@@ -457,7 +457,14 @@ test('IndexedDB denial is explicit and never claims a durable save', async ({ pa
   await expect(page.locator('.toast')).toContainText('This tab only');
   await page.reload();
   await expectStorageDenial(page);
-  await expect(page.locator(`[data-game="${first}"] .save-game`)).toHaveAttribute('aria-pressed', 'false');
+  const restored = page.locator(`[data-game="${first}"] .save-game`);
+  if (configured) {
+    await expect(restored).not.toHaveAttribute('aria-pressed');
+    await expect(restored).toHaveAttribute('aria-busy', 'true');
+    await expect(restored).toHaveAttribute('aria-disabled', 'true');
+  } else {
+    await expect(restored).toHaveAttribute('aria-pressed', 'false');
+  }
 });
 
 test('the untouched original Excel is also a real exact-byte download', async ({ page }) => {

@@ -298,12 +298,20 @@ test('native Back invalidates a Compare return ticket even when that action exis
   await expect(page).toHaveURL((url) => url.pathname === '/discover');
   await navigation.getByRole('link', { name: 'My games', exact: true }).click();
   await expect(page).toHaveURL((url) => url.pathname === '/my-games');
+  const current = await page.evaluate(() => ({ href: location.href, length: history.length }));
   await compareFromChip(page);
   await expect(signIn(page).locator('#account-signin-title')).toBeFocused();
   await expectComparePurpose(page);
   await page.goBack();
+  await expect(signIn(page)).toHaveCount(0);
+  await expect(page).toHaveURL(current.href);
+  await expect(chip(page)).toBeFocused();
+  expect(await page.evaluate(() => history.length)).toBe(current.length);
+  // The first Back legitimately restores Compare. A later page Back must not revive that closed invocation.
+  await account(page).focus();
+  await page.goBack();
   await expect(page).toHaveURL((url) => url.pathname === '/discover');
-  // Back closes the sheet (UX-027); reopening it on the new page must not revive the Compare purpose or its return.
+  // Reopening Sign in on the new page must not revive the Compare purpose or its return.
   await expect(signIn(page)).toHaveCount(0);
   await expect(chip(page)).not.toBeFocused();
   await account(page).focus();
