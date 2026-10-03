@@ -145,8 +145,6 @@
 }
 .author-links .icon-button {
   color: var(--ink);
-}
-.author-links .icon-button:focus-visible {
   outline-offset: 2px;
 }
 .menu-author {
