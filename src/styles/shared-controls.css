@@ -146,6 +146,9 @@
 .author-links .icon-button {
   color: var(--ink);
 }
+.author-links .icon-button:focus-visible {
+  outline-offset: 2px;
+}
 .menu-author {
   flex: 0 0 auto;
   padding: 12px 20px;
