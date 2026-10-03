@@ -27,6 +27,18 @@ async function cacheInventory(page: Page) {
   });
 }
 
+test('installation feedback names this device after the browser event', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/?catalogs=off');
+  const settings = await openOfflineSettings(page);
+  const message = settings.getByRole('status').filter({ hasText: 'Play 100 was added on this device.' });
+  await expect(message).toHaveCount(0);
+  // Exercise the browser-event UI path, not an operating-system installation.
+  await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')));
+  await expect(message).toHaveText('Play 100 was added on this device.');
+  await expect(settings).not.toContainText('added by this browser');
+});
+
 test('a prepared worker reloads Library page 2 offline without losing the page or private records', async ({
   page,
   context,

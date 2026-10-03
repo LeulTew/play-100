@@ -445,6 +445,7 @@ describe('truthful installation and page startup', () => {
       expect(prompt).toHaveBeenCalledOnce();
       current.window.dispatchEvent(new Event('appinstalled'));
       expect(current.controller.getSnapshot().installState).toBe('installed');
+      expect(current.controller.getSnapshot().message).toBe('Play 100 was added on this device.');
     } finally {
       current.stop();
     }

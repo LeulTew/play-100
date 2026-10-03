@@ -23,7 +23,9 @@ export function committedFriendMessage(cause: FriendCommittedError): string {
     case 'accept-invite':
       return 'Invitation accepted. Reconnect to open Friends.';
     case 'publish-ranking':
-      return 'Shared ranking saved. Refresh or cleanup is still pending.';
+      return cause.phase === 'cleanup'
+        ? 'Shared ranking saved. Older shared copies could not be removed. In Account, choose Refresh selected sharing to retry.'
+        : 'Shared ranking saved. Its latest status could not be loaded. In Account, choose Refresh selected sharing to retry.';
     case 'save-group':
       return 'Group saved. Refresh groups before editing it again.';
   }

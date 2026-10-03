@@ -184,10 +184,12 @@ describe('after-load PWA controller', () => {
     );
     env.window.dispatchEvent(new Event('appinstalled'));
     expect(controller.getSnapshot().installState).toBe('installed');
+    expect(controller.getSnapshot().message).toBe('Play 100 was added on this device.');
     env.window.dispatchEvent(new Event('load'));
     env.runIdle();
     await vi.waitFor(() => expect(controller.isConnected()).toBe(true));
     await vi.waitFor(() => expect(controller.getSnapshot().installState).toBe('installed'));
+    expect(controller.getSnapshot().message).toBe('Play 100 was added on this device.');
     expect(prompt).not.toHaveBeenCalled();
     stop();
   });

@@ -122,7 +122,6 @@ export function CommunityPage({
             Find handles
           </button>
         </div>
-        <p className="section-help">Search listed handles.</p>
       </form>
       {error && (
         <div className="catalog-error" role="alert">

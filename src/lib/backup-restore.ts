@@ -53,7 +53,7 @@ export function parseLibraryBackup(value: unknown): PersonalLibraryState {
     new Date(`${input.exportedAt.slice(0, 10)}T00:00:00.000Z`).toISOString().slice(0, 10) !==
       input.exportedAt.slice(0, 10)
   ) {
-    return invalidLibrary('the backup export date must be an ISO timestamp.');
+    return invalidLibrary('the backup export date is missing or invalid. Export a new backup and try again.');
   }
   return parsePersonalLibrary(library);
 }

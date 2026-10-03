@@ -281,7 +281,7 @@ export function createPwaController(): PwaController {
       const installed = () => {
         installedHere = true;
         deferred = null;
-        publish({ installState: 'installed', message: 'Play 100 was added by this browser.' });
+        publish({ installState: 'installed', message: 'Play 100 was added on this device.' });
       };
       const checkExisting = () => {
         if (registration && current(start)) {

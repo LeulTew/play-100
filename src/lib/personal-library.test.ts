@@ -557,6 +557,15 @@ describe('legacy migration and portable backups', () => {
   ])('rejects corrupt backup envelopes (%j)', (change) => {
     expect(() => parseLibraryBackup({ ...createLibraryBackup(fixture()), ...change })).toThrow();
   });
+
+  it.each([undefined, 'yesterday', Infinity, '2026-02-30T12:00:00.000Z'])(
+    'explains an invalid backup export date in plain words (%s)',
+    (exportedAt) => {
+      expect(() => parseLibraryBackup({ ...createLibraryBackup(fixture()), exportedAt })).toThrow(
+        'the backup export date is missing or invalid. Export a new backup and try again.',
+      );
+    },
+  );
 });
 describe('single reducer validation boundary', () => {
   it('parses a raw state exactly once, into a copy, and keeps rejecting invalid raw input', () => {
