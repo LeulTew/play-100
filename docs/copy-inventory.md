@@ -6,7 +6,7 @@ The unit-test gate regenerates this inventory and rejects stale content or sourc
 
 ## Scope and reading convention
 
-Scanned 387 production TS/TSX/JS files and standalone HTML fallbacks; 3790 source entries.
+Scanned 388 production TS/TSX/JS files and standalone HTML fallbacks; 3790 source entries.
 This is a deliberately inclusive inventory of rendered text, accessible labels,
 message outputs, message constants and validation/error strings. It includes the
 Discover help/source notes, Settings/backups/PWA, empty states, confirmations,
@@ -255,9 +255,9 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/App.tsx:149](../src/App.tsx#L149) | Message output | 'Sign in to compare with friends. Device pins stay separate from account pins.' | accountEntry(); currentOnline.current?.identity &#124;&#124; page === 'account' is false; opened === 'compare' is true |
-| [src/App.tsx:149](../src/App.tsx#L149) | Message/fragment | Sign in to compare with friends. Device pins stay separate from account pins. | accountEntry(); currentOnline.current?.identity &#124;&#124; page === 'account' is false; opened === 'compare' is true |
-| [src/App.tsx:174](../src/App.tsx#L174) | Message/fragment | Play 100 — a collection worth playing | title(); slug &amp;&amp; selectedGame is false |
+| [src/App.tsx:152](../src/App.tsx#L152) | Message output | 'Sign in to compare with friends. Device pins stay separate from account pins.' | accountEntry(); currentOnline.current?.identity &#124;&#124; page === 'account' is false; opened === 'compare' is true |
+| [src/App.tsx:152](../src/App.tsx#L152) | Message/fragment | Sign in to compare with friends. Device pins stay separate from account pins. | accountEntry(); currentOnline.current?.identity &#124;&#124; page === 'account' is false; opened === 'compare' is true |
+| [src/App.tsx:177](../src/App.tsx#L177) | Message/fragment | Play 100 — a collection worth playing | title(); slug &amp;&amp; selectedGame is false |
 ## src/cloud/account-deletion-action.ts
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -2352,46 +2352,46 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/catalog/DiscoveryCard.tsx:121](../src/components/catalog/DiscoveryCard.tsx#L121) | Label/help | {artwork.alt} | DiscoveryCard(); game is false; artwork &amp;&amp; failedSrc !== artwork.src is true |
-| [src/components/catalog/DiscoveryCard.tsx:128](../src/components/catalog/DiscoveryCard.tsx#L128) | Rendered copy | ${record.year} | DiscoveryCard(); game is false; artwork &amp;&amp; failedSrc !== artwork.src is false; record.year !== null &amp;&amp; |
-| [src/components/catalog/DiscoveryCard.tsx:129](../src/components/catalog/DiscoveryCard.tsx#L129) | Rendered copy | ${record.title} | DiscoveryCard(); game is false; artwork &amp;&amp; failedSrc !== artwork.src is false; artwork &amp;&amp; failedSrc === artwork.src &amp;&amp; |
-| [src/components/catalog/DiscoveryCard.tsx:139](../src/components/catalog/DiscoveryCard.tsx#L139) | Label/help | {&#96;Select ${record.title}&#96;} | DiscoveryCard(); selecting &amp;&amp; onSelect &amp;&amp; |
-| [src/components/catalog/DiscoveryCard.tsx:139](../src/components/catalog/DiscoveryCard.tsx#L139) | Message/fragment | Select ${record.title} | DiscoveryCard(); selecting &amp;&amp; onSelect &amp;&amp; |
-| [src/components/catalog/DiscoveryCard.tsx:145](../src/components/catalog/DiscoveryCard.tsx#L145) | Rendered copy | ${onPreview ? ( &lt;button {...compare.titleProps} type="button" onClick={preview}&gt; {record.title} &lt;/button&gt; ) : ( record.title )} | DiscoveryCard(); when its owning surface/operation is used |
-| [src/components/catalog/DiscoveryCard.tsx:147](../src/components/catalog/DiscoveryCard.tsx#L147) | Rendered copy | ${record.title} | DiscoveryCard(); onPreview is true |
-| [src/components/catalog/DiscoveryCard.tsx:155](../src/components/catalog/DiscoveryCard.tsx#L155) | Rendered copy | From The 100 · #${game.rank} ${author.shortName}'s rating ${authorRatingText(game.authorRating)} ${game.authorRating ? ' / 10' : ''} | DiscoveryCard(); game &amp;&amp; |
-| [src/components/catalog/DiscoveryCard.tsx:157](../src/components/catalog/DiscoveryCard.tsx#L157) | Rendered copy | ${author.shortName}'s rating ${authorRatingText(game.authorRating)} ${game.authorRating ? ' / 10' : ''} | DiscoveryCard(); game &amp;&amp; |
-| [src/components/catalog/DiscoveryCard.tsx:159](../src/components/catalog/DiscoveryCard.tsx#L159) | Label/help | {game.authorRating?.rawValue} | DiscoveryCard(); game &amp;&amp; |
-| [src/components/catalog/DiscoveryCard.tsx:159](../src/components/catalog/DiscoveryCard.tsx#L159) | Rendered copy | ${authorRatingText(game.authorRating)} ${game.authorRating ? ' / 10' : ''} | DiscoveryCard(); game &amp;&amp; |
-| [src/components/catalog/DiscoveryCard.tsx:166](../src/components/catalog/DiscoveryCard.tsx#L166) | Rendered copy | ${[ CATALOG_EDITION_HINTS.get(record.id) ?? record.year, catalogGenreLabel(record), showSource ? SOURCE_LABELS[record.source] : null, ] .filter((value) =&gt; value !== null) .join(' · ') &#124;&#124; 'Game'} | DiscoveryCard(); when its owning surface/operation is used |
-| [src/components/catalog/DiscoveryCard.tsx:173](../src/components/catalog/DiscoveryCard.tsx#L173) | Message/fragment | Game | DiscoveryCard(); [ CATALOG_EDITION_HINTS.get(record.id) ?? record.year, catalogGenreLabel(record), showSource ? SOURCE_LABELS[record.source] : null, ] .filter((value) =&gt; value !== null) .join(' · ') &#124;&#124; |
-| [src/components/catalog/DiscoveryCard.tsx:176](../src/components/catalog/DiscoveryCard.tsx#L176) | Rendered copy | ${saved ? 'In My games' : 'Add to My games'} | DiscoveryCard(); when its owning surface/operation is used |
-| [src/components/catalog/DiscoveryCard.tsx:179](../src/components/catalog/DiscoveryCard.tsx#L179) | Label/help | {&#96;${saved ? 'In My games' : 'Add to My games'}: ${record.title}&#96;} | DiscoveryCard(); when its owning surface/operation is used |
-| [src/components/catalog/DiscoveryCard.tsx:179](../src/components/catalog/DiscoveryCard.tsx#L179) | Message/fragment | ${saved ? 'In My games' : 'Add to My games'}: ${record.title} | DiscoveryCard(); when its owning surface/operation is used |
-| [src/components/catalog/DiscoveryCard.tsx:185](../src/components/catalog/DiscoveryCard.tsx#L185) | Message/fragment | Add to My games | DiscoveryCard(); saved is false |
-| [src/components/catalog/DiscoveryCard.tsx:185](../src/components/catalog/DiscoveryCard.tsx#L185) | Message/fragment | In My games | DiscoveryCard(); saved is true |
-| [src/components/catalog/DiscoveryCard.tsx:193](../src/components/catalog/DiscoveryCard.tsx#L193) | Label/help | {&#96;More actions for ${record.title}&#96;} | DiscoveryCard(); when its owning surface/operation is used |
-| [src/components/catalog/DiscoveryCard.tsx:193](../src/components/catalog/DiscoveryCard.tsx#L193) | Rendered copy | More actions | DiscoveryCard(); when its owning surface/operation is used |
-| [src/components/catalog/DiscoveryCard.tsx:193](../src/components/catalog/DiscoveryCard.tsx#L193) | Message/fragment | More actions for ${record.title} | DiscoveryCard(); when its owning surface/operation is used |
-| [src/components/catalog/DiscoveryCard.tsx:198](../src/components/catalog/DiscoveryCard.tsx#L198) | Label/help | {record.title} | DiscoveryCard(); expanded "More actions" disclosure |
-| [src/components/catalog/DiscoveryCard.tsx:207](../src/components/catalog/DiscoveryCard.tsx#L207) | Label/help | {record.title} | DiscoveryCard(); expanded "More actions" disclosure |
-| [src/components/catalog/DiscoveryCard.tsx:214](../src/components/catalog/DiscoveryCard.tsx#L214) | Rendered copy | Play later | DiscoveryCard(); expanded "More actions" disclosure |
-| [src/components/catalog/DiscoveryCard.tsx:217](../src/components/catalog/DiscoveryCard.tsx#L217) | Label/help | {&#96;Play later: ${record.title}&#96;} | DiscoveryCard(); expanded "More actions" disclosure |
-| [src/components/catalog/DiscoveryCard.tsx:217](../src/components/catalog/DiscoveryCard.tsx#L217) | Message/fragment | Play later: ${record.title} | DiscoveryCard(); expanded "More actions" disclosure |
-| [src/components/catalog/DiscoveryCard.tsx:226](../src/components/catalog/DiscoveryCard.tsx#L226) | Rendered copy | ${ranking ? 'In your ranking' : 'Add to my ranking'} | DiscoveryCard(); expanded "More actions" disclosure |
-| [src/components/catalog/DiscoveryCard.tsx:234](../src/components/catalog/DiscoveryCard.tsx#L234) | Message/fragment | Add to my ranking | DiscoveryCard(); expanded "More actions" disclosure; ranking is false |
-| [src/components/catalog/DiscoveryCard.tsx:234](../src/components/catalog/DiscoveryCard.tsx#L234) | Message/fragment | In your ranking | DiscoveryCard(); expanded "More actions" disclosure; ranking is true |
-| [src/components/catalog/DiscoveryCard.tsx:238](../src/components/catalog/DiscoveryCard.tsx#L238) | Label/help | {record.title} | DiscoveryCard(); expanded "More actions" disclosure |
-| [src/components/catalog/DiscoveryCard.tsx:245](../src/components/catalog/DiscoveryCard.tsx#L245) | Rendered copy | ${record.studio} | DiscoveryCard(); expanded "More actions" disclosure; record.studio &amp;&amp; |
-| [src/components/catalog/DiscoveryCard.tsx:247](../src/components/catalog/DiscoveryCard.tsx#L247) | Rendered copy | Source classification: ${record.genre ?? 'Not provided'} | DiscoveryCard(); expanded "More actions" disclosure; record.source !== 'collection' &amp;&amp; record.source !== 'manual' &amp;&amp; |
-| [src/components/catalog/DiscoveryCard.tsx:248](../src/components/catalog/DiscoveryCard.tsx#L248) | Message/fragment | Not provided | DiscoveryCard(); expanded "More actions" disclosure; record.source !== 'collection' &amp;&amp; record.source !== 'manual' &amp;&amp;; record.genre ?? |
-| [src/components/catalog/DiscoveryCard.tsx:248](../src/components/catalog/DiscoveryCard.tsx#L248) | Rendered copy | Source classification: | DiscoveryCard(); expanded "More actions" disclosure; record.source !== 'collection' &amp;&amp; record.source !== 'manual' &amp;&amp; |
-| [src/components/catalog/DiscoveryCard.tsx:252](../src/components/catalog/DiscoveryCard.tsx#L252) | Rendered copy | Game data: ${SOURCE_LABELS[record.source]} | DiscoveryCard(); expanded "More actions" disclosure; record.sourceUrl is true |
-| [src/components/catalog/DiscoveryCard.tsx:257](../src/components/catalog/DiscoveryCard.tsx#L257) | Rendered copy | ${SOURCE_LABELS[record.source]} | DiscoveryCard(); expanded "More actions" disclosure; record.sourceUrl is false |
-| [src/components/catalog/DiscoveryCard.tsx:260](../src/components/catalog/DiscoveryCard.tsx#L260) | Rendered copy | Original collection metadata and workbook artwork. | DiscoveryCard(); expanded "More actions" disclosure; game is true |
-| [src/components/catalog/DiscoveryCard.tsx:264](../src/components/catalog/DiscoveryCard.tsx#L264) | Rendered copy | ${artwork.credit} | DiscoveryCard(); expanded "More actions" disclosure; game is false; artwork &amp;&amp; |
-| [src/components/catalog/DiscoveryCard.tsx:265](../src/components/catalog/DiscoveryCard.tsx#L265) | Rendered copy | Image source | DiscoveryCard(); expanded "More actions" disclosure; game is false; artwork &amp;&amp; |
-| [src/components/catalog/DiscoveryCard.tsx:269](../src/components/catalog/DiscoveryCard.tsx#L269) | Rendered copy | ${artwork.license} | DiscoveryCard(); expanded "More actions" disclosure; game is false; artwork &amp;&amp; |
+| [src/components/catalog/DiscoveryCard.tsx:123](../src/components/catalog/DiscoveryCard.tsx#L123) | Label/help | {artwork.alt} | DiscoveryCard(); game is false; artwork &amp;&amp; failedSrc !== artwork.src is true |
+| [src/components/catalog/DiscoveryCard.tsx:130](../src/components/catalog/DiscoveryCard.tsx#L130) | Rendered copy | ${record.year} | DiscoveryCard(); game is false; artwork &amp;&amp; failedSrc !== artwork.src is false; record.year !== null &amp;&amp; |
+| [src/components/catalog/DiscoveryCard.tsx:131](../src/components/catalog/DiscoveryCard.tsx#L131) | Rendered copy | ${record.title} | DiscoveryCard(); game is false; artwork &amp;&amp; failedSrc !== artwork.src is false; artwork &amp;&amp; failedSrc === artwork.src &amp;&amp; |
+| [src/components/catalog/DiscoveryCard.tsx:141](../src/components/catalog/DiscoveryCard.tsx#L141) | Label/help | {&#96;Select ${record.title}&#96;} | DiscoveryCard(); selecting &amp;&amp; onSelect &amp;&amp; |
+| [src/components/catalog/DiscoveryCard.tsx:141](../src/components/catalog/DiscoveryCard.tsx#L141) | Message/fragment | Select ${record.title} | DiscoveryCard(); selecting &amp;&amp; onSelect &amp;&amp; |
+| [src/components/catalog/DiscoveryCard.tsx:147](../src/components/catalog/DiscoveryCard.tsx#L147) | Rendered copy | ${onPreview ? ( &lt;button {...compare.titleProps} type="button" onClick={preview}&gt; {record.title} &lt;/button&gt; ) : ( record.title )} | DiscoveryCard(); when its owning surface/operation is used |
+| [src/components/catalog/DiscoveryCard.tsx:149](../src/components/catalog/DiscoveryCard.tsx#L149) | Rendered copy | ${record.title} | DiscoveryCard(); onPreview is true |
+| [src/components/catalog/DiscoveryCard.tsx:157](../src/components/catalog/DiscoveryCard.tsx#L157) | Rendered copy | From The 100 · #${game.rank} ${author.shortName}'s rating ${authorRatingText(game.authorRating)} ${game.authorRating ? ' / 10' : ''} | DiscoveryCard(); game &amp;&amp; |
+| [src/components/catalog/DiscoveryCard.tsx:159](../src/components/catalog/DiscoveryCard.tsx#L159) | Rendered copy | ${author.shortName}'s rating ${authorRatingText(game.authorRating)} ${game.authorRating ? ' / 10' : ''} | DiscoveryCard(); game &amp;&amp; |
+| [src/components/catalog/DiscoveryCard.tsx:161](../src/components/catalog/DiscoveryCard.tsx#L161) | Label/help | {game.authorRating?.rawValue} | DiscoveryCard(); game &amp;&amp; |
+| [src/components/catalog/DiscoveryCard.tsx:161](../src/components/catalog/DiscoveryCard.tsx#L161) | Rendered copy | ${authorRatingText(game.authorRating)} ${game.authorRating ? ' / 10' : ''} | DiscoveryCard(); game &amp;&amp; |
+| [src/components/catalog/DiscoveryCard.tsx:168](../src/components/catalog/DiscoveryCard.tsx#L168) | Rendered copy | ${[ CATALOG_EDITION_HINTS.get(record.id) ?? record.year, catalogGenreLabel(record), showSource ? SOURCE_LABELS[record.source] : null, ] .filter((value) =&gt; value !== null) .join(' · ') &#124;&#124; 'Game'} | DiscoveryCard(); when its owning surface/operation is used |
+| [src/components/catalog/DiscoveryCard.tsx:175](../src/components/catalog/DiscoveryCard.tsx#L175) | Message/fragment | Game | DiscoveryCard(); [ CATALOG_EDITION_HINTS.get(record.id) ?? record.year, catalogGenreLabel(record), showSource ? SOURCE_LABELS[record.source] : null, ] .filter((value) =&gt; value !== null) .join(' · ') &#124;&#124; |
+| [src/components/catalog/DiscoveryCard.tsx:178](../src/components/catalog/DiscoveryCard.tsx#L178) | Rendered copy | ${saved ? 'In My games' : 'Add to My games'} | DiscoveryCard(); when its owning surface/operation is used |
+| [src/components/catalog/DiscoveryCard.tsx:181](../src/components/catalog/DiscoveryCard.tsx#L181) | Label/help | {&#96;${saved ? 'In My games' : 'Add to My games'}: ${record.title}&#96;} | DiscoveryCard(); when its owning surface/operation is used |
+| [src/components/catalog/DiscoveryCard.tsx:181](../src/components/catalog/DiscoveryCard.tsx#L181) | Message/fragment | ${saved ? 'In My games' : 'Add to My games'}: ${record.title} | DiscoveryCard(); when its owning surface/operation is used |
+| [src/components/catalog/DiscoveryCard.tsx:187](../src/components/catalog/DiscoveryCard.tsx#L187) | Message/fragment | Add to My games | DiscoveryCard(); saved is false |
+| [src/components/catalog/DiscoveryCard.tsx:187](../src/components/catalog/DiscoveryCard.tsx#L187) | Message/fragment | In My games | DiscoveryCard(); saved is true |
+| [src/components/catalog/DiscoveryCard.tsx:195](../src/components/catalog/DiscoveryCard.tsx#L195) | Label/help | {&#96;More actions for ${record.title}&#96;} | DiscoveryCard(); when its owning surface/operation is used |
+| [src/components/catalog/DiscoveryCard.tsx:195](../src/components/catalog/DiscoveryCard.tsx#L195) | Rendered copy | More actions | DiscoveryCard(); when its owning surface/operation is used |
+| [src/components/catalog/DiscoveryCard.tsx:195](../src/components/catalog/DiscoveryCard.tsx#L195) | Message/fragment | More actions for ${record.title} | DiscoveryCard(); when its owning surface/operation is used |
+| [src/components/catalog/DiscoveryCard.tsx:200](../src/components/catalog/DiscoveryCard.tsx#L200) | Label/help | {record.title} | DiscoveryCard(); expanded "More actions" disclosure |
+| [src/components/catalog/DiscoveryCard.tsx:209](../src/components/catalog/DiscoveryCard.tsx#L209) | Label/help | {record.title} | DiscoveryCard(); expanded "More actions" disclosure |
+| [src/components/catalog/DiscoveryCard.tsx:216](../src/components/catalog/DiscoveryCard.tsx#L216) | Rendered copy | Play later | DiscoveryCard(); expanded "More actions" disclosure |
+| [src/components/catalog/DiscoveryCard.tsx:219](../src/components/catalog/DiscoveryCard.tsx#L219) | Label/help | {&#96;Play later: ${record.title}&#96;} | DiscoveryCard(); expanded "More actions" disclosure |
+| [src/components/catalog/DiscoveryCard.tsx:219](../src/components/catalog/DiscoveryCard.tsx#L219) | Message/fragment | Play later: ${record.title} | DiscoveryCard(); expanded "More actions" disclosure |
+| [src/components/catalog/DiscoveryCard.tsx:228](../src/components/catalog/DiscoveryCard.tsx#L228) | Rendered copy | ${ranking ? 'In your ranking' : 'Add to my ranking'} | DiscoveryCard(); expanded "More actions" disclosure |
+| [src/components/catalog/DiscoveryCard.tsx:236](../src/components/catalog/DiscoveryCard.tsx#L236) | Message/fragment | Add to my ranking | DiscoveryCard(); expanded "More actions" disclosure; ranking is false |
+| [src/components/catalog/DiscoveryCard.tsx:236](../src/components/catalog/DiscoveryCard.tsx#L236) | Message/fragment | In your ranking | DiscoveryCard(); expanded "More actions" disclosure; ranking is true |
+| [src/components/catalog/DiscoveryCard.tsx:240](../src/components/catalog/DiscoveryCard.tsx#L240) | Label/help | {record.title} | DiscoveryCard(); expanded "More actions" disclosure |
+| [src/components/catalog/DiscoveryCard.tsx:247](../src/components/catalog/DiscoveryCard.tsx#L247) | Rendered copy | ${record.studio} | DiscoveryCard(); expanded "More actions" disclosure; record.studio &amp;&amp; |
+| [src/components/catalog/DiscoveryCard.tsx:249](../src/components/catalog/DiscoveryCard.tsx#L249) | Rendered copy | Source classification: ${record.genre ?? 'Not provided'} | DiscoveryCard(); expanded "More actions" disclosure; record.source !== 'collection' &amp;&amp; record.source !== 'manual' &amp;&amp; |
+| [src/components/catalog/DiscoveryCard.tsx:250](../src/components/catalog/DiscoveryCard.tsx#L250) | Message/fragment | Not provided | DiscoveryCard(); expanded "More actions" disclosure; record.source !== 'collection' &amp;&amp; record.source !== 'manual' &amp;&amp;; record.genre ?? |
+| [src/components/catalog/DiscoveryCard.tsx:250](../src/components/catalog/DiscoveryCard.tsx#L250) | Rendered copy | Source classification: | DiscoveryCard(); expanded "More actions" disclosure; record.source !== 'collection' &amp;&amp; record.source !== 'manual' &amp;&amp; |
+| [src/components/catalog/DiscoveryCard.tsx:254](../src/components/catalog/DiscoveryCard.tsx#L254) | Rendered copy | Game data: ${SOURCE_LABELS[record.source]} | DiscoveryCard(); expanded "More actions" disclosure; record.sourceUrl is true |
+| [src/components/catalog/DiscoveryCard.tsx:259](../src/components/catalog/DiscoveryCard.tsx#L259) | Rendered copy | ${SOURCE_LABELS[record.source]} | DiscoveryCard(); expanded "More actions" disclosure; record.sourceUrl is false |
+| [src/components/catalog/DiscoveryCard.tsx:262](../src/components/catalog/DiscoveryCard.tsx#L262) | Rendered copy | Original collection metadata and workbook artwork. | DiscoveryCard(); expanded "More actions" disclosure; game is true |
+| [src/components/catalog/DiscoveryCard.tsx:266](../src/components/catalog/DiscoveryCard.tsx#L266) | Rendered copy | ${artwork.credit} | DiscoveryCard(); expanded "More actions" disclosure; game is false; artwork &amp;&amp; |
+| [src/components/catalog/DiscoveryCard.tsx:267](../src/components/catalog/DiscoveryCard.tsx#L267) | Rendered copy | Image source | DiscoveryCard(); expanded "More actions" disclosure; game is false; artwork &amp;&amp; |
+| [src/components/catalog/DiscoveryCard.tsx:271](../src/components/catalog/DiscoveryCard.tsx#L271) | Rendered copy | ${artwork.license} | DiscoveryCard(); expanded "More actions" disclosure; game is false; artwork &amp;&amp; |
 ## src/components/catalog/ExtendedResults.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -2728,8 +2728,8 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/CompletedToggle.tsx:15](../src/components/CompletedToggle.tsx#L15) | Rendered copy | Completed | CompletedToggle(); when its owning surface/operation is used |
-| [src/components/CompletedToggle.tsx:20](../src/components/CompletedToggle.tsx#L20) | Label/help | {&#96;Completed: ${title}&#96;} | CompletedToggle(); when its owning surface/operation is used |
+| [src/components/CompletedToggle.tsx:17](../src/components/CompletedToggle.tsx#L17) | Rendered copy | Completed | CompletedToggle(); when its owning surface/operation is used |
+| [src/components/CompletedToggle.tsx:22](../src/components/CompletedToggle.tsx#L22) | Label/help | {&#96;Completed: ${title}&#96;} | CompletedToggle(); when its owning surface/operation is used |
 ## src/components/DataUseContent.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -2849,26 +2849,26 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/GameCard.tsx:82](../src/components/GameCard.tsx#L82) | Rendered copy | Number ${game.rank} in ${author.shortName}'s collection. | GameCard(); when its owning surface/operation is used |
-| [src/components/GameCard.tsx:88](../src/components/GameCard.tsx#L88) | Rendered copy | ${game.year} | GameCard(); when its owning surface/operation is used |
-| [src/components/GameCard.tsx:90](../src/components/GameCard.tsx#L90) | Rendered copy | ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | GameCard(); when its owning surface/operation is used |
-| [src/components/GameCard.tsx:92](../src/components/GameCard.tsx#L92) | Rendered copy | ${game.title} | GameCard(); when its owning surface/operation is used |
-| [src/components/GameCard.tsx:96](../src/components/GameCard.tsx#L96) | Rendered copy | ${author.shortName}'s rating ${authorRatingText(game.authorRating)} ${game.authorRating &amp;&amp; &lt;span&gt; / 10&lt;/span&gt;} | GameCard(); when its owning surface/operation is used |
-| [src/components/GameCard.tsx:98](../src/components/GameCard.tsx#L98) | Label/help | { game.authorRating ? &#96;Original workbook rating: ${game.authorRating.rawValue}&#96; : 'The original author rating is unavailable in this copy.' } | GameCard(); when its owning surface/operation is used |
-| [src/components/GameCard.tsx:100](../src/components/GameCard.tsx#L100) | Message/fragment | Original workbook rating: ${game.authorRating.rawValue} | GameCard(); game.authorRating is true |
-| [src/components/GameCard.tsx:101](../src/components/GameCard.tsx#L101) | Message/fragment | The original author rating is unavailable in this copy. | GameCard(); game.authorRating is false |
-| [src/components/GameCard.tsx:104](../src/components/GameCard.tsx#L104) | Rendered copy | ${authorRatingText(game.authorRating)} | GameCard(); when its owning surface/operation is used |
-| [src/components/GameCard.tsx:107](../src/components/GameCard.tsx#L107) | Rendered copy | ${game.genre} | GameCard(); when its owning surface/operation is used |
-| [src/components/GameCard.tsx:108](../src/components/GameCard.tsx#L108) | Rendered copy | ${formatAverage(game.criticAverage)} critic avg. | GameCard(); when its owning surface/operation is used |
-| [src/components/GameCard.tsx:110](../src/components/GameCard.tsx#L110) | Rendered copy | critic avg. | GameCard(); when its owning surface/operation is used |
-| [src/components/GameCard.tsx:113](../src/components/GameCard.tsx#L113) | Rendered copy | Completed | GameCard(); state?.completed &amp;&amp; |
-| [src/components/GameCard.tsx:122](../src/components/GameCard.tsx#L122) | Label/help | {game.title} | GameCard(); when its owning surface/operation is used |
-| [src/components/GameCard.tsx:130](../src/components/GameCard.tsx#L130) | Label/help | {game.title} | GameCard(); when its owning surface/operation is used |
-| [src/components/GameCard.tsx:144](../src/components/GameCard.tsx#L144) | Label/help | {&#96;Select ${game.title}&#96;} | GameCard(); selecting &amp;&amp; |
-| [src/components/GameCard.tsx:144](../src/components/GameCard.tsx#L144) | Message/fragment | Select ${game.title} | GameCard(); selecting &amp;&amp; |
-| [src/components/GameCard.tsx:151](../src/components/GameCard.tsx#L151) | Label/help | {&#96;Play later: ${game.title}&#96;} | GameCard(); when its owning surface/operation is used |
-| [src/components/GameCard.tsx:151](../src/components/GameCard.tsx#L151) | Message/fragment | Play later: ${game.title} | GameCard(); when its owning surface/operation is used |
-| [src/components/GameCard.tsx:152](../src/components/GameCard.tsx#L152) | Label/help | Play later | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:84](../src/components/GameCard.tsx#L84) | Rendered copy | Number ${game.rank} in ${author.shortName}'s collection. | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:90](../src/components/GameCard.tsx#L90) | Rendered copy | ${game.year} | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:92](../src/components/GameCard.tsx#L92) | Rendered copy | ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:94](../src/components/GameCard.tsx#L94) | Rendered copy | ${game.title} | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:98](../src/components/GameCard.tsx#L98) | Rendered copy | ${author.shortName}'s rating ${authorRatingText(game.authorRating)} ${game.authorRating &amp;&amp; &lt;span&gt; / 10&lt;/span&gt;} | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:100](../src/components/GameCard.tsx#L100) | Label/help | { game.authorRating ? &#96;Original workbook rating: ${game.authorRating.rawValue}&#96; : 'The original author rating is unavailable in this copy.' } | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:102](../src/components/GameCard.tsx#L102) | Message/fragment | Original workbook rating: ${game.authorRating.rawValue} | GameCard(); game.authorRating is true |
+| [src/components/GameCard.tsx:103](../src/components/GameCard.tsx#L103) | Message/fragment | The original author rating is unavailable in this copy. | GameCard(); game.authorRating is false |
+| [src/components/GameCard.tsx:106](../src/components/GameCard.tsx#L106) | Rendered copy | ${authorRatingText(game.authorRating)} | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:109](../src/components/GameCard.tsx#L109) | Rendered copy | ${game.genre} | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:110](../src/components/GameCard.tsx#L110) | Rendered copy | ${formatAverage(game.criticAverage)} critic avg. | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:112](../src/components/GameCard.tsx#L112) | Rendered copy | critic avg. | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:115](../src/components/GameCard.tsx#L115) | Rendered copy | Completed | GameCard(); state?.completed &amp;&amp; |
+| [src/components/GameCard.tsx:124](../src/components/GameCard.tsx#L124) | Label/help | {game.title} | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:132](../src/components/GameCard.tsx#L132) | Label/help | {game.title} | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:146](../src/components/GameCard.tsx#L146) | Label/help | {&#96;Select ${game.title}&#96;} | GameCard(); selecting &amp;&amp; |
+| [src/components/GameCard.tsx:146](../src/components/GameCard.tsx#L146) | Message/fragment | Select ${game.title} | GameCard(); selecting &amp;&amp; |
+| [src/components/GameCard.tsx:153](../src/components/GameCard.tsx#L153) | Label/help | {&#96;Play later: ${game.title}&#96;} | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:153](../src/components/GameCard.tsx#L153) | Message/fragment | Play later: ${game.title} | GameCard(); when its owning surface/operation is used |
+| [src/components/GameCard.tsx:154](../src/components/GameCard.tsx#L154) | Label/help | Play later | GameCard(); when its owning surface/operation is used |
 ## src/components/GameCover.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -2881,57 +2881,57 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/GameDetail.tsx:100](../src/components/GameDetail.tsx#L100) | Message/fragment | Your edit has not saved. Correct the highlighted rating or note before changing games. | changeGame(); saved is false |
-| [src/components/GameDetail.tsx:103](../src/components/GameDetail.tsx#L103) | Message/fragment | Your edit could not be saved. Keep this game open and retry. | changeGame(); operation rejected or threw; isCurrent() is true |
-| [src/components/GameDetail.tsx:129](../src/components/GameDetail.tsx#L129) | Rendered copy | #${String(game.rank).padStart(2, '0')} in the collection | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:130](../src/components/GameDetail.tsx#L130) | Rendered copy | ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:132](../src/components/GameDetail.tsx#L132) | Rendered copy | ${game.title} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:135](../src/components/GameDetail.tsx#L135) | Rendered copy | ${game.year} / ${game.studio} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:143](../src/components/GameDetail.tsx#L143) | Rendered copy | ${author.shortName}'s original rating | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:144](../src/components/GameDetail.tsx#L144) | Rendered copy | Original workbook score, based on the game's rank. | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:146](../src/components/GameDetail.tsx#L146) | Rendered copy | ${authorRatingText(game.authorRating)} ${game.authorRating &amp;&amp; &lt;small&gt; / 10&lt;/small&gt;} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:147](../src/components/GameDetail.tsx#L147) | Label/help | {game.authorRating ? &#96;Original workbook rating: ${game.authorRating.value.toFixed(2)}&#96; : undefined} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:147](../src/components/GameDetail.tsx#L147) | Message/fragment | Original workbook rating: ${game.authorRating.value.toFixed(2)} | GameDetail(); game.authorRating is true |
-| [src/components/GameDetail.tsx:157](../src/components/GameDetail.tsx#L157) | Rendered copy | ${game.artwork ? 'Workbook thumbnail' : 'Play 100 artwork'} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:157](../src/components/GameDetail.tsx#L157) | Message/fragment | Workbook thumbnail | GameDetail(); game.artwork is true |
-| [src/components/GameDetail.tsx:160](../src/components/GameDetail.tsx#L160) | Rendered copy | ${game.genre} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:162](../src/components/GameDetail.tsx#L162) | Rendered copy | Why it made the list | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:163](../src/components/GameDetail.tsx#L163) | Rendered copy | ${game.rationale} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:165](../src/components/GameDetail.tsx#L165) | Rendered copy | Source caveat: the workbook calls this "Hitman: World of Assassination", lists 2016 and supplies HITMAN III-branded artwork. We preserve all three rather than infer a release or edition. | GameDetail(); game.slug === 'hitman-world-of-assassination' &amp;&amp; |
-| [src/components/GameDetail.tsx:173](../src/components/GameDetail.tsx#L173) | Rendered copy | From the source workbook ${game.sourceNote} | GameDetail(); game.sourceNote &amp;&amp; |
-| [src/components/GameDetail.tsx:174](../src/components/GameDetail.tsx#L174) | Rendered copy | From the source workbook | GameDetail(); game.sourceNote &amp;&amp; |
-| [src/components/GameDetail.tsx:183](../src/components/GameDetail.tsx#L183) | Rendered copy | Play later | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:194](../src/components/GameDetail.tsx#L194) | Rendered copy | Completed | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:205](../src/components/GameDetail.tsx#L205) | Label/help | {&#96;Share ${game.title}&#96;} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:205](../src/components/GameDetail.tsx#L205) | Message/fragment | Share ${game.title} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:211](../src/components/GameDetail.tsx#L211) | Rendered copy | ${mode.scope === 'guest' ? 'Guest progress stays on this device.' : 'Account progress. See Account for sync status.'} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:213](../src/components/GameDetail.tsx#L213) | Message/fragment | Guest progress stays on this device. | GameDetail(); mode.scope === 'guest' is true |
-| [src/components/GameDetail.tsx:214](../src/components/GameDetail.tsx#L214) | Message/fragment | Account progress. See Account for sync status. | GameDetail(); mode.scope === 'guest' is false |
-| [src/components/GameDetail.tsx:221](../src/components/GameDetail.tsx#L221) | Label/help | {game.title} | GameDetail(); onRank &amp;&amp;; onPlayed &amp;&amp; |
-| [src/components/GameDetail.tsx:228](../src/components/GameDetail.tsx#L228) | Rendered copy | ${rankingPosition ? &#96;Your rank: #${rankingPosition}&#96; : 'Add to my ranking'} | GameDetail(); onRank &amp;&amp; |
-| [src/components/GameDetail.tsx:236](../src/components/GameDetail.tsx#L236) | Message/fragment | Add to my ranking | GameDetail(); onRank &amp;&amp;; rankingPosition is false |
-| [src/components/GameDetail.tsx:236](../src/components/GameDetail.tsx#L236) | Message/fragment | Your rank: #${rankingPosition} | GameDetail(); onRank &amp;&amp;; rankingPosition is true |
-| [src/components/GameDetail.tsx:243](../src/components/GameDetail.tsx#L243) | Label/help | {game.title} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:248](../src/components/GameDetail.tsx#L248) | Rendered copy | Your rating ranks this game; it doesn't mark it played. | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:251](../src/components/GameDetail.tsx#L251) | Live region | ${shareFeedback} | GameDetail(); shareFeedback &amp;&amp; |
-| [src/components/GameDetail.tsx:258](../src/components/GameDetail.tsx#L258) | Rendered copy | Critic scores | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:260](../src/components/GameDetail.tsx#L260) | Rendered copy | ${formatAverage(game.criticAverage)} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:264](../src/components/GameDetail.tsx#L264) | Rendered copy | Workbook snapshot. Not live or independently verified. | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:271](../src/components/GameDetail.tsx#L271) | Rendered copy | Unavailable | GameDetail(); game.critics[key] === null is true |
-| [src/components/GameDetail.tsx:274](../src/components/GameDetail.tsx#L274) | Rendered copy | ${game.critics[key]} | GameDetail(); game.critics[key] === null is false |
-| [src/components/GameDetail.tsx:275](../src/components/GameDetail.tsx#L275) | Rendered copy | / ${scale} | GameDetail(); game.critics[key] === null is false |
-| [src/components/GameDetail.tsx:283](../src/components/GameDetail.tsx#L283) | Rendered copy | Score sources &amp; method | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:287](../src/components/GameDetail.tsx#L287) | Rendered copy | The displayed average normalizes every available entered score to 100, then averages those columns. General and PC Metacritic each count when both are present. Missing scores are excluded. This is not an official aggregate or an average of independent publications. | GameDetail(); expanded "Score sources &amp; method" disclosure |
-| [src/components/GameDetail.tsx:292](../src/components/GameDetail.tsx#L292) | Rendered copy | ${author.shortName}'s ratings come from the workbook's "my rating(based on rank)" column and stay separate from critics' scores. ${game.authorRating &amp;&amp; ( &lt;&gt; Original workbook rating: &lt;strong&gt;{game.authorRating.value.toFixed(2)}&lt;/strong&gt;, shown as{' '} {authorRatingText(game.authorRating)} / 10. &lt;/&gt; )} | GameDetail(); expanded "Score sources &amp; method" disclosure |
-| [src/components/GameDetail.tsx:297](../src/components/GameDetail.tsx#L297) | Rendered copy | ${game.authorRating.value.toFixed(2)} | GameDetail(); expanded "Score sources &amp; method" disclosure; game.authorRating &amp;&amp; |
-| [src/components/GameDetail.tsx:302](../src/components/GameDetail.tsx#L302) | Rendered copy | Your rating belongs to the active library, never prefilled from ${author.shortName}'s. Public sharing requires a separate preview and publish action. | GameDetail(); expanded "Score sources &amp; method" disclosure |
-| [src/components/GameDetail.tsx:309](../src/components/GameDetail.tsx#L309) | Live region | ${navigationError} | GameDetail(); navigationError &amp;&amp; |
-| [src/components/GameDetail.tsx:313](../src/components/GameDetail.tsx#L313) | Label/help | Games in the collection | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:314](../src/components/GameDetail.tsx#L314) | Rendered copy | Previous game | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:324](../src/components/GameDetail.tsx#L324) | Rendered copy | ${position ? &#96;${position.current} of ${position.total}&#96; : 'Not in these results'} | GameDetail(); when its owning surface/operation is used |
-| [src/components/GameDetail.tsx:324](../src/components/GameDetail.tsx#L324) | Message/fragment | ${position.current} of ${position.total} | GameDetail(); position is true |
-| [src/components/GameDetail.tsx:324](../src/components/GameDetail.tsx#L324) | Message/fragment | Not in these results | GameDetail(); position is false |
-| [src/components/GameDetail.tsx:325](../src/components/GameDetail.tsx#L325) | Rendered copy | Next game | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:102](../src/components/GameDetail.tsx#L102) | Message/fragment | Your edit has not saved. Correct the highlighted rating or note before changing games. | changeGame(); saved is false |
+| [src/components/GameDetail.tsx:105](../src/components/GameDetail.tsx#L105) | Message/fragment | Your edit could not be saved. Keep this game open and retry. | changeGame(); operation rejected or threw; isCurrent() is true |
+| [src/components/GameDetail.tsx:131](../src/components/GameDetail.tsx#L131) | Rendered copy | #${String(game.rank).padStart(2, '0')} in the collection | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:132](../src/components/GameDetail.tsx#L132) | Rendered copy | ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:134](../src/components/GameDetail.tsx#L134) | Rendered copy | ${game.title} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:137](../src/components/GameDetail.tsx#L137) | Rendered copy | ${game.year} / ${game.studio} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:145](../src/components/GameDetail.tsx#L145) | Rendered copy | ${author.shortName}'s original rating | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:146](../src/components/GameDetail.tsx#L146) | Rendered copy | Original workbook score, based on the game's rank. | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:148](../src/components/GameDetail.tsx#L148) | Rendered copy | ${authorRatingText(game.authorRating)} ${game.authorRating &amp;&amp; &lt;small&gt; / 10&lt;/small&gt;} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:149](../src/components/GameDetail.tsx#L149) | Label/help | {game.authorRating ? &#96;Original workbook rating: ${game.authorRating.value.toFixed(2)}&#96; : undefined} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:149](../src/components/GameDetail.tsx#L149) | Message/fragment | Original workbook rating: ${game.authorRating.value.toFixed(2)} | GameDetail(); game.authorRating is true |
+| [src/components/GameDetail.tsx:159](../src/components/GameDetail.tsx#L159) | Rendered copy | ${game.artwork ? 'Workbook thumbnail' : 'Play 100 artwork'} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:159](../src/components/GameDetail.tsx#L159) | Message/fragment | Workbook thumbnail | GameDetail(); game.artwork is true |
+| [src/components/GameDetail.tsx:162](../src/components/GameDetail.tsx#L162) | Rendered copy | ${game.genre} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:164](../src/components/GameDetail.tsx#L164) | Rendered copy | Why it made the list | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:165](../src/components/GameDetail.tsx#L165) | Rendered copy | ${game.rationale} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:167](../src/components/GameDetail.tsx#L167) | Rendered copy | Source caveat: the workbook calls this "Hitman: World of Assassination", lists 2016 and supplies HITMAN III-branded artwork. We preserve all three rather than infer a release or edition. | GameDetail(); game.slug === 'hitman-world-of-assassination' &amp;&amp; |
+| [src/components/GameDetail.tsx:175](../src/components/GameDetail.tsx#L175) | Rendered copy | From the source workbook ${game.sourceNote} | GameDetail(); game.sourceNote &amp;&amp; |
+| [src/components/GameDetail.tsx:176](../src/components/GameDetail.tsx#L176) | Rendered copy | From the source workbook | GameDetail(); game.sourceNote &amp;&amp; |
+| [src/components/GameDetail.tsx:185](../src/components/GameDetail.tsx#L185) | Rendered copy | Play later | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:196](../src/components/GameDetail.tsx#L196) | Rendered copy | Completed | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:207](../src/components/GameDetail.tsx#L207) | Label/help | {&#96;Share ${game.title}&#96;} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:207](../src/components/GameDetail.tsx#L207) | Message/fragment | Share ${game.title} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:213](../src/components/GameDetail.tsx#L213) | Rendered copy | ${mode.scope === 'guest' ? 'Guest progress stays on this device.' : 'Account progress. See Account for sync status.'} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:215](../src/components/GameDetail.tsx#L215) | Message/fragment | Guest progress stays on this device. | GameDetail(); mode.scope === 'guest' is true |
+| [src/components/GameDetail.tsx:216](../src/components/GameDetail.tsx#L216) | Message/fragment | Account progress. See Account for sync status. | GameDetail(); mode.scope === 'guest' is false |
+| [src/components/GameDetail.tsx:223](../src/components/GameDetail.tsx#L223) | Label/help | {game.title} | GameDetail(); onRank &amp;&amp;; onPlayed &amp;&amp; |
+| [src/components/GameDetail.tsx:230](../src/components/GameDetail.tsx#L230) | Rendered copy | ${rankingPosition ? &#96;Your rank: #${rankingPosition}&#96; : 'Add to my ranking'} | GameDetail(); onRank &amp;&amp; |
+| [src/components/GameDetail.tsx:238](../src/components/GameDetail.tsx#L238) | Message/fragment | Add to my ranking | GameDetail(); onRank &amp;&amp;; rankingPosition is false |
+| [src/components/GameDetail.tsx:238](../src/components/GameDetail.tsx#L238) | Message/fragment | Your rank: #${rankingPosition} | GameDetail(); onRank &amp;&amp;; rankingPosition is true |
+| [src/components/GameDetail.tsx:245](../src/components/GameDetail.tsx#L245) | Label/help | {game.title} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:250](../src/components/GameDetail.tsx#L250) | Rendered copy | Your rating ranks this game; it doesn't mark it played. | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:253](../src/components/GameDetail.tsx#L253) | Live region | ${shareFeedback} | GameDetail(); shareFeedback &amp;&amp; |
+| [src/components/GameDetail.tsx:260](../src/components/GameDetail.tsx#L260) | Rendered copy | Critic scores | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:262](../src/components/GameDetail.tsx#L262) | Rendered copy | ${formatAverage(game.criticAverage)} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:266](../src/components/GameDetail.tsx#L266) | Rendered copy | Workbook snapshot. Not live or independently verified. | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:273](../src/components/GameDetail.tsx#L273) | Rendered copy | Unavailable | GameDetail(); game.critics[key] === null is true |
+| [src/components/GameDetail.tsx:276](../src/components/GameDetail.tsx#L276) | Rendered copy | ${game.critics[key]} | GameDetail(); game.critics[key] === null is false |
+| [src/components/GameDetail.tsx:277](../src/components/GameDetail.tsx#L277) | Rendered copy | / ${scale} | GameDetail(); game.critics[key] === null is false |
+| [src/components/GameDetail.tsx:285](../src/components/GameDetail.tsx#L285) | Rendered copy | Score sources &amp; method | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:289](../src/components/GameDetail.tsx#L289) | Rendered copy | The displayed average normalizes every available entered score to 100, then averages those columns. General and PC Metacritic each count when both are present. Missing scores are excluded. This is not an official aggregate or an average of independent publications. | GameDetail(); expanded "Score sources &amp; method" disclosure |
+| [src/components/GameDetail.tsx:294](../src/components/GameDetail.tsx#L294) | Rendered copy | ${author.shortName}'s ratings come from the workbook's "my rating(based on rank)" column and stay separate from critics' scores. ${game.authorRating &amp;&amp; ( &lt;&gt; Original workbook rating: &lt;strong&gt;{game.authorRating.value.toFixed(2)}&lt;/strong&gt;, shown as{' '} {authorRatingText(game.authorRating)} / 10. &lt;/&gt; )} | GameDetail(); expanded "Score sources &amp; method" disclosure |
+| [src/components/GameDetail.tsx:299](../src/components/GameDetail.tsx#L299) | Rendered copy | ${game.authorRating.value.toFixed(2)} | GameDetail(); expanded "Score sources &amp; method" disclosure; game.authorRating &amp;&amp; |
+| [src/components/GameDetail.tsx:304](../src/components/GameDetail.tsx#L304) | Rendered copy | Your rating belongs to the active library, never prefilled from ${author.shortName}'s. Public sharing requires a separate preview and publish action. | GameDetail(); expanded "Score sources &amp; method" disclosure |
+| [src/components/GameDetail.tsx:311](../src/components/GameDetail.tsx#L311) | Live region | ${navigationError} | GameDetail(); navigationError &amp;&amp; |
+| [src/components/GameDetail.tsx:315](../src/components/GameDetail.tsx#L315) | Label/help | Games in the collection | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:316](../src/components/GameDetail.tsx#L316) | Rendered copy | Previous game | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:326](../src/components/GameDetail.tsx#L326) | Rendered copy | ${position ? &#96;${position.current} of ${position.total}&#96; : 'Not in these results'} | GameDetail(); when its owning surface/operation is used |
+| [src/components/GameDetail.tsx:326](../src/components/GameDetail.tsx#L326) | Message/fragment | ${position.current} of ${position.total} | GameDetail(); position is true |
+| [src/components/GameDetail.tsx:326](../src/components/GameDetail.tsx#L326) | Message/fragment | Not in these results | GameDetail(); position is false |
+| [src/components/GameDetail.tsx:327](../src/components/GameDetail.tsx#L327) | Rendered copy | Next game | GameDetail(); when its owning surface/operation is used |
 ## src/components/games/GameArtwork.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -3093,39 +3093,39 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/personal/CatalogDetail.tsx:101](../src/components/personal/CatalogDetail.tsx#L101) | Message/fragment | This change could not be saved. Your library is unchanged. Try again. | failure(); result === 'failed' is true; error &#124;&#124; feedback &#124;&#124; |
-| [src/components/personal/CatalogDetail.tsx:103](../src/components/personal/CatalogDetail.tsx#L103) | Message/fragment | Saving changes… | status(); result === 'pending' is true |
-| [src/components/personal/CatalogDetail.tsx:115](../src/components/personal/CatalogDetail.tsx#L115) | Rendered copy | ${record.title} | CatalogDetail(); when its owning surface/operation is used |
-| [src/components/personal/CatalogDetail.tsx:118](../src/components/personal/CatalogDetail.tsx#L118) | Rendered copy | ${SOURCE_LABELS[record.source]} ${record.collectionRank !== null ? &#96; · original rank #${record.collectionRank}&#96; : &#96; · Unranked in ${author.shortName}'s collection&#96;} | CatalogDetail(); when its owning surface/operation is used |
-| [src/components/personal/CatalogDetail.tsx:121](../src/components/personal/CatalogDetail.tsx#L121) | Message/fragment | · original rank #${record.collectionRank} | CatalogDetail(); record.collectionRank !== null is true |
-| [src/components/personal/CatalogDetail.tsx:122](../src/components/personal/CatalogDetail.tsx#L122) | Message/fragment | · Unranked in ${author.shortName}'s collection | CatalogDetail(); record.collectionRank !== null is false |
-| [src/components/personal/CatalogDetail.tsx:124](../src/components/personal/CatalogDetail.tsx#L124) | Rendered copy | ${CATALOG_EDITION_HINTS.get(record.id)} | CatalogDetail(); CATALOG_EDITION_HINTS.has(record.id) &amp;&amp; |
-| [src/components/personal/CatalogDetail.tsx:137](../src/components/personal/CatalogDetail.tsx#L137) | Rendered copy | Artwork unavailable | CatalogDetail(); !artwork &amp;&amp; !externalArtwork &amp;&amp; |
-| [src/components/personal/CatalogDetail.tsx:148](../src/components/personal/CatalogDetail.tsx#L148) | Message/fragment | Not provided | CatalogDetail(); record.year ?? |
-| [src/components/personal/CatalogDetail.tsx:152](../src/components/personal/CatalogDetail.tsx#L152) | Message/fragment | Not provided | CatalogDetail(); record.studio ?? |
-| [src/components/personal/CatalogDetail.tsx:156](../src/components/personal/CatalogDetail.tsx#L156) | Message/fragment | Not provided | CatalogDetail(); catalogGenreLabel(record) ?? |
-| [src/components/personal/CatalogDetail.tsx:161](../src/components/personal/CatalogDetail.tsx#L161) | Rendered copy | Source classification | CatalogDetail(); record.source !== 'collection' &amp;&amp; record.source !== 'manual' &amp;&amp; |
-| [src/components/personal/CatalogDetail.tsx:162](../src/components/personal/CatalogDetail.tsx#L162) | Rendered copy | ${record.genre ?? 'Not provided'} | CatalogDetail(); record.source !== 'collection' &amp;&amp; record.source !== 'manual' &amp;&amp;; expanded "Source classification" disclosure |
-| [src/components/personal/CatalogDetail.tsx:162](../src/components/personal/CatalogDetail.tsx#L162) | Message/fragment | Not provided | CatalogDetail(); record.source !== 'collection' &amp;&amp; record.source !== 'manual' &amp;&amp;; expanded "Source classification" disclosure; record.genre ?? |
-| [src/components/personal/CatalogDetail.tsx:166](../src/components/personal/CatalogDetail.tsx#L166) | Rendered copy | View on ${SOURCE_LABELS[record.source]} | CatalogDetail(); record.sourceUrl &amp;&amp; |
-| [src/components/personal/CatalogDetail.tsx:171](../src/components/personal/CatalogDetail.tsx#L171) | Rendered copy | Source metadata is not independently verified. | CatalogDetail(); when its owning surface/operation is used |
-| [src/components/personal/CatalogDetail.tsx:174](../src/components/personal/CatalogDetail.tsx#L174) | Rendered copy | ${saved ? 'In My games' : 'Add to My games'} | CatalogDetail(); canAddToLibrary &amp;&amp; |
-| [src/components/personal/CatalogDetail.tsx:177](../src/components/personal/CatalogDetail.tsx#L177) | Label/help | {&#96;${saved ? 'In My games' : 'Add to My games'}: ${record.title}&#96;} | CatalogDetail(); canAddToLibrary &amp;&amp; |
-| [src/components/personal/CatalogDetail.tsx:177](../src/components/personal/CatalogDetail.tsx#L177) | Message/fragment | ${saved ? 'In My games' : 'Add to My games'}: ${record.title} | CatalogDetail(); canAddToLibrary &amp;&amp; |
-| [src/components/personal/CatalogDetail.tsx:183](../src/components/personal/CatalogDetail.tsx#L183) | Message/fragment | Add to My games | CatalogDetail(); canAddToLibrary &amp;&amp;; saved is false |
-| [src/components/personal/CatalogDetail.tsx:183](../src/components/personal/CatalogDetail.tsx#L183) | Message/fragment | In My games | CatalogDetail(); canAddToLibrary &amp;&amp;; saved is true |
-| [src/components/personal/CatalogDetail.tsx:186](../src/components/personal/CatalogDetail.tsx#L186) | Rendered copy | Play later | CatalogDetail(); when its owning surface/operation is used |
-| [src/components/personal/CatalogDetail.tsx:197](../src/components/personal/CatalogDetail.tsx#L197) | Rendered copy | Completed | CatalogDetail(); when its owning surface/operation is used |
-| [src/components/personal/CatalogDetail.tsx:212](../src/components/personal/CatalogDetail.tsx#L212) | Label/help | {record.title} | CatalogDetail(); when its owning surface/operation is used |
-| [src/components/personal/CatalogDetail.tsx:220](../src/components/personal/CatalogDetail.tsx#L220) | Rendered copy | ${rankingPosition === null ? ( &lt;&gt; &lt;Icon name="rank" width="18" height="18" /&gt; Add to my ranking &lt;/&gt; ) : ( &lt;&gt; Your rank: #{rankingPosition} &lt;Icon name="arrow" width="17" height="17" /&gt; &lt;/&gt; )} | CatalogDetail(); when its owning surface/operation is used |
-| [src/components/personal/CatalogDetail.tsx:244](../src/components/personal/CatalogDetail.tsx#L244) | Label/help | {record.title} | CatalogDetail(); when its owning surface/operation is used |
-| [src/components/personal/CatalogDetail.tsx:249](../src/components/personal/CatalogDetail.tsx#L249) | Rendered copy | Your rating ranks this game; it doesn't mark it played. | CatalogDetail(); when its owning surface/operation is used |
-| [src/components/personal/CatalogDetail.tsx:251](../src/components/personal/CatalogDetail.tsx#L251) | Rendered copy | ${saved ? 'Saved in My games.' : canAddToLibrary ? 'Preview only. Add to My games to keep this game without changing your progress, Play later or ranking.' : 'Preview only. Rate or mark progress here to keep this game.'} The 100 stays unchanged. | CatalogDetail(); when its owning surface/operation is used |
-| [src/components/personal/CatalogDetail.tsx:253](../src/components/personal/CatalogDetail.tsx#L253) | Message/fragment | Saved in My games. | CatalogDetail(); saved is true |
-| [src/components/personal/CatalogDetail.tsx:255](../src/components/personal/CatalogDetail.tsx#L255) | Message/fragment | Preview only. Add to My games to keep this game without changing your progress, Play later or ranking. | CatalogDetail(); saved is false; canAddToLibrary is true |
-| [src/components/personal/CatalogDetail.tsx:256](../src/components/personal/CatalogDetail.tsx#L256) | Message/fragment | Preview only. Rate or mark progress here to keep this game. | CatalogDetail(); saved is false; canAddToLibrary is false |
-| [src/components/personal/CatalogDetail.tsx:261](../src/components/personal/CatalogDetail.tsx#L261) | Live region | ${failure} | CatalogDetail(); failure is true |
-| [src/components/personal/CatalogDetail.tsx:265](../src/components/personal/CatalogDetail.tsx#L265) | Live region | ${status} | CatalogDetail(); failure is false; status is true |
+| [src/components/personal/CatalogDetail.tsx:103](../src/components/personal/CatalogDetail.tsx#L103) | Message/fragment | This change could not be saved. Your library is unchanged. Try again. | failure(); result === 'failed' is true; error &#124;&#124; feedback &#124;&#124; |
+| [src/components/personal/CatalogDetail.tsx:105](../src/components/personal/CatalogDetail.tsx#L105) | Message/fragment | Saving changes… | status(); result === 'pending' is true |
+| [src/components/personal/CatalogDetail.tsx:117](../src/components/personal/CatalogDetail.tsx#L117) | Rendered copy | ${record.title} | CatalogDetail(); when its owning surface/operation is used |
+| [src/components/personal/CatalogDetail.tsx:120](../src/components/personal/CatalogDetail.tsx#L120) | Rendered copy | ${SOURCE_LABELS[record.source]} ${record.collectionRank !== null ? &#96; · original rank #${record.collectionRank}&#96; : &#96; · Unranked in ${author.shortName}'s collection&#96;} | CatalogDetail(); when its owning surface/operation is used |
+| [src/components/personal/CatalogDetail.tsx:123](../src/components/personal/CatalogDetail.tsx#L123) | Message/fragment | · original rank #${record.collectionRank} | CatalogDetail(); record.collectionRank !== null is true |
+| [src/components/personal/CatalogDetail.tsx:124](../src/components/personal/CatalogDetail.tsx#L124) | Message/fragment | · Unranked in ${author.shortName}'s collection | CatalogDetail(); record.collectionRank !== null is false |
+| [src/components/personal/CatalogDetail.tsx:126](../src/components/personal/CatalogDetail.tsx#L126) | Rendered copy | ${CATALOG_EDITION_HINTS.get(record.id)} | CatalogDetail(); CATALOG_EDITION_HINTS.has(record.id) &amp;&amp; |
+| [src/components/personal/CatalogDetail.tsx:139](../src/components/personal/CatalogDetail.tsx#L139) | Rendered copy | Artwork unavailable | CatalogDetail(); !artwork &amp;&amp; !externalArtwork &amp;&amp; |
+| [src/components/personal/CatalogDetail.tsx:150](../src/components/personal/CatalogDetail.tsx#L150) | Message/fragment | Not provided | CatalogDetail(); record.year ?? |
+| [src/components/personal/CatalogDetail.tsx:154](../src/components/personal/CatalogDetail.tsx#L154) | Message/fragment | Not provided | CatalogDetail(); record.studio ?? |
+| [src/components/personal/CatalogDetail.tsx:158](../src/components/personal/CatalogDetail.tsx#L158) | Message/fragment | Not provided | CatalogDetail(); catalogGenreLabel(record) ?? |
+| [src/components/personal/CatalogDetail.tsx:163](../src/components/personal/CatalogDetail.tsx#L163) | Rendered copy | Source classification | CatalogDetail(); record.source !== 'collection' &amp;&amp; record.source !== 'manual' &amp;&amp; |
+| [src/components/personal/CatalogDetail.tsx:164](../src/components/personal/CatalogDetail.tsx#L164) | Rendered copy | ${record.genre ?? 'Not provided'} | CatalogDetail(); record.source !== 'collection' &amp;&amp; record.source !== 'manual' &amp;&amp;; expanded "Source classification" disclosure |
+| [src/components/personal/CatalogDetail.tsx:164](../src/components/personal/CatalogDetail.tsx#L164) | Message/fragment | Not provided | CatalogDetail(); record.source !== 'collection' &amp;&amp; record.source !== 'manual' &amp;&amp;; expanded "Source classification" disclosure; record.genre ?? |
+| [src/components/personal/CatalogDetail.tsx:168](../src/components/personal/CatalogDetail.tsx#L168) | Rendered copy | View on ${SOURCE_LABELS[record.source]} | CatalogDetail(); record.sourceUrl &amp;&amp; |
+| [src/components/personal/CatalogDetail.tsx:173](../src/components/personal/CatalogDetail.tsx#L173) | Rendered copy | Source metadata is not independently verified. | CatalogDetail(); when its owning surface/operation is used |
+| [src/components/personal/CatalogDetail.tsx:176](../src/components/personal/CatalogDetail.tsx#L176) | Rendered copy | ${saved ? 'In My games' : 'Add to My games'} | CatalogDetail(); canAddToLibrary &amp;&amp; |
+| [src/components/personal/CatalogDetail.tsx:179](../src/components/personal/CatalogDetail.tsx#L179) | Label/help | {&#96;${saved ? 'In My games' : 'Add to My games'}: ${record.title}&#96;} | CatalogDetail(); canAddToLibrary &amp;&amp; |
+| [src/components/personal/CatalogDetail.tsx:179](../src/components/personal/CatalogDetail.tsx#L179) | Message/fragment | ${saved ? 'In My games' : 'Add to My games'}: ${record.title} | CatalogDetail(); canAddToLibrary &amp;&amp; |
+| [src/components/personal/CatalogDetail.tsx:185](../src/components/personal/CatalogDetail.tsx#L185) | Message/fragment | Add to My games | CatalogDetail(); canAddToLibrary &amp;&amp;; saved is false |
+| [src/components/personal/CatalogDetail.tsx:185](../src/components/personal/CatalogDetail.tsx#L185) | Message/fragment | In My games | CatalogDetail(); canAddToLibrary &amp;&amp;; saved is true |
+| [src/components/personal/CatalogDetail.tsx:188](../src/components/personal/CatalogDetail.tsx#L188) | Rendered copy | Play later | CatalogDetail(); when its owning surface/operation is used |
+| [src/components/personal/CatalogDetail.tsx:199](../src/components/personal/CatalogDetail.tsx#L199) | Rendered copy | Completed | CatalogDetail(); when its owning surface/operation is used |
+| [src/components/personal/CatalogDetail.tsx:214](../src/components/personal/CatalogDetail.tsx#L214) | Label/help | {record.title} | CatalogDetail(); when its owning surface/operation is used |
+| [src/components/personal/CatalogDetail.tsx:222](../src/components/personal/CatalogDetail.tsx#L222) | Rendered copy | ${rankingPosition === null ? ( &lt;&gt; &lt;Icon name="rank" width="18" height="18" /&gt; Add to my ranking &lt;/&gt; ) : ( &lt;&gt; Your rank: #{rankingPosition} &lt;Icon name="arrow" width="17" height="17" /&gt; &lt;/&gt; )} | CatalogDetail(); when its owning surface/operation is used |
+| [src/components/personal/CatalogDetail.tsx:246](../src/components/personal/CatalogDetail.tsx#L246) | Label/help | {record.title} | CatalogDetail(); when its owning surface/operation is used |
+| [src/components/personal/CatalogDetail.tsx:251](../src/components/personal/CatalogDetail.tsx#L251) | Rendered copy | Your rating ranks this game; it doesn't mark it played. | CatalogDetail(); when its owning surface/operation is used |
+| [src/components/personal/CatalogDetail.tsx:253](../src/components/personal/CatalogDetail.tsx#L253) | Rendered copy | ${saved ? 'Saved in My games.' : canAddToLibrary ? 'Preview only. Add to My games to keep this game without changing your progress, Play later or ranking.' : 'Preview only. Rate or mark progress here to keep this game.'} The 100 stays unchanged. | CatalogDetail(); when its owning surface/operation is used |
+| [src/components/personal/CatalogDetail.tsx:255](../src/components/personal/CatalogDetail.tsx#L255) | Message/fragment | Saved in My games. | CatalogDetail(); saved is true |
+| [src/components/personal/CatalogDetail.tsx:257](../src/components/personal/CatalogDetail.tsx#L257) | Message/fragment | Preview only. Add to My games to keep this game without changing your progress, Play later or ranking. | CatalogDetail(); saved is false; canAddToLibrary is true |
+| [src/components/personal/CatalogDetail.tsx:258](../src/components/personal/CatalogDetail.tsx#L258) | Message/fragment | Preview only. Rate or mark progress here to keep this game. | CatalogDetail(); saved is false; canAddToLibrary is false |
+| [src/components/personal/CatalogDetail.tsx:263](../src/components/personal/CatalogDetail.tsx#L263) | Live region | ${failure} | CatalogDetail(); failure is true |
+| [src/components/personal/CatalogDetail.tsx:267](../src/components/personal/CatalogDetail.tsx#L267) | Live region | ${status} | CatalogDetail(); failure is false; status is true |
 ## src/components/personal/LibraryPage.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -3197,28 +3197,28 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/personal/LibraryRecordRow.tsx:86](../src/components/personal/LibraryRecordRow.tsx#L86) | Label/help | {&#96;Select ${record.title}&#96;} | LibraryRecordRow(); selecting &amp;&amp; |
-| [src/components/personal/LibraryRecordRow.tsx:86](../src/components/personal/LibraryRecordRow.tsx#L86) | Message/fragment | Select ${record.title} | LibraryRecordRow(); selecting &amp;&amp; |
-| [src/components/personal/LibraryRecordRow.tsx:104](../src/components/personal/LibraryRecordRow.tsx#L104) | Label/help | {record.title} | LibraryRecordRow(); when its owning surface/operation is used |
-| [src/components/personal/LibraryRecordRow.tsx:114](../src/components/personal/LibraryRecordRow.tsx#L114) | Label/help | {record.title} | LibraryRecordRow(); when its owning surface/operation is used |
-| [src/components/personal/LibraryRecordRow.tsx:126](../src/components/personal/LibraryRecordRow.tsx#L126) | Label/help | {&#96;Play later: ${record.title}&#96;} | LibraryRecordRow(); tab !== 'later' &amp;&amp; |
-| [src/components/personal/LibraryRecordRow.tsx:126](../src/components/personal/LibraryRecordRow.tsx#L126) | Message/fragment | Play later: ${record.title} | LibraryRecordRow(); tab !== 'later' &amp;&amp; |
-| [src/components/personal/LibraryRecordRow.tsx:127](../src/components/personal/LibraryRecordRow.tsx#L127) | Label/help | Play later | LibraryRecordRow(); tab !== 'later' &amp;&amp; |
-| [src/components/personal/LibraryRecordRow.tsx:140](../src/components/personal/LibraryRecordRow.tsx#L140) | Rendered copy | ${rankingPosition ? ( &lt;a ref={rankedLink} className="text-button" href={&#96;/my-games?tab=ranking#${new URLSearchParams({ rank: record.id })}&#96;} aria-label={&#96;Ranked #${rankingPosition}: ${record.title}. Open in Ranking&#96;} aria-disabled={busy &#124;&#124; undefined} onClick={(event) =&gt; { if (busy) { event.preventDefault(); return; } if (event.button !== 0 &#124;&#124; event.ctrlKey &#124;&#124; event.metaKey &#124;&#124; event.altKey &#124;&#124; event.shiftKey) return; event.preventDefault(); const destination = event.currentTarget.href; void onPresentationChange(() =&gt; location.assign(destination)); }} &gt; Ranked #{rankingPosition} &lt;/a&gt; ) : ( &lt;button className="text-button" aria-disabled={busy &#124;&#124; undefined} aria-label={&#96;Add ${record.title} to my ranking&#96;} onClick={(event) =&gt; void addToRanking(event.currentTarget)} &gt; &lt;Icon name="rank" width="20" height="20" /&gt; Rank &lt;/button&gt; )} | LibraryRecordRow(); when its owning surface/operation is used |
-| [src/components/personal/LibraryRecordRow.tsx:142](../src/components/personal/LibraryRecordRow.tsx#L142) | Rendered copy | Ranked #${rankingPosition} | LibraryRecordRow(); rankingPosition is true |
-| [src/components/personal/LibraryRecordRow.tsx:146](../src/components/personal/LibraryRecordRow.tsx#L146) | Label/help | {&#96;Ranked #${rankingPosition}: ${record.title}. Open in Ranking&#96;} | LibraryRecordRow(); rankingPosition is true |
-| [src/components/personal/LibraryRecordRow.tsx:146](../src/components/personal/LibraryRecordRow.tsx#L146) | Message/fragment | Ranked #${rankingPosition}: ${record.title}. Open in Ranking | LibraryRecordRow(); rankingPosition is true |
-| [src/components/personal/LibraryRecordRow.tsx:162](../src/components/personal/LibraryRecordRow.tsx#L162) | Rendered copy | Rank | LibraryRecordRow(); rankingPosition is false |
-| [src/components/personal/LibraryRecordRow.tsx:165](../src/components/personal/LibraryRecordRow.tsx#L165) | Label/help | {&#96;Add ${record.title} to my ranking&#96;} | LibraryRecordRow(); rankingPosition is false |
-| [src/components/personal/LibraryRecordRow.tsx:165](../src/components/personal/LibraryRecordRow.tsx#L165) | Message/fragment | Add ${record.title} to my ranking | LibraryRecordRow(); rankingPosition is false |
-| [src/components/personal/LibraryRecordRow.tsx:175](../src/components/personal/LibraryRecordRow.tsx#L175) | Label/help | { tab === 'later' ? &#96;Remove from Play later: ${record.title}&#96; : &#96;Remove ${record.title} from my library&#96; } | LibraryRecordRow(); when its owning surface/operation is used |
-| [src/components/personal/LibraryRecordRow.tsx:176](../src/components/personal/LibraryRecordRow.tsx#L176) | Message/fragment | Remove ${record.title} from my library | LibraryRecordRow(); tab === 'later' is false |
-| [src/components/personal/LibraryRecordRow.tsx:176](../src/components/personal/LibraryRecordRow.tsx#L176) | Message/fragment | Remove from Play later: ${record.title} | LibraryRecordRow(); tab === 'later' is true |
-| [src/components/personal/LibraryRecordRow.tsx:178](../src/components/personal/LibraryRecordRow.tsx#L178) | Label/help | {tab === 'later' ? 'Remove from Play later' : undefined} | LibraryRecordRow(); when its owning surface/operation is used |
-| [src/components/personal/LibraryRecordRow.tsx:178](../src/components/personal/LibraryRecordRow.tsx#L178) | Message/fragment | Remove from Play later | LibraryRecordRow(); tab === 'later' is true |
-| [src/components/personal/LibraryRecordRow.tsx:190](../src/components/personal/LibraryRecordRow.tsx#L190) | Rendered copy | ${state.progress[record.id]?.completed ? 'Completed' : state.progress[record.id]?.played ? 'Played, not completed' : 'Not played'} | LibraryRecordRow(); when its owning surface/operation is used |
-| [src/components/personal/LibraryRecordRow.tsx:192](../src/components/personal/LibraryRecordRow.tsx#L192) | Message/fragment | Completed | LibraryRecordRow(); state.progress[record.id]?.completed is true |
-| [src/components/personal/LibraryRecordRow.tsx:195](../src/components/personal/LibraryRecordRow.tsx#L195) | Message/fragment | Not played | LibraryRecordRow(); state.progress[record.id]?.completed is false; state.progress[record.id]?.played is false |
+| [src/components/personal/LibraryRecordRow.tsx:88](../src/components/personal/LibraryRecordRow.tsx#L88) | Label/help | {&#96;Select ${record.title}&#96;} | LibraryRecordRow(); selecting &amp;&amp; |
+| [src/components/personal/LibraryRecordRow.tsx:88](../src/components/personal/LibraryRecordRow.tsx#L88) | Message/fragment | Select ${record.title} | LibraryRecordRow(); selecting &amp;&amp; |
+| [src/components/personal/LibraryRecordRow.tsx:106](../src/components/personal/LibraryRecordRow.tsx#L106) | Label/help | {record.title} | LibraryRecordRow(); when its owning surface/operation is used |
+| [src/components/personal/LibraryRecordRow.tsx:116](../src/components/personal/LibraryRecordRow.tsx#L116) | Label/help | {record.title} | LibraryRecordRow(); when its owning surface/operation is used |
+| [src/components/personal/LibraryRecordRow.tsx:128](../src/components/personal/LibraryRecordRow.tsx#L128) | Label/help | {&#96;Play later: ${record.title}&#96;} | LibraryRecordRow(); tab !== 'later' &amp;&amp; |
+| [src/components/personal/LibraryRecordRow.tsx:128](../src/components/personal/LibraryRecordRow.tsx#L128) | Message/fragment | Play later: ${record.title} | LibraryRecordRow(); tab !== 'later' &amp;&amp; |
+| [src/components/personal/LibraryRecordRow.tsx:129](../src/components/personal/LibraryRecordRow.tsx#L129) | Label/help | Play later | LibraryRecordRow(); tab !== 'later' &amp;&amp; |
+| [src/components/personal/LibraryRecordRow.tsx:142](../src/components/personal/LibraryRecordRow.tsx#L142) | Rendered copy | ${rankingPosition ? ( &lt;a ref={rankedLink} className="text-button" href={&#96;/my-games?tab=ranking#${new URLSearchParams({ rank: record.id })}&#96;} aria-label={&#96;Ranked #${rankingPosition}: ${record.title}. Open in Ranking&#96;} aria-disabled={busy &#124;&#124; undefined} onClick={(event) =&gt; { if (busy) { event.preventDefault(); return; } if (event.button !== 0 &#124;&#124; event.ctrlKey &#124;&#124; event.metaKey &#124;&#124; event.altKey &#124;&#124; event.shiftKey) return; event.preventDefault(); const destination = event.currentTarget.href; void onPresentationChange(() =&gt; location.assign(destination)); }} &gt; Ranked #{rankingPosition} &lt;/a&gt; ) : ( &lt;button className="text-button" aria-disabled={busy &#124;&#124; undefined} aria-label={&#96;Add ${record.title} to my ranking&#96;} onClick={(event) =&gt; void addToRanking(event.currentTarget)} &gt; &lt;Icon name="rank" width="20" height="20" /&gt; Rank &lt;/button&gt; )} | LibraryRecordRow(); when its owning surface/operation is used |
+| [src/components/personal/LibraryRecordRow.tsx:144](../src/components/personal/LibraryRecordRow.tsx#L144) | Rendered copy | Ranked #${rankingPosition} | LibraryRecordRow(); rankingPosition is true |
+| [src/components/personal/LibraryRecordRow.tsx:148](../src/components/personal/LibraryRecordRow.tsx#L148) | Label/help | {&#96;Ranked #${rankingPosition}: ${record.title}. Open in Ranking&#96;} | LibraryRecordRow(); rankingPosition is true |
+| [src/components/personal/LibraryRecordRow.tsx:148](../src/components/personal/LibraryRecordRow.tsx#L148) | Message/fragment | Ranked #${rankingPosition}: ${record.title}. Open in Ranking | LibraryRecordRow(); rankingPosition is true |
+| [src/components/personal/LibraryRecordRow.tsx:164](../src/components/personal/LibraryRecordRow.tsx#L164) | Rendered copy | Rank | LibraryRecordRow(); rankingPosition is false |
+| [src/components/personal/LibraryRecordRow.tsx:167](../src/components/personal/LibraryRecordRow.tsx#L167) | Label/help | {&#96;Add ${record.title} to my ranking&#96;} | LibraryRecordRow(); rankingPosition is false |
+| [src/components/personal/LibraryRecordRow.tsx:167](../src/components/personal/LibraryRecordRow.tsx#L167) | Message/fragment | Add ${record.title} to my ranking | LibraryRecordRow(); rankingPosition is false |
+| [src/components/personal/LibraryRecordRow.tsx:177](../src/components/personal/LibraryRecordRow.tsx#L177) | Label/help | { tab === 'later' ? &#96;Remove from Play later: ${record.title}&#96; : &#96;Remove ${record.title} from my library&#96; } | LibraryRecordRow(); when its owning surface/operation is used |
+| [src/components/personal/LibraryRecordRow.tsx:178](../src/components/personal/LibraryRecordRow.tsx#L178) | Message/fragment | Remove ${record.title} from my library | LibraryRecordRow(); tab === 'later' is false |
+| [src/components/personal/LibraryRecordRow.tsx:178](../src/components/personal/LibraryRecordRow.tsx#L178) | Message/fragment | Remove from Play later: ${record.title} | LibraryRecordRow(); tab === 'later' is true |
+| [src/components/personal/LibraryRecordRow.tsx:180](../src/components/personal/LibraryRecordRow.tsx#L180) | Label/help | {tab === 'later' ? 'Remove from Play later' : undefined} | LibraryRecordRow(); when its owning surface/operation is used |
+| [src/components/personal/LibraryRecordRow.tsx:180](../src/components/personal/LibraryRecordRow.tsx#L180) | Message/fragment | Remove from Play later | LibraryRecordRow(); tab === 'later' is true |
+| [src/components/personal/LibraryRecordRow.tsx:192](../src/components/personal/LibraryRecordRow.tsx#L192) | Rendered copy | ${state.progress[record.id]?.completed ? 'Completed' : state.progress[record.id]?.played ? 'Played, not completed' : 'Not played'} | LibraryRecordRow(); when its owning surface/operation is used |
+| [src/components/personal/LibraryRecordRow.tsx:194](../src/components/personal/LibraryRecordRow.tsx#L194) | Message/fragment | Completed | LibraryRecordRow(); state.progress[record.id]?.completed is true |
+| [src/components/personal/LibraryRecordRow.tsx:197](../src/components/personal/LibraryRecordRow.tsx#L197) | Message/fragment | Not played | LibraryRecordRow(); state.progress[record.id]?.completed is false; state.progress[record.id]?.played is false |
 ## src/components/personal/ManualGameForm.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -3442,13 +3442,13 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/PlayedToggle.tsx:28](../src/components/PlayedToggle.tsx#L28) | Message/fragment | Played | label(); when its owning surface/operation is used |
-| [src/components/PlayedToggle.tsx:42](../src/components/PlayedToggle.tsx#L42) | Label/help | {&#96;${label}: ${title}&#96;} | PlayedToggle(); when its owning surface/operation is used |
-| [src/components/PlayedToggle.tsx:44](../src/components/PlayedToggle.tsx#L44) | Rendered copy | ${label} | PlayedToggle(); when its owning surface/operation is used |
-| [src/components/PlayedToggle.tsx:48](../src/components/PlayedToggle.tsx#L48) | Rendered copy | Mark ${title} not played? | PlayedToggle(); review.key === key &amp;&amp; review.open &amp;&amp; eligible &amp;&amp; |
-| [src/components/PlayedToggle.tsx:49](../src/components/PlayedToggle.tsx#L49) | Rendered copy | This also clears Completed. Play later, rating, notes and ranking position stay unchanged. | PlayedToggle(); review.key === key &amp;&amp; review.open &amp;&amp; eligible &amp;&amp; |
-| [src/components/PlayedToggle.tsx:51](../src/components/PlayedToggle.tsx#L51) | Rendered copy | Keep completed | PlayedToggle(); review.key === key &amp;&amp; review.open &amp;&amp; eligible &amp;&amp; |
-| [src/components/PlayedToggle.tsx:54](../src/components/PlayedToggle.tsx#L54) | Rendered copy | Mark not played | PlayedToggle(); review.key === key &amp;&amp; review.open &amp;&amp; eligible &amp;&amp; |
+| [src/components/PlayedToggle.tsx:29](../src/components/PlayedToggle.tsx#L29) | Message/fragment | Played | label(); when its owning surface/operation is used |
+| [src/components/PlayedToggle.tsx:45](../src/components/PlayedToggle.tsx#L45) | Label/help | {&#96;${label}: ${title}&#96;} | PlayedToggle(); when its owning surface/operation is used |
+| [src/components/PlayedToggle.tsx:47](../src/components/PlayedToggle.tsx#L47) | Rendered copy | ${label} | PlayedToggle(); when its owning surface/operation is used |
+| [src/components/PlayedToggle.tsx:51](../src/components/PlayedToggle.tsx#L51) | Rendered copy | Mark ${title} not played? | PlayedToggle(); review.key === key &amp;&amp; review.open &amp;&amp; eligible &amp;&amp; |
+| [src/components/PlayedToggle.tsx:52](../src/components/PlayedToggle.tsx#L52) | Rendered copy | This also clears Completed. Play later, rating, notes and ranking position stay unchanged. | PlayedToggle(); review.key === key &amp;&amp; review.open &amp;&amp; eligible &amp;&amp; |
+| [src/components/PlayedToggle.tsx:54](../src/components/PlayedToggle.tsx#L54) | Rendered copy | Keep completed | PlayedToggle(); review.key === key &amp;&amp; review.open &amp;&amp; eligible &amp;&amp; |
+| [src/components/PlayedToggle.tsx:57](../src/components/PlayedToggle.tsx#L57) | Rendered copy | Mark not played | PlayedToggle(); review.key === key &amp;&amp; review.open &amp;&amp; eligible &amp;&amp; |
 ## src/components/ProgressFilter.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
