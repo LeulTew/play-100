@@ -46,8 +46,10 @@ function fixture() {
     index += delta;
     if (!entries[index]) throw new Error('The traversal left the known document history.');
     location.href = entries[index]!.href;
-    const stopImmediatePropagation = vi.fn();
-    listener({ isTrusted: trusted, stopImmediatePropagation } as Event);
+    const event = new Event('popstate');
+    Object.defineProperty(event, 'isTrusted', { value: trusted });
+    const stopImmediatePropagation = vi.spyOn(event, 'stopImmediatePropagation');
+    listener(event);
     events.push({ href: location.href, stopped: stopImmediatePropagation.mock.calls.length > 0 });
   };
   return {
