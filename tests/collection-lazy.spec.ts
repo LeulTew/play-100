@@ -2,7 +2,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { readBuildManifest } from '../scripts/build-metadata';
 import { emptyPersonalLibrary } from '../src/lib/personal-library';
-import { installGuestLibrary } from './library-pagination-helpers';
+import { installGuestLibrary, libraryRecords } from './library-pagination-helpers';
 import { readLibrary } from './library-helpers';
 import { catalogFixture, discoveryFixture } from '../src/lib/discovery-test-fixtures';
 import { catalogRecord, respondWithCatalog } from './catalog-helpers';
@@ -71,6 +71,76 @@ test('cold view=table keeps a reserved table frame and renders after its guarded
     release();
   }
 });
+
+for (const outcome of ['arrives', 'fails'] as const) {
+  test(`inline Compare tray stays open when the table chunk ${outcome}`, async ({ page, isMobile }) => {
+    await page.setViewportSize({ width: 320, height: 851 });
+    await installGuestLibrary(page, emptyPersonalLibrary());
+    await page.evaluate((items) => {
+      localStorage.setItem('play100:compare-tray:v1:guest', JSON.stringify({ version: 1, scope: 'guest', items }));
+    }, libraryRecords.slice(0, 6));
+    const before = await readLibrary(page);
+    const pins = await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'));
+    const asset = await extrasAsset();
+    let release = () => {};
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route(`**${asset}`, async (route) => {
+      await waiting;
+      if (outcome === 'fails') await route.abort('failed');
+      else await route.continue();
+    });
+    try {
+      await page.goto('/?view=table&catalogs=off');
+      const region = page.locator('[data-collection-extras="table"]');
+      await expect(region.locator('[aria-busy="true"]')).toBeVisible();
+      const trigger = region.getByRole('button', { name: '6 games in Compare tray', exact: true });
+      if (isMobile) await trigger.tap();
+      else await trigger.click();
+      const dialog = page.getByRole('dialog', { name: 'Compare tray', exact: true });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.locator('.compare-tray-games > li')).toHaveCount(6);
+      await dialog.getByRole('button', { name: 'Close dialog', exact: true }).focus();
+      const anchors = await page.evaluateHandle(() => {
+        const sheet = document.querySelector<HTMLDialogElement>('dialog[open]');
+        const opener = document.querySelector('.ratings-tray-strip .compare-tray-expand');
+        const frame = document.querySelector('.ratings-mode');
+        const focus = document.activeElement;
+        if (!sheet || !opener || !frame || !(focus instanceof HTMLButtonElement))
+          throw new Error('The loading table must expose a real tray, modal and focused Close control.');
+        return { sheet, opener, frame, focus };
+      });
+      try {
+        release();
+        await expect(region.locator('[aria-busy="true"]')).toHaveCount(0);
+        if (outcome === 'fails') {
+          await expect(region.locator('.data-error')).toContainText("These collection tools didn't load.");
+        } else {
+          await expect(region.locator('.ratings-scroll:not([inert]) .ratings-table tbody tr')).toHaveCount(24);
+        }
+        expect(
+          await anchors.evaluate(({ sheet, opener, frame, focus }) => ({
+            modal: sheet.isConnected && sheet.open,
+            opener: opener.isConnected && opener === document.querySelector('.ratings-tray-strip .compare-tray-expand'),
+            frame: frame.isConnected && frame === document.querySelector('.ratings-mode'),
+            focus: focus.isConnected && focus === document.activeElement,
+          })),
+        ).toEqual({ modal: true, opener: true, frame: true, focus: true });
+        await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+        await expect(dialog).toHaveCount(0);
+        await expect(trigger).toBeFocused();
+        await expect(trigger).toBeInViewport({ ratio: 1 });
+        expect(await readLibrary(page)).toEqual(before);
+        expect(await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'))).toBe(pins);
+      } finally {
+        await anchors.dispose();
+      }
+    } finally {
+      release();
+    }
+  });
+}
 
 test('table focus preloads one entry and warm view toggles retain the focused control', async ({ page }) => {
   const asset = await extrasAsset();
