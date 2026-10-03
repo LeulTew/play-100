@@ -1,22 +1,24 @@
 :root {
   --compare-tray-bottom: 20px;
 }
-html:has(.compare-tray-chip) {
+/* The chip, the visible toast and the tray's reserve mark the root while they show (src/lib/root-flag.ts), rather than
+   html:has() and body:has() rules, which Chromium 106 rematches across the document on every insertion. */
+html[data-compare-tray-chip] {
   scroll-padding-bottom: calc(var(--mobile-nav-height, 0px) + 16px);
 }
-html:has(.toast-visible) {
+html[data-toast-visible] {
   scroll-padding-bottom: calc(25px + var(--toast-height, 64px) + 16px);
 }
-html:has(.compare-tray-chip):has(.toast-visible) {
+html[data-compare-tray-chip][data-toast-visible] {
   scroll-padding-bottom: calc(var(--mobile-nav-height, 0px) + var(--toast-height, 64px) + 36px);
 }
 .compare-tray-reserve {
   height: calc(var(--mobile-nav-height, 0px) + 16px);
 }
-body:has(.compare-tray-reserve) {
+body[data-compare-tray-reserve] {
   padding-bottom: 0;
 }
-body:has(.compare-tray-chip) .toast {
+html[data-compare-tray-chip] .toast {
   bottom: calc(var(--mobile-nav-height, 0px) + 20px);
 }
 .compare-pin:not(.icon-button) {
@@ -367,32 +369,32 @@ html[data-motion] .compare-tray-sheet[open] .dialog-inner {
   :root {
     --compare-tray-bottom: calc(var(--mobile-nav-height, calc(66px + env(safe-area-inset-bottom, 0px))) + 12px);
   }
-  html:has(.toast-visible) {
+  html[data-toast-visible] {
     scroll-padding-bottom: calc(var(--compare-tray-bottom) + var(--toast-height, 64px) + 16px);
   }
-  body:has(.toast-visible) .ratings-mode:has(.compare-tray-inline) {
+  html[data-toast-visible] .ratings-mode:has(.compare-tray-inline) {
     /* The dismiss target supplies the first-frame minimum before the toast's height observer runs. */
     --inline-toast-clearance: calc(max(44px, var(--toast-height, 64px)) + 28px);
   }
-  body:has(.compare-tray-reserve) .mobile-nav {
+  body[data-compare-tray-reserve] .mobile-nav {
     padding-inline-end: 58px;
     grid-auto-columns: minmax(min-content, 1fr);
   }
-  body:has(.compare-tray-reserve) .mobile-nav > * {
+  body[data-compare-tray-reserve] .mobile-nav > * {
     min-width: 44px;
     overflow-wrap: normal;
   }
   @media (max-width: 380px) {
-    body:has(.compare-tray-reserve) .mobile-nav {
+    body[data-compare-tray-reserve] .mobile-nav {
       display: flex;
     }
-    body:has(.compare-tray-reserve) .mobile-nav > * {
+    body[data-compare-tray-reserve] .mobile-nav > * {
       flex: 1;
     }
-    body:has(.compare-tray-reserve) .mobile-nav > [aria-current='page'] {
+    body[data-compare-tray-reserve] .mobile-nav > [aria-current='page'] {
       flex: 1.6;
     }
-    body:has(.compare-tray-reserve) .mobile-nav > :not([aria-current='page']) > span {
+    body[data-compare-tray-reserve] .mobile-nav > :not([aria-current='page']) > span {
       position: absolute;
       width: 1px;
       height: 1px;

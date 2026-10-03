@@ -6,7 +6,7 @@ The unit-test gate regenerates this inventory and rejects stale content or sourc
 
 ## Scope and reading convention
 
-Scanned 387 production TS/TSX/JS files and standalone HTML fallbacks; 3789 source entries.
+Scanned 388 production TS/TSX/JS files and standalone HTML fallbacks; 3789 source entries.
 This is a deliberately inclusive inventory of rendered text, accessible labels,
 message outputs, message constants and validation/error strings. It includes the
 Discover help/source notes, Settings/backups/PWA, empty states, confirmations,
@@ -1922,27 +1922,27 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/app/AppShell.tsx:48](../src/components/app/AppShell.tsx#L48) | Message output | 'Wait for the correct account before pinning a game.' | pin(); !commands.pinAllowed() is true |
-| [src/components/app/AppShell.tsx:48](../src/components/app/AppShell.tsx#L48) | Message/fragment | Wait for the correct account before pinning a game. | pin(); !commands.pinAllowed() is true |
-| [src/components/app/AppShell.tsx:87](../src/components/app/AppShell.tsx#L87) | Label/help | {app.panelFailure === 'about' ? "About &amp; credits didn't load." : "Settings didn't load."} | panelRecovery(); app.panelFailure &amp;&amp; |
-| [src/components/app/AppShell.tsx:87](../src/components/app/AppShell.tsx#L87) | Message/fragment | About &amp; credits didn't load. | panelRecovery(); app.panelFailure &amp;&amp;; app.panelFailure === 'about' is true |
-| [src/components/app/AppShell.tsx:87](../src/components/app/AppShell.tsx#L87) | Message/fragment | Settings didn't load. | panelRecovery(); app.panelFailure &amp;&amp;; app.panelFailure === 'about' is false |
-| [src/components/app/AppShell.tsx:89](../src/components/app/AppShell.tsx#L89) | Label/help | {app.panelFailure === 'about' ? 'Reload and open About &amp; credits' : 'Reload and open Settings'} | panelRecovery(); app.panelFailure &amp;&amp; |
-| [src/components/app/AppShell.tsx:89](../src/components/app/AppShell.tsx#L89) | Message/fragment | Reload and open About &amp; credits | panelRecovery(); app.panelFailure &amp;&amp;; app.panelFailure === 'about' is true |
-| [src/components/app/AppShell.tsx:89](../src/components/app/AppShell.tsx#L89) | Message/fragment | Reload and open Settings | panelRecovery(); app.panelFailure &amp;&amp;; app.panelFailure === 'about' is false |
-| [src/components/app/AppShell.tsx:113](../src/components/app/AppShell.tsx#L113) | Rendered copy | Skip to ${page === 'collection' ? 'the collection' : 'page content'} | AppShell(); when its owning surface/operation is used |
-| [src/components/app/AppShell.tsx:114](../src/components/app/AppShell.tsx#L114) | Message/fragment | page content | AppShell(); page === 'collection' is false |
-| [src/components/app/AppShell.tsx:114](../src/components/app/AppShell.tsx#L114) | Message/fragment | the collection | AppShell(); page === 'collection' is true |
-| [src/components/app/AppShell.tsx:157](../src/components/app/AppShell.tsx#L157) | Label/help | The comparison tools didn't load. | AppShell(); app.toolFailure?.scope === app.libraryScope &amp;&amp; app.toolFailure.page === page &amp;&amp; |
-| [src/components/app/AppShell.tsx:204](../src/components/app/AppShell.tsx#L204) | Live region | Opening sharing options… | AppShell(); app.sharing &amp;&amp; |
+| [src/components/app/AppShell.tsx:49](../src/components/app/AppShell.tsx#L49) | Message output | 'Wait for the correct account before pinning a game.' | pin(); !commands.pinAllowed() is true |
+| [src/components/app/AppShell.tsx:49](../src/components/app/AppShell.tsx#L49) | Message/fragment | Wait for the correct account before pinning a game. | pin(); !commands.pinAllowed() is true |
+| [src/components/app/AppShell.tsx:91](../src/components/app/AppShell.tsx#L91) | Label/help | {app.panelFailure === 'about' ? "About &amp; credits didn't load." : "Settings didn't load."} | panelRecovery(); app.panelFailure &amp;&amp; |
+| [src/components/app/AppShell.tsx:91](../src/components/app/AppShell.tsx#L91) | Message/fragment | About &amp; credits didn't load. | panelRecovery(); app.panelFailure &amp;&amp;; app.panelFailure === 'about' is true |
+| [src/components/app/AppShell.tsx:91](../src/components/app/AppShell.tsx#L91) | Message/fragment | Settings didn't load. | panelRecovery(); app.panelFailure &amp;&amp;; app.panelFailure === 'about' is false |
+| [src/components/app/AppShell.tsx:93](../src/components/app/AppShell.tsx#L93) | Label/help | {app.panelFailure === 'about' ? 'Reload and open About &amp; credits' : 'Reload and open Settings'} | panelRecovery(); app.panelFailure &amp;&amp; |
+| [src/components/app/AppShell.tsx:93](../src/components/app/AppShell.tsx#L93) | Message/fragment | Reload and open About &amp; credits | panelRecovery(); app.panelFailure &amp;&amp;; app.panelFailure === 'about' is true |
+| [src/components/app/AppShell.tsx:93](../src/components/app/AppShell.tsx#L93) | Message/fragment | Reload and open Settings | panelRecovery(); app.panelFailure &amp;&amp;; app.panelFailure === 'about' is false |
+| [src/components/app/AppShell.tsx:117](../src/components/app/AppShell.tsx#L117) | Rendered copy | Skip to ${page === 'collection' ? 'the collection' : 'page content'} | AppShell(); when its owning surface/operation is used |
+| [src/components/app/AppShell.tsx:118](../src/components/app/AppShell.tsx#L118) | Message/fragment | page content | AppShell(); page === 'collection' is false |
+| [src/components/app/AppShell.tsx:118](../src/components/app/AppShell.tsx#L118) | Message/fragment | the collection | AppShell(); page === 'collection' is true |
+| [src/components/app/AppShell.tsx:161](../src/components/app/AppShell.tsx#L161) | Label/help | The comparison tools didn't load. | AppShell(); app.toolFailure?.scope === app.libraryScope &amp;&amp; app.toolFailure.page === page &amp;&amp; |
+| [src/components/app/AppShell.tsx:206](../src/components/app/AppShell.tsx#L206) | Live region | Opening sharing options… | AppShell(); app.sharing &amp;&amp; |
 ## src/components/app/AppToast.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/app/AppToast.tsx:23](../src/components/app/AppToast.tsx#L23) | Live region | ${toastRecovery ? ( &lt;&gt; {toastRecovery} &lt;button className="icon-button" aria-label="Dismiss loading error" onClick={() =&gt; { commands.dismissPanelMessage(); visibleMenuTrigger()?.focus({ preventScroll: true }); }} &gt; &lt;Icon name="close" width="17" height="17" /&gt; &lt;/button&gt; &lt;/&gt; ) : ( currentNotice &amp;&amp; ( &lt;&gt; &lt;Icon name="info" width="19" height="19" /&gt; &lt;span&gt;{currentNotice}&lt;/span&gt; &lt;button className="icon-button" aria-label="Dismiss notification" onClick={() =&gt; { if (trayError) onDismissTrayError(); else { app.notices.clear(); if (!panelRecovery) commands.dismissPanelMessage(); } }} &gt; &lt;Icon name="close" width="17" height="17" /&gt; &lt;/button&gt; &lt;/&gt; ) )} | AppToast(); when its owning surface/operation is used |
-| [src/components/app/AppToast.tsx:34](../src/components/app/AppToast.tsx#L34) | Label/help | Dismiss loading error | AppToast(); toastRecovery is true |
-| [src/components/app/AppToast.tsx:47](../src/components/app/AppToast.tsx#L47) | Rendered copy | ${currentNotice} | AppToast(); toastRecovery is false; currentNotice &amp;&amp; |
-| [src/components/app/AppToast.tsx:50](../src/components/app/AppToast.tsx#L50) | Label/help | Dismiss notification | AppToast(); toastRecovery is false; currentNotice &amp;&amp; |
+| [src/components/app/AppToast.tsx:27](../src/components/app/AppToast.tsx#L27) | Live region | ${toastRecovery ? ( &lt;&gt; {toastRecovery} &lt;button className="icon-button" aria-label="Dismiss loading error" onClick={() =&gt; { commands.dismissPanelMessage(); visibleMenuTrigger()?.focus({ preventScroll: true }); }} &gt; &lt;Icon name="close" width="17" height="17" /&gt; &lt;/button&gt; &lt;/&gt; ) : ( currentNotice &amp;&amp; ( &lt;&gt; &lt;Icon name="info" width="19" height="19" /&gt; &lt;span&gt;{currentNotice}&lt;/span&gt; &lt;button className="icon-button" aria-label="Dismiss notification" onClick={() =&gt; { if (trayError) onDismissTrayError(); else { app.notices.clear(); if (!panelRecovery) commands.dismissPanelMessage(); } }} &gt; &lt;Icon name="close" width="17" height="17" /&gt; &lt;/button&gt; &lt;/&gt; ) )} | AppToast(); when its owning surface/operation is used |
+| [src/components/app/AppToast.tsx:38](../src/components/app/AppToast.tsx#L38) | Label/help | Dismiss loading error | AppToast(); toastRecovery is true |
+| [src/components/app/AppToast.tsx:51](../src/components/app/AppToast.tsx#L51) | Rendered copy | ${currentNotice} | AppToast(); toastRecovery is false; currentNotice &amp;&amp; |
+| [src/components/app/AppToast.tsx:54](../src/components/app/AppToast.tsx#L54) | Label/help | Dismiss notification | AppToast(); toastRecovery is false; currentNotice &amp;&amp; |
 ## src/components/app/DialogHost.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -2666,43 +2666,43 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/compare-tray/CompareTray.tsx:181](../src/components/compare-tray/CompareTray.tsx#L181) | Message/fragment | Compare tray | label(); persistent is true |
-| [src/components/compare-tray/CompareTray.tsx:181](../src/components/compare-tray/CompareTray.tsx#L181) | Message/fragment | Temporary tray | label(); persistent is false |
-| [src/components/compare-tray/CompareTray.tsx:188](../src/components/compare-tray/CompareTray.tsx#L188) | Label/help | Pinned games for comparison | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:198](../src/components/compare-tray/CompareTray.tsx#L198) | Rendered copy | Drop to pin for comparison | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp;; dragging &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:207](../src/components/compare-tray/CompareTray.tsx#L207) | Label/help | {&#96;${items.length} ${items.length === 1 ? 'game' : 'games'} in ${label}&#96;} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:207](../src/components/compare-tray/CompareTray.tsx#L207) | Message/fragment | ${items.length} ${items.length === 1 ? 'game' : 'games'} in ${label} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:208](../src/components/compare-tray/CompareTray.tsx#L208) | Label/help | {&#96;Open ${label}&#96;} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:208](../src/components/compare-tray/CompareTray.tsx#L208) | Message/fragment | Open ${label} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:213](../src/components/compare-tray/CompareTray.tsx#L213) | Rendered copy | ${items.slice(-3).map((record) =&gt; ( &lt;span className="compare-tray-jacket" key={record.id}&gt; &lt;span className="compare-tray-jacket-arrival" ref={record.id === newestId ? arrivalRef : undefined}&gt; &lt;GameArtwork record={record} artwork={resolveArtwork?.(record)} /&gt; &lt;/span&gt; &lt;/span&gt; ))} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:222](../src/components/compare-tray/CompareTray.tsx#L222) | Rendered copy | ${items.length} ${items.length === 1 ? 'game' : 'games'} in ${label} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:223](../src/components/compare-tray/CompareTray.tsx#L223) | Rendered copy | ${items.length} ${items.length === 1 ? 'game' : 'games'} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:225](../src/components/compare-tray/CompareTray.tsx#L225) | Rendered copy | ${items.length === 1 ? 'game' : 'games'} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:229](../src/components/compare-tray/CompareTray.tsx#L229) | Rendered copy | in ${label} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:236](../src/components/compare-tray/CompareTray.tsx#L236) | Label/help | Compare rankings with friends | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:240](../src/components/compare-tray/CompareTray.tsx#L240) | Rendered copy | Compare rankings with friends | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:241](../src/components/compare-tray/CompareTray.tsx#L241) | Rendered copy | with friends | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:249](../src/components/compare-tray/CompareTray.tsx#L249) | Label/help | Tray storage needs attention | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp;; warning &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:250](../src/components/compare-tray/CompareTray.tsx#L250) | Label/help | Open the tray to review its storage warning | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp;; warning &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:257](../src/components/compare-tray/CompareTray.tsx#L257) | Rendered copy | ${error} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp;; error &amp;&amp; layout === 'inline' &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:261](../src/components/compare-tray/CompareTray.tsx#L261) | Label/help | Dismiss Compare tray message | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp;; error &amp;&amp; layout === 'inline' &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:280](../src/components/compare-tray/CompareTray.tsx#L280) | Rendered copy | Compare tray | ScopedCompareTray(); when its owning surface/operation is used |
-| [src/components/compare-tray/CompareTray.tsx:283](../src/components/compare-tray/CompareTray.tsx#L283) | Rendered copy | ${items.length ? &#96;${items.length} of 6 games. Choose friends to compare their rankings of these games.&#96; : 'Pin a game while browsing to hold it here.'} Pinning does not save, rate or share a game. | ScopedCompareTray(); when its owning surface/operation is used |
-| [src/components/compare-tray/CompareTray.tsx:285](../src/components/compare-tray/CompareTray.tsx#L285) | Message/fragment | ${items.length} of 6 games. Choose friends to compare their rankings of these games. | ScopedCompareTray(); items.length is true |
-| [src/components/compare-tray/CompareTray.tsx:286](../src/components/compare-tray/CompareTray.tsx#L286) | Message/fragment | Pin a game while browsing to hold it here. | ScopedCompareTray(); items.length is false |
-| [src/components/compare-tray/CompareTray.tsx:290](../src/components/compare-tray/CompareTray.tsx#L290) | Live region | ${warning} Reset saved tray | ScopedCompareTray(); warning &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:291](../src/components/compare-tray/CompareTray.tsx#L291) | Rendered copy | ${warning} | ScopedCompareTray(); warning &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:292](../src/components/compare-tray/CompareTray.tsx#L292) | Rendered copy | Reset saved tray | ScopedCompareTray(); warning &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:306](../src/components/compare-tray/CompareTray.tsx#L306) | Rendered copy | ${error} | ScopedCompareTray(); error &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:310](../src/components/compare-tray/CompareTray.tsx#L310) | Label/help | Dismiss Compare tray message | ScopedCompareTray(); error &amp;&amp; |
-| [src/components/compare-tray/CompareTray.tsx:320](../src/components/compare-tray/CompareTray.tsx#L320) | Label/help | Pinned games | ScopedCompareTray(); when its owning surface/operation is used |
-| [src/components/compare-tray/CompareTray.tsx:326](../src/components/compare-tray/CompareTray.tsx#L326) | Rendered copy | ${record.title} | ScopedCompareTray(); onPreview is true |
-| [src/components/compare-tray/CompareTray.tsx:337](../src/components/compare-tray/CompareTray.tsx#L337) | Rendered copy | ${record.title} | ScopedCompareTray(); onPreview is false |
-| [src/components/compare-tray/CompareTray.tsx:339](../src/components/compare-tray/CompareTray.tsx#L339) | Rendered copy | ${SOURCE_LABELS[record.source]} ${record.year !== null ? &#96; · ${record.year}&#96; : ''} | ScopedCompareTray(); when its owning surface/operation is used |
-| [src/components/compare-tray/CompareTray.tsx:352](../src/components/compare-tray/CompareTray.tsx#L352) | Label/help | {&#96;Unpin ${record.title} from comparison&#96;} | ScopedCompareTray(); when its owning surface/operation is used |
-| [src/components/compare-tray/CompareTray.tsx:352](../src/components/compare-tray/CompareTray.tsx#L352) | Message/fragment | Unpin ${record.title} from comparison | ScopedCompareTray(); when its owning surface/operation is used |
-| [src/components/compare-tray/CompareTray.tsx:361](../src/components/compare-tray/CompareTray.tsx#L361) | Rendered copy | Clear all | ScopedCompareTray(); when its owning surface/operation is used |
-| [src/components/compare-tray/CompareTray.tsx:372](../src/components/compare-tray/CompareTray.tsx#L372) | Rendered copy | Choose friends | ScopedCompareTray(); when its owning surface/operation is used |
+| [src/components/compare-tray/CompareTray.tsx:184](../src/components/compare-tray/CompareTray.tsx#L184) | Message/fragment | Compare tray | label(); persistent is true |
+| [src/components/compare-tray/CompareTray.tsx:184](../src/components/compare-tray/CompareTray.tsx#L184) | Message/fragment | Temporary tray | label(); persistent is false |
+| [src/components/compare-tray/CompareTray.tsx:191](../src/components/compare-tray/CompareTray.tsx#L191) | Label/help | Pinned games for comparison | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:201](../src/components/compare-tray/CompareTray.tsx#L201) | Rendered copy | Drop to pin for comparison | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp;; dragging &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:210](../src/components/compare-tray/CompareTray.tsx#L210) | Label/help | {&#96;${items.length} ${items.length === 1 ? 'game' : 'games'} in ${label}&#96;} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:210](../src/components/compare-tray/CompareTray.tsx#L210) | Message/fragment | ${items.length} ${items.length === 1 ? 'game' : 'games'} in ${label} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:211](../src/components/compare-tray/CompareTray.tsx#L211) | Label/help | {&#96;Open ${label}&#96;} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:211](../src/components/compare-tray/CompareTray.tsx#L211) | Message/fragment | Open ${label} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:216](../src/components/compare-tray/CompareTray.tsx#L216) | Rendered copy | ${items.slice(-3).map((record) =&gt; ( &lt;span className="compare-tray-jacket" key={record.id}&gt; &lt;span className="compare-tray-jacket-arrival" ref={record.id === newestId ? arrivalRef : undefined}&gt; &lt;GameArtwork record={record} artwork={resolveArtwork?.(record)} /&gt; &lt;/span&gt; &lt;/span&gt; ))} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:225](../src/components/compare-tray/CompareTray.tsx#L225) | Rendered copy | ${items.length} ${items.length === 1 ? 'game' : 'games'} in ${label} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:226](../src/components/compare-tray/CompareTray.tsx#L226) | Rendered copy | ${items.length} ${items.length === 1 ? 'game' : 'games'} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:228](../src/components/compare-tray/CompareTray.tsx#L228) | Rendered copy | ${items.length === 1 ? 'game' : 'games'} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:232](../src/components/compare-tray/CompareTray.tsx#L232) | Rendered copy | in ${label} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:239](../src/components/compare-tray/CompareTray.tsx#L239) | Label/help | Compare rankings with friends | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:243](../src/components/compare-tray/CompareTray.tsx#L243) | Rendered copy | Compare rankings with friends | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:244](../src/components/compare-tray/CompareTray.tsx#L244) | Rendered copy | with friends | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:252](../src/components/compare-tray/CompareTray.tsx#L252) | Label/help | Tray storage needs attention | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp;; warning &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:253](../src/components/compare-tray/CompareTray.tsx#L253) | Label/help | Open the tray to review its storage warning | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp;; warning &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:260](../src/components/compare-tray/CompareTray.tsx#L260) | Rendered copy | ${error} | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp;; error &amp;&amp; layout === 'inline' &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:264](../src/components/compare-tray/CompareTray.tsx#L264) | Label/help | Dismiss Compare tray message | ScopedCompareTray(); hasTray &amp;&amp; !hidden &amp;&amp;; error &amp;&amp; layout === 'inline' &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:283](../src/components/compare-tray/CompareTray.tsx#L283) | Rendered copy | Compare tray | ScopedCompareTray(); when its owning surface/operation is used |
+| [src/components/compare-tray/CompareTray.tsx:286](../src/components/compare-tray/CompareTray.tsx#L286) | Rendered copy | ${items.length ? &#96;${items.length} of 6 games. Choose friends to compare their rankings of these games.&#96; : 'Pin a game while browsing to hold it here.'} Pinning does not save, rate or share a game. | ScopedCompareTray(); when its owning surface/operation is used |
+| [src/components/compare-tray/CompareTray.tsx:288](../src/components/compare-tray/CompareTray.tsx#L288) | Message/fragment | ${items.length} of 6 games. Choose friends to compare their rankings of these games. | ScopedCompareTray(); items.length is true |
+| [src/components/compare-tray/CompareTray.tsx:289](../src/components/compare-tray/CompareTray.tsx#L289) | Message/fragment | Pin a game while browsing to hold it here. | ScopedCompareTray(); items.length is false |
+| [src/components/compare-tray/CompareTray.tsx:293](../src/components/compare-tray/CompareTray.tsx#L293) | Live region | ${warning} Reset saved tray | ScopedCompareTray(); warning &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:294](../src/components/compare-tray/CompareTray.tsx#L294) | Rendered copy | ${warning} | ScopedCompareTray(); warning &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:295](../src/components/compare-tray/CompareTray.tsx#L295) | Rendered copy | Reset saved tray | ScopedCompareTray(); warning &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:309](../src/components/compare-tray/CompareTray.tsx#L309) | Rendered copy | ${error} | ScopedCompareTray(); error &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:313](../src/components/compare-tray/CompareTray.tsx#L313) | Label/help | Dismiss Compare tray message | ScopedCompareTray(); error &amp;&amp; |
+| [src/components/compare-tray/CompareTray.tsx:323](../src/components/compare-tray/CompareTray.tsx#L323) | Label/help | Pinned games | ScopedCompareTray(); when its owning surface/operation is used |
+| [src/components/compare-tray/CompareTray.tsx:329](../src/components/compare-tray/CompareTray.tsx#L329) | Rendered copy | ${record.title} | ScopedCompareTray(); onPreview is true |
+| [src/components/compare-tray/CompareTray.tsx:340](../src/components/compare-tray/CompareTray.tsx#L340) | Rendered copy | ${record.title} | ScopedCompareTray(); onPreview is false |
+| [src/components/compare-tray/CompareTray.tsx:342](../src/components/compare-tray/CompareTray.tsx#L342) | Rendered copy | ${SOURCE_LABELS[record.source]} ${record.year !== null ? &#96; · ${record.year}&#96; : ''} | ScopedCompareTray(); when its owning surface/operation is used |
+| [src/components/compare-tray/CompareTray.tsx:355](../src/components/compare-tray/CompareTray.tsx#L355) | Label/help | {&#96;Unpin ${record.title} from comparison&#96;} | ScopedCompareTray(); when its owning surface/operation is used |
+| [src/components/compare-tray/CompareTray.tsx:355](../src/components/compare-tray/CompareTray.tsx#L355) | Message/fragment | Unpin ${record.title} from comparison | ScopedCompareTray(); when its owning surface/operation is used |
+| [src/components/compare-tray/CompareTray.tsx:364](../src/components/compare-tray/CompareTray.tsx#L364) | Rendered copy | Clear all | ScopedCompareTray(); when its owning surface/operation is used |
+| [src/components/compare-tray/CompareTray.tsx:375](../src/components/compare-tray/CompareTray.tsx#L375) | Rendered copy | Choose friends | ScopedCompareTray(); when its owning surface/operation is used |
 ## src/components/compare-tray/CompareTrayProvider.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |

@@ -5,6 +5,7 @@ import type { LibraryRecord } from '../../lib/personal-types';
 import { catalogPinnedIds } from '../../lib/catalog-identity';
 import { ONLINE_AVAILABLE, ONLINE_CONFIG_ERROR } from '../../lib/online-availability';
 import { prefetchAppTools } from '../../lib/app-tool-preload';
+import { ROOT_FLAGS, useRootFlag } from '../../lib/root-flag';
 import type { MotionBindings } from '../../AppMotionBindings';
 import { useStableHandler, useStableHandlers } from '../../hooks/useLatest';
 import { ExtendedSearchResultsContext } from '../../hooks/useExtendedSearch';
@@ -54,6 +55,9 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
   const inlineTray = page === 'collection' && app.filters.view === 'table' && app.collection.status === 'ready';
   const trayHidden = onlineOpening || Boolean(selectedSlug) || Boolean(panel) || Boolean(manualLink);
   const trayHasContent = tray.items.length > 0 || Boolean(tray.warning) || Boolean(tray.error);
+  // The floating tray's reserve marks <body> while it shows, for the mobile navigation beside it (root-flag.ts).
+  const trayReserve = !inlineTray && trayHasContent;
+  useRootFlag('body', ROOT_FLAGS.trayReserve, trayReserve);
   // The table's inline strip shows its own error, so the toast doesn't repeat it (UX-007).
   const trayError = !app.motionBlocked && (!inlineTray || trayHidden) ? tray.error : null;
   const compare = useCallback(
@@ -182,9 +186,7 @@ export function AppShell({ app, mainRef, motion, tray, artwork, previewLoading, 
           onMenu={chrome.onMenu}
           onIntent={prefetchAppTools}
         />
-        {!inlineTray && trayHasContent && (
-          <div className="compare-tray-reserve" data-error={Boolean(tray.error)} aria-hidden="true" />
-        )}
+        {trayReserve && <div className="compare-tray-reserve" data-error={Boolean(tray.error)} aria-hidden="true" />}
         <AppDialogs
           app={app}
           clearComparePins={tray.clear}

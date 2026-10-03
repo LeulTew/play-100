@@ -2,6 +2,7 @@ import { useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, use
 import type { LibraryRecord } from '../../lib/personal-types';
 import type { AppPage } from '../../lib/types';
 import { SOURCE_LABELS } from '../../lib/personal-types';
+import { ROOT_FLAGS, useRootFlag } from '../../lib/root-flag';
 import { Dialog } from '../Dialog';
 import { Icon } from '../Icon';
 import { GameArtwork, GameArtworkCredit } from '../games/GameArtwork';
@@ -66,6 +67,8 @@ function ScopedCompareTray({
   );
   const hasContent = items.length > 0 || Boolean(warning) || Boolean(error);
   const hasTray = hasContent || dragging;
+  // The docked chip marks <html> while it shows, for the scroll padding and the toast above it (root-flag.ts).
+  useRootFlag('html', ROOT_FLAGS.compareChip, hasTray && !hidden && layout === 'dock');
   useLayoutEffect(() => {
     const node = dock.current;
     const header = document.querySelector('.site-header');
