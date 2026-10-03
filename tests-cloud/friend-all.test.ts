@@ -1362,6 +1362,56 @@ describe('All-sharing bounded SDK transport', () => {
       expect(await a.all.head(a.uid, 'games')).toMatchObject({ status: 'ready', count: 2 });
     });
   });
+  // REL-13 (docs/intermittents.md): a policy change whose commit applied although the client was told it failed, so the
+  // SDK ran the transaction again and read the change it had just made.
+  describe('a policy change run again after its commit applied', () => {
+    async function runAgainAfterCommit() {
+      const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+      const runs = { count: 0 };
+      vi.mocked<RunTransaction>(runTransaction).mockImplementationOnce(
+        async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) => {
+          const counted = (tx: Transaction) => {
+            runs.count += 1;
+            return operation(tx);
+          };
+          await actual.runTransaction(db, counted, options);
+          return actual.runTransaction(db, counted, options);
+        },
+      );
+      return runs;
+    }
+    // Off is the online-copy deletion's first step; on is the same change in the other direction.
+    it.each([false, true])('ends as its own commit did (sharing on: %s)', async (enabled) => {
+      const a = await client();
+      await enable(a, 'explicit');
+      if (enabled) await a.all.setPolicy(a.uid, false, 'explicit', await a.all.controls(a.uid), () => true);
+      const expected = await a.all.controls(a.uid);
+      const runs = await runAgainAfterCommit();
+      const policy = await a.all.setPolicy(a.uid, enabled, 'explicit', expected, () => true);
+      expect(runs.count).toBe(2);
+      expect(policy).toMatchObject({ enabled, origin: 'explicit', revision: expected.policy!.revision + 1 });
+      const after = await a.all.controls(a.uid);
+      expect(after.policy).toEqual(policy);
+      expect(after.ranking).toMatchObject({ enabled, revision: expected.ranking!.revision + 1 });
+      expect(after.shelf).toMatchObject({ enabled, revision: expected.shelf!.revision + 1 });
+    });
+    it('still refuses a newer policy another tab wrote after it was read, even one that is also off', async () => {
+      const a = await client();
+      await enable(a, 'explicit');
+      const expected = await a.all.controls(a.uid);
+      await a.all.setPolicy(a.uid, false, 'explicit', expected, () => true);
+      const reenabled = await a.all.setPolicy(a.uid, true, 'explicit', await a.all.controls(a.uid), () => true);
+      await expect(a.all.setPolicy(a.uid, false, 'explicit', expected, () => true)).rejects.toMatchObject({
+        code: 'conflict',
+      });
+      expect(await a.all.policy(a.uid)).toEqual(reenabled);
+      const stopped = await a.all.setPolicy(a.uid, false, 'explicit', await a.all.controls(a.uid), () => true);
+      await expect(a.all.setPolicy(a.uid, false, 'explicit', expected, () => true)).rejects.toMatchObject({
+        code: 'conflict',
+      });
+      expect(await a.all.policy(a.uid)).toEqual(stopped);
+    });
+  });
   it.each(['collection', 'wikidata', 'steam', 'freetogame', 'manual'] as const)(
     'validates both worst-size %s records within the bounded write budget',
     async (type) => {

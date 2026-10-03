@@ -22,7 +22,7 @@ import type {
   Firestore,
   QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import type { FriendAllEntry, FriendAllKind, FriendAllPolicy } from '../lib/friend-all';
+import type { FriendAllBinding, FriendAllEntry, FriendAllKind, FriendAllPolicy } from '../lib/friend-all';
 import {
   FRIEND_ALL_EXACT_LIMIT,
   FRIEND_ALL_LIMIT,
@@ -94,6 +94,46 @@ function controlsMatch(a: FriendAllControls, b: FriendAllControls): boolean {
     a.policy?.revision === b.policy?.revision &&
     a.ranking?.revision === b.ranking?.revision &&
     a.shelf?.revision === b.shelf?.revision
+  );
+}
+function stepped(control: FriendAllBinding | null): FriendAllBinding {
+  return { epoch: (control?.epoch ?? 0) + 1, revision: (control?.revision ?? 0) + 1 };
+}
+function sameBinding(a: FriendAllBinding, b: FriendAllBinding): boolean {
+  return a.epoch === b.epoch && a.revision === b.revision;
+}
+/**
+ * Whether the controls hold exactly what setPolicy writes from `expected`: each control one epoch and revision on and
+ * in the requested state, and the policy bound to both settings under the same saving consent. That is the request's
+ * own commit when the client was told it failed and the SDK ran the transaction again (docs/intermittents.md, REL-13),
+ * or the identical change from the same controls. Any later or different change leaves another state.
+ */
+function policyApplied(
+  controls: FriendAllControls,
+  expected: FriendAllControls,
+  enabled: boolean,
+  origin: FriendAllPolicy['origin'],
+  syncEpoch: number | undefined,
+): boolean {
+  const { policy, ranking, shelf } = controls;
+  if (!policy || !ranking || !shelf) return false;
+  return (
+    policy.enabled === enabled &&
+    !policy.deleted &&
+    policy.origin === origin &&
+    policy.syncEpoch === syncEpoch &&
+    sameBinding(policy, stepped(expected.policy)) &&
+    sameBinding(policy.ranking, stepped(expected.ranking)) &&
+    sameBinding(policy.shelf, stepped(expected.shelf)) &&
+    sameBinding(ranking, policy.ranking) &&
+    sameBinding(shelf, policy.shelf) &&
+    ranking.enabled === enabled &&
+    shelf.enabled === enabled &&
+    !ranking.deleted &&
+    !shelf.deleted &&
+    !ranking.selectedIds.length &&
+    !shelf.selectedIds.length &&
+    shelf.consentSyncEpoch === (enabled ? syncEpoch : null)
   );
 }
 /**
@@ -303,6 +343,9 @@ export class FriendAllStore {
       if (old.policy?.deleted || old.ranking?.deleted || old.shelf?.deleted || (next && sync?.deleted))
         throw new FriendStoreError('deleted', 'This account has been revoked. Automatic sharing cannot be enabled.');
       if (origin === 'default' && defaultSkips(old, saving)) return false;
+      // This request's own commit, applied although the client was told it failed, so the SDK ran the transaction
+      // again (REL-13). It ends as that commit did; a default setup's second run already returns above.
+      if (policyApplied(old, expected, next, origin, sync?.epoch ?? expected.policy?.syncEpoch)) return true;
       if (!controlsMatch(old, expected)) conflict();
       if (next && !saving)
         throw new FriendStoreError('unavailable', 'Turn on account saving before sharing its games.');
