@@ -152,6 +152,10 @@ export default defineConfig(({ mode }) => {
             name: 'unit',
             include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
             exclude: [...configDefaults.exclude, 'src/**/*.browser.test.ts'],
+            // The release gate runs on a shared Windows host. Under other projects' load, CPU-bound fixtures (the lean
+            // manifest, the type-aware ESLint config) took over 5 s where they take under 1 s alone. A timeout only
+            // bounds a hang; no assertion depends on it.
+            testTimeout: 20_000,
           },
         },
         {
