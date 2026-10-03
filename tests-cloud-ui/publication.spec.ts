@@ -136,6 +136,9 @@ test('Community keeps its URL in step with the directory it shows, through Show 
   const search = () => new URL(page.url()).search;
   await page.goto('/community?catalogs=off');
   await expect(directory).toBeVisible();
+  await expect(page.locator('.community-search')).not.toContainText('Search listed handles.');
+  await expect(find).toBeVisible();
+  await expect(field).toBeVisible();
   await field.fill('9zz');
   await find.click();
   const invalid = page.getByRole('alert').filter({ hasText: 'Search by the start of a handle' });

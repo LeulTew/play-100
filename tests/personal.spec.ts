@@ -291,6 +291,18 @@ test('backup export and validated replacement restore queue and private rankings
     'Your backup was restored and saved on this device.',
   );
   await expect(resetStatus).toHaveCount(0);
+  const restored = await readLibrary(page);
+  await page.getByLabel('Import personal library backup file').setInputFiles({
+    name: 'invalid-export-date.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({ ...backup, exportedAt: '2026-02-30T12:00:00.000Z' })),
+  });
+  await expect(page.locator('.backup-panel .inline-error')).toHaveText(
+    "This isn't a supported Play 100 backup. Choose a JSON file made with Export my library. Your existing data hasn't changed.",
+  );
+  await expect(page.locator('.backup-panel')).not.toContainText('ISO timestamp');
+  await expect(page.locator('.restore-preview')).toHaveCount(0);
+  expect(await readLibrary(page)).toEqual(restored);
   await page.getByLabel('Import personal library backup file').setInputFiles({
     name: 'corrupt.json',
     mimeType: 'application/json',

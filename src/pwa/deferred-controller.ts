@@ -64,7 +64,7 @@ export function createDeferredPwaController(loadClient = pwaClientModule.load): 
   const captureInstalled = () => {
     installed = true;
     prompt = null;
-    publish({ ...state, installState: 'installed', message: 'Play 100 was added by this browser.' });
+    publish({ ...state, installState: 'installed', message: 'Play 100 was added on this device.' });
   };
   const online = () => {
     publish({ ...state, online: navigator.onLine });

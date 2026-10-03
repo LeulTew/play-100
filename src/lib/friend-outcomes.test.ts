@@ -1,7 +1,30 @@
 import { expect, it, vi } from 'vitest';
 import { FriendCommittedError } from './friend-types';
 import type { FriendSettings } from './friend-types';
-import { committedFriendChange, friendMutationError, refreshCommittedFriendChange } from '../cloud/friend-outcomes';
+import {
+  committedFriendChange,
+  committedFriendMessage,
+  friendMutationError,
+  refreshCommittedFriendChange,
+} from '../cloud/friend-outcomes';
+
+it.each([
+  [
+    'refresh',
+    'Shared ranking saved. Its latest status could not be loaded. In Account, choose Refresh selected sharing to retry.',
+  ],
+  [
+    'cleanup',
+    'Shared ranking saved. Older shared copies could not be removed. In Account, choose Refresh selected sharing to retry.',
+  ],
+] as const)('explains the acknowledged ranking change and remaining %s action', (phase, message) => {
+  const committed = new FriendCommittedError(
+    { operation: 'publish-ranking', uid: 'alice' },
+    new Error('Synthetic follow-up failure'),
+    phase,
+  );
+  expect(committedFriendMessage(committed)).toBe(message);
+});
 
 it.each(['refresh', 'cleanup'] as const)(
   'repairs a known publication %s failure by pruning and reading, never republishing',

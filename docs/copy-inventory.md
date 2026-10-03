@@ -6,7 +6,7 @@ The unit-test gate regenerates this inventory and rejects stale content or sourc
 
 ## Scope and reading convention
 
-Scanned 387 production TS/TSX/JS files and standalone HTML fallbacks; 3789 source entries.
+Scanned 387 production TS/TSX/JS files and standalone HTML fallbacks; 3790 source entries.
 This is a deliberately inclusive inventory of rendered text, accessible labels,
 message outputs, message constants and validation/error strings. It includes the
 Discover help/source notes, Settings/backups/PWA, empty states, confirmations,
@@ -45,6 +45,22 @@ completed. Empty-state headings and fallback success messages now use the same
 plain voice. Existing privacy exclusions, storage guarantees and original scores
 are preserved. Single-game messages retain the game name and authoritative
 transaction feedback; bulk actions retain accurate changed/unchanged counts.
+
+### COPY-020 and COPY-021 read-aloud pass (2026-10-03)
+
+Read the touched removal, backup, sharing, installation and Community strings
+in their interaction order, including singular, plural and no-ranked-game cases.
+Removal names the exact number leaving Ranking and explains that games below
+move up, before the existing Keep game/Keep games and backup warning. It does
+not claim a ranking change for an unranked selection. Sharing feedback first
+confirms the saved ranking, then distinguishes the failed status read from
+older-copy removal and names Account > Refresh selected sharing.
+Installation says on this device in both early and loaded-client paths.
+Community keeps its purpose, field label and Find handles action without
+the repeated helper. The backup finding was the phrase ISO timestamp, not a
+displayed date: it now names an invalid export date and asks for a new backup.
+Strict date validation and the existing safe Settings rejection stay unchanged.
+The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 ## api/_lib/catalog-detail-data.ts
 
@@ -565,24 +581,23 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 | [src/cloud/CommunityPage.tsx:105](../src/cloud/CommunityPage.tsx#L105) | Rendered copy | Handle prefix | CommunityPage(); when its owning surface/operation is used |
 | [src/cloud/CommunityPage.tsx:118](../src/cloud/CommunityPage.tsx#L118) | Label/help | Start of a handle… | CommunityPage(); when its owning surface/operation is used |
 | [src/cloud/CommunityPage.tsx:121](../src/cloud/CommunityPage.tsx#L121) | Rendered copy | Find handles | CommunityPage(); when its owning surface/operation is used |
-| [src/cloud/CommunityPage.tsx:125](../src/cloud/CommunityPage.tsx#L125) | Rendered copy | Search listed handles. | CommunityPage(); when its owning surface/operation is used |
-| [src/cloud/CommunityPage.tsx:128](../src/cloud/CommunityPage.tsx#L128) | Live region | ${error} Try again | CommunityPage(); error &amp;&amp; |
-| [src/cloud/CommunityPage.tsx:129](../src/cloud/CommunityPage.tsx#L129) | Rendered copy | ${error} | CommunityPage(); error &amp;&amp; |
-| [src/cloud/CommunityPage.tsx:130](../src/cloud/CommunityPage.tsx#L130) | Rendered copy | Try again | CommunityPage(); error &amp;&amp; |
-| [src/cloud/CommunityPage.tsx:142](../src/cloud/CommunityPage.tsx#L142) | Live region | Opening shared rankings… | CommunityPage(); busy &amp;&amp; |
-| [src/cloud/CommunityPage.tsx:164](../src/cloud/CommunityPage.tsx#L164) | Rendered copy | @${profile.handle} ${profile.creator ? ' · Collection creator' : ''} | CommunityPage(); results.length &gt; 0 &amp;&amp; |
-| [src/cloud/CommunityPage.tsx:166](../src/cloud/CommunityPage.tsx#L166) | Message/fragment | · Collection creator | CommunityPage(); results.length &gt; 0 &amp;&amp;; profile.creator is true |
-| [src/cloud/CommunityPage.tsx:169](../src/cloud/CommunityPage.tsx#L169) | Rendered copy | ${profile.title} | CommunityPage(); results.length &gt; 0 &amp;&amp; |
-| [src/cloud/CommunityPage.tsx:170](../src/cloud/CommunityPage.tsx#L170) | Rendered copy | ${profile.preview.join(' · ')} | CommunityPage(); results.length &gt; 0 &amp;&amp; |
-| [src/cloud/CommunityPage.tsx:172](../src/cloud/CommunityPage.tsx#L172) | Rendered copy | ${profile.count} ranked Open ${profile.displayName}'s ranking | CommunityPage(); results.length &gt; 0 &amp;&amp; |
-| [src/cloud/CommunityPage.tsx:184](../src/cloud/CommunityPage.tsx#L184) | Rendered copy | Open ${profile.displayName}'s ranking | CommunityPage(); results.length &gt; 0 &amp;&amp; |
-| [src/cloud/CommunityPage.tsx:193](../src/cloud/CommunityPage.tsx#L193) | Rendered copy | ${term ? 'No matching handles' : 'No listed rankings'} | CommunityPage(); !busy &amp;&amp; !error &amp;&amp; !results.length &amp;&amp; |
-| [src/cloud/CommunityPage.tsx:193](../src/cloud/CommunityPage.tsx#L193) | Message/fragment | No listed rankings | CommunityPage(); !busy &amp;&amp; !error &amp;&amp; !results.length &amp;&amp;; term is false |
-| [src/cloud/CommunityPage.tsx:193](../src/cloud/CommunityPage.tsx#L193) | Message/fragment | No matching handles | CommunityPage(); !busy &amp;&amp; !error &amp;&amp; !results.length &amp;&amp;; term is true |
-| [src/cloud/CommunityPage.tsx:194](../src/cloud/CommunityPage.tsx#L194) | Rendered copy | Try a shorter prefix. | CommunityPage(); !busy &amp;&amp; !error &amp;&amp; !results.length &amp;&amp;; term &amp;&amp; |
-| [src/cloud/CommunityPage.tsx:196](../src/cloud/CommunityPage.tsx#L196) | Rendered copy | Show listed profiles | CommunityPage(); !busy &amp;&amp; !error &amp;&amp; !results.length &amp;&amp;; term &amp;&amp; |
-| [src/cloud/CommunityPage.tsx:210](../src/cloud/CommunityPage.tsx#L210) | Rendered copy | ${results.length} listed profiles loaded | CommunityPage(); cursor &amp;&amp; |
-| [src/cloud/CommunityPage.tsx:211](../src/cloud/CommunityPage.tsx#L211) | Rendered copy | Load next 20 | CommunityPage(); cursor &amp;&amp; |
+| [src/cloud/CommunityPage.tsx:127](../src/cloud/CommunityPage.tsx#L127) | Live region | ${error} Try again | CommunityPage(); error &amp;&amp; |
+| [src/cloud/CommunityPage.tsx:128](../src/cloud/CommunityPage.tsx#L128) | Rendered copy | ${error} | CommunityPage(); error &amp;&amp; |
+| [src/cloud/CommunityPage.tsx:129](../src/cloud/CommunityPage.tsx#L129) | Rendered copy | Try again | CommunityPage(); error &amp;&amp; |
+| [src/cloud/CommunityPage.tsx:141](../src/cloud/CommunityPage.tsx#L141) | Live region | Opening shared rankings… | CommunityPage(); busy &amp;&amp; |
+| [src/cloud/CommunityPage.tsx:163](../src/cloud/CommunityPage.tsx#L163) | Rendered copy | @${profile.handle} ${profile.creator ? ' · Collection creator' : ''} | CommunityPage(); results.length &gt; 0 &amp;&amp; |
+| [src/cloud/CommunityPage.tsx:165](../src/cloud/CommunityPage.tsx#L165) | Message/fragment | · Collection creator | CommunityPage(); results.length &gt; 0 &amp;&amp;; profile.creator is true |
+| [src/cloud/CommunityPage.tsx:168](../src/cloud/CommunityPage.tsx#L168) | Rendered copy | ${profile.title} | CommunityPage(); results.length &gt; 0 &amp;&amp; |
+| [src/cloud/CommunityPage.tsx:169](../src/cloud/CommunityPage.tsx#L169) | Rendered copy | ${profile.preview.join(' · ')} | CommunityPage(); results.length &gt; 0 &amp;&amp; |
+| [src/cloud/CommunityPage.tsx:171](../src/cloud/CommunityPage.tsx#L171) | Rendered copy | ${profile.count} ranked Open ${profile.displayName}'s ranking | CommunityPage(); results.length &gt; 0 &amp;&amp; |
+| [src/cloud/CommunityPage.tsx:183](../src/cloud/CommunityPage.tsx#L183) | Rendered copy | Open ${profile.displayName}'s ranking | CommunityPage(); results.length &gt; 0 &amp;&amp; |
+| [src/cloud/CommunityPage.tsx:192](../src/cloud/CommunityPage.tsx#L192) | Rendered copy | ${term ? 'No matching handles' : 'No listed rankings'} | CommunityPage(); !busy &amp;&amp; !error &amp;&amp; !results.length &amp;&amp; |
+| [src/cloud/CommunityPage.tsx:192](../src/cloud/CommunityPage.tsx#L192) | Message/fragment | No listed rankings | CommunityPage(); !busy &amp;&amp; !error &amp;&amp; !results.length &amp;&amp;; term is false |
+| [src/cloud/CommunityPage.tsx:192](../src/cloud/CommunityPage.tsx#L192) | Message/fragment | No matching handles | CommunityPage(); !busy &amp;&amp; !error &amp;&amp; !results.length &amp;&amp;; term is true |
+| [src/cloud/CommunityPage.tsx:193](../src/cloud/CommunityPage.tsx#L193) | Rendered copy | Try a shorter prefix. | CommunityPage(); !busy &amp;&amp; !error &amp;&amp; !results.length &amp;&amp;; term &amp;&amp; |
+| [src/cloud/CommunityPage.tsx:195](../src/cloud/CommunityPage.tsx#L195) | Rendered copy | Show listed profiles | CommunityPage(); !busy &amp;&amp; !error &amp;&amp; !results.length &amp;&amp;; term &amp;&amp; |
+| [src/cloud/CommunityPage.tsx:209](../src/cloud/CommunityPage.tsx#L209) | Rendered copy | ${results.length} listed profiles loaded | CommunityPage(); cursor &amp;&amp; |
+| [src/cloud/CommunityPage.tsx:210](../src/cloud/CommunityPage.tsx#L210) | Rendered copy | Load next 20 | CommunityPage(); cursor &amp;&amp; |
 ## src/cloud/CreatorPage.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -763,10 +778,11 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 | [src/cloud/friend-outcomes.ts:20](../src/cloud/friend-outcomes.ts#L20) | Message/fragment | Connection updated. Reconnect to refresh Friends. | committedFriendMessage(); case 'respond' |
 | [src/cloud/friend-outcomes.ts:22](../src/cloud/friend-outcomes.ts#L22) | Message/fragment | Invitation created. Reconnect and open Invite links to retrieve it. | committedFriendMessage(); case 'create-invite' |
 | [src/cloud/friend-outcomes.ts:24](../src/cloud/friend-outcomes.ts#L24) | Message/fragment | Invitation accepted. Reconnect to open Friends. | committedFriendMessage(); case 'accept-invite' |
-| [src/cloud/friend-outcomes.ts:26](../src/cloud/friend-outcomes.ts#L26) | Message/fragment | Shared ranking saved. Refresh or cleanup is still pending. | committedFriendMessage(); case 'publish-ranking' |
-| [src/cloud/friend-outcomes.ts:28](../src/cloud/friend-outcomes.ts#L28) | Message/fragment | Group saved. Refresh groups before editing it again. | committedFriendMessage(); case 'save-group' |
-| [src/cloud/friend-outcomes.ts:34](../src/cloud/friend-outcomes.ts#L34) | Message/fragment | The change could not be confirmed. Reconnect and refresh its status before trying again. | friendMutationError(); kind === 'transient' is true |
-| [src/cloud/friend-outcomes.ts:36](../src/cloud/friend-outcomes.ts#L36) | Message/fragment | The online service has reached a limit. Wait, then refresh to check whether the change was saved. | friendMutationError(); kind === 'quota' is true |
+| [src/cloud/friend-outcomes.ts:27](../src/cloud/friend-outcomes.ts#L27) | Message/fragment | Shared ranking saved. Older shared copies could not be removed. In Account, choose Refresh selected sharing to retry. | committedFriendMessage(); case 'publish-ranking'; cause.phase === 'cleanup' is true |
+| [src/cloud/friend-outcomes.ts:28](../src/cloud/friend-outcomes.ts#L28) | Message/fragment | Shared ranking saved. Its latest status could not be loaded. In Account, choose Refresh selected sharing to retry. | committedFriendMessage(); case 'publish-ranking'; cause.phase === 'cleanup' is false |
+| [src/cloud/friend-outcomes.ts:30](../src/cloud/friend-outcomes.ts#L30) | Message/fragment | Group saved. Refresh groups before editing it again. | committedFriendMessage(); case 'save-group' |
+| [src/cloud/friend-outcomes.ts:36](../src/cloud/friend-outcomes.ts#L36) | Message/fragment | The change could not be confirmed. Reconnect and refresh its status before trying again. | friendMutationError(); kind === 'transient' is true |
+| [src/cloud/friend-outcomes.ts:38](../src/cloud/friend-outcomes.ts#L38) | Message/fragment | The online service has reached a limit. Wait, then refresh to check whether the change was saved. | friendMutationError(); kind === 'quota' is true |
 ## src/cloud/friend-page-actions.ts
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -3341,26 +3357,27 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/personal/RemoveGamesDialog.tsx:26](../src/components/personal/RemoveGamesDialog.tsx#L26) | Message/fragment | Remove ${remaining.length} games? | title(); remaining.length === 1 is false |
-| [src/components/personal/RemoveGamesDialog.tsx:26](../src/components/personal/RemoveGamesDialog.tsx#L26) | Message/fragment | Remove this game? | title(); remaining.length === 1 is true |
-| [src/components/personal/RemoveGamesDialog.tsx:49](../src/components/personal/RemoveGamesDialog.tsx#L49) | Rendered copy | ${remaining.length ? title : 'Already removed.'} | RemoveGamesDialog(); when its owning surface/operation is used |
-| [src/components/personal/RemoveGamesDialog.tsx:49](../src/components/personal/RemoveGamesDialog.tsx#L49) | Message/fragment | Already removed. | RemoveGamesDialog(); remaining.length is false |
-| [src/components/personal/RemoveGamesDialog.tsx:50](../src/components/personal/RemoveGamesDialog.tsx#L50) | Rendered copy | ${remaining.length === 1 ? 'This deletes its saved entry, Play later position, Played and Completed marks, personal rating and note from this browser. The original 100 and its ratings never change.' : remaining.length ? 'This deletes their saved entries, Play later positions, Played and Completed marks, personal ratings and notes from this browser. The original 100 and its ratings never change.' : 'These games are no longer in your private library. No other games will be removed.'} | RemoveGamesDialog(); when its owning surface/operation is used |
-| [src/components/personal/RemoveGamesDialog.tsx:52](../src/components/personal/RemoveGamesDialog.tsx#L52) | Message/fragment | This deletes its saved entry, Play later position, Played and Completed marks, personal rating and note from this browser. The original 100 and its ratings never change. | RemoveGamesDialog(); remaining.length === 1 is true |
-| [src/components/personal/RemoveGamesDialog.tsx:54](../src/components/personal/RemoveGamesDialog.tsx#L54) | Message/fragment | This deletes their saved entries, Play later positions, Played and Completed marks, personal ratings and notes from this browser. The original 100 and its ratings never change. | RemoveGamesDialog(); remaining.length === 1 is false; remaining.length is true |
-| [src/components/personal/RemoveGamesDialog.tsx:55](../src/components/personal/RemoveGamesDialog.tsx#L55) | Message/fragment | These games are no longer in your private library. No other games will be removed. | RemoveGamesDialog(); remaining.length === 1 is false; remaining.length is false |
-| [src/components/personal/RemoveGamesDialog.tsx:58](../src/components/personal/RemoveGamesDialog.tsx#L58) | Rendered copy | This account-library removal will sync while online saving is enabled. Any separately published snapshot stays unchanged until you update or unpublish it. | RemoveGamesDialog(); mode.scope !== 'guest' &amp;&amp; |
-| [src/components/personal/RemoveGamesDialog.tsx:71](../src/components/personal/RemoveGamesDialog.tsx#L71) | Rendered copy | ${remaining.length === 1 ? 'This cannot be undone. To keep a copy, choose Keep game and export a backup from Settings first.' : 'This cannot be undone. To keep a copy, choose Keep games and export a backup from Settings first.'} | RemoveGamesDialog(); remaining.length &gt; 0 &amp;&amp; |
-| [src/components/personal/RemoveGamesDialog.tsx:73](../src/components/personal/RemoveGamesDialog.tsx#L73) | Message/fragment | This cannot be undone. To keep a copy, choose Keep game and export a backup from Settings first. | RemoveGamesDialog(); remaining.length &gt; 0 &amp;&amp;; remaining.length === 1 is true |
-| [src/components/personal/RemoveGamesDialog.tsx:74](../src/components/personal/RemoveGamesDialog.tsx#L74) | Message/fragment | This cannot be undone. To keep a copy, choose Keep games and export a backup from Settings first. | RemoveGamesDialog(); remaining.length &gt; 0 &amp;&amp;; remaining.length === 1 is false |
-| [src/components/personal/RemoveGamesDialog.tsx:79](../src/components/personal/RemoveGamesDialog.tsx#L79) | Live region | Nothing was removed. Your saved data is unchanged. Check the storage warning and try again. | RemoveGamesDialog(); failed &amp;&amp; |
-| [src/components/personal/RemoveGamesDialog.tsx:84](../src/components/personal/RemoveGamesDialog.tsx#L84) | Rendered copy | ${remaining.length === 1 ? 'Keep game' : remaining.length ? 'Keep games' : 'Close'} | RemoveGamesDialog(); when its owning surface/operation is used |
-| [src/components/personal/RemoveGamesDialog.tsx:85](../src/components/personal/RemoveGamesDialog.tsx#L85) | Message/fragment | Close | RemoveGamesDialog(); remaining.length === 1 is false; remaining.length is false |
-| [src/components/personal/RemoveGamesDialog.tsx:85](../src/components/personal/RemoveGamesDialog.tsx#L85) | Message/fragment | Keep game | RemoveGamesDialog(); remaining.length === 1 is true |
-| [src/components/personal/RemoveGamesDialog.tsx:85](../src/components/personal/RemoveGamesDialog.tsx#L85) | Message/fragment | Keep games | RemoveGamesDialog(); remaining.length === 1 is false; remaining.length is true |
-| [src/components/personal/RemoveGamesDialog.tsx:88](../src/components/personal/RemoveGamesDialog.tsx#L88) | Rendered copy | ${removing ? 'Removing…' : &#96;Remove ${remaining.length} ${remaining.length === 1 ? 'game' : 'games'}&#96;} | RemoveGamesDialog(); remaining.length &gt; 0 &amp;&amp; |
-| [src/components/personal/RemoveGamesDialog.tsx:96](../src/components/personal/RemoveGamesDialog.tsx#L96) | Message/fragment | Remove ${remaining.length} ${remaining.length === 1 ? 'game' : 'games'} | RemoveGamesDialog(); remaining.length &gt; 0 &amp;&amp;; removing is false |
-| [src/components/personal/RemoveGamesDialog.tsx:96](../src/components/personal/RemoveGamesDialog.tsx#L96) | Message/fragment | Removing… | RemoveGamesDialog(); remaining.length &gt; 0 &amp;&amp;; removing is true |
+| [src/components/personal/RemoveGamesDialog.tsx:28](../src/components/personal/RemoveGamesDialog.tsx#L28) | Message/fragment | Remove ${remaining.length} games? | title(); remaining.length === 1 is false |
+| [src/components/personal/RemoveGamesDialog.tsx:28](../src/components/personal/RemoveGamesDialog.tsx#L28) | Message/fragment | Remove this game? | title(); remaining.length === 1 is true |
+| [src/components/personal/RemoveGamesDialog.tsx:51](../src/components/personal/RemoveGamesDialog.tsx#L51) | Rendered copy | ${remaining.length ? title : 'Already removed.'} | RemoveGamesDialog(); when its owning surface/operation is used |
+| [src/components/personal/RemoveGamesDialog.tsx:51](../src/components/personal/RemoveGamesDialog.tsx#L51) | Message/fragment | Already removed. | RemoveGamesDialog(); remaining.length is false |
+| [src/components/personal/RemoveGamesDialog.tsx:52](../src/components/personal/RemoveGamesDialog.tsx#L52) | Rendered copy | ${remaining.length === 1 ? 'This deletes its saved entry, Play later position, Played and Completed marks, personal rating and note on this device. The original 100 and its ratings never change.' : remaining.length ? 'This deletes their saved entries, Play later positions, Played and Completed marks, personal ratings and notes on this device. The original 100 and its ratings never change.' : 'These games are no longer in your private library. No other games will be removed.'} ${rankedCount &gt; 0 &amp;&amp; &#96; This also removes ${rankedCount} ${rankedCount === 1 ? 'game' : 'games'} from your ranking. Games below move up.&#96;} | RemoveGamesDialog(); when its owning surface/operation is used |
+| [src/components/personal/RemoveGamesDialog.tsx:54](../src/components/personal/RemoveGamesDialog.tsx#L54) | Message/fragment | This deletes its saved entry, Play later position, Played and Completed marks, personal rating and note on this device. The original 100 and its ratings never change. | RemoveGamesDialog(); remaining.length === 1 is true |
+| [src/components/personal/RemoveGamesDialog.tsx:56](../src/components/personal/RemoveGamesDialog.tsx#L56) | Message/fragment | This deletes their saved entries, Play later positions, Played and Completed marks, personal ratings and notes on this device. The original 100 and its ratings never change. | RemoveGamesDialog(); remaining.length === 1 is false; remaining.length is true |
+| [src/components/personal/RemoveGamesDialog.tsx:57](../src/components/personal/RemoveGamesDialog.tsx#L57) | Message/fragment | These games are no longer in your private library. No other games will be removed. | RemoveGamesDialog(); remaining.length === 1 is false; remaining.length is false |
+| [src/components/personal/RemoveGamesDialog.tsx:59](../src/components/personal/RemoveGamesDialog.tsx#L59) | Message/fragment | This also removes ${rankedCount} ${rankedCount === 1 ? 'game' : 'games'} from your ranking. Games below move up. | RemoveGamesDialog(); rankedCount &gt; 0 &amp;&amp; |
+| [src/components/personal/RemoveGamesDialog.tsx:62](../src/components/personal/RemoveGamesDialog.tsx#L62) | Rendered copy | This account-library removal will sync while online saving is enabled. Any separately published snapshot stays unchanged until you update or unpublish it. | RemoveGamesDialog(); mode.scope !== 'guest' &amp;&amp; |
+| [src/components/personal/RemoveGamesDialog.tsx:75](../src/components/personal/RemoveGamesDialog.tsx#L75) | Rendered copy | ${remaining.length === 1 ? 'This cannot be undone. To keep a copy, choose Keep game and export a backup from Settings first.' : 'This cannot be undone. To keep a copy, choose Keep games and export a backup from Settings first.'} | RemoveGamesDialog(); remaining.length &gt; 0 &amp;&amp; |
+| [src/components/personal/RemoveGamesDialog.tsx:77](../src/components/personal/RemoveGamesDialog.tsx#L77) | Message/fragment | This cannot be undone. To keep a copy, choose Keep game and export a backup from Settings first. | RemoveGamesDialog(); remaining.length &gt; 0 &amp;&amp;; remaining.length === 1 is true |
+| [src/components/personal/RemoveGamesDialog.tsx:78](../src/components/personal/RemoveGamesDialog.tsx#L78) | Message/fragment | This cannot be undone. To keep a copy, choose Keep games and export a backup from Settings first. | RemoveGamesDialog(); remaining.length &gt; 0 &amp;&amp;; remaining.length === 1 is false |
+| [src/components/personal/RemoveGamesDialog.tsx:83](../src/components/personal/RemoveGamesDialog.tsx#L83) | Live region | Nothing was removed. Your saved data is unchanged. Check the storage warning and try again. | RemoveGamesDialog(); failed &amp;&amp; |
+| [src/components/personal/RemoveGamesDialog.tsx:88](../src/components/personal/RemoveGamesDialog.tsx#L88) | Rendered copy | ${remaining.length === 1 ? 'Keep game' : remaining.length ? 'Keep games' : 'Close'} | RemoveGamesDialog(); when its owning surface/operation is used |
+| [src/components/personal/RemoveGamesDialog.tsx:89](../src/components/personal/RemoveGamesDialog.tsx#L89) | Message/fragment | Close | RemoveGamesDialog(); remaining.length === 1 is false; remaining.length is false |
+| [src/components/personal/RemoveGamesDialog.tsx:89](../src/components/personal/RemoveGamesDialog.tsx#L89) | Message/fragment | Keep game | RemoveGamesDialog(); remaining.length === 1 is true |
+| [src/components/personal/RemoveGamesDialog.tsx:89](../src/components/personal/RemoveGamesDialog.tsx#L89) | Message/fragment | Keep games | RemoveGamesDialog(); remaining.length === 1 is false; remaining.length is true |
+| [src/components/personal/RemoveGamesDialog.tsx:92](../src/components/personal/RemoveGamesDialog.tsx#L92) | Rendered copy | ${removing ? 'Removing…' : &#96;Remove ${remaining.length} ${remaining.length === 1 ? 'game' : 'games'}&#96;} | RemoveGamesDialog(); remaining.length &gt; 0 &amp;&amp; |
+| [src/components/personal/RemoveGamesDialog.tsx:100](../src/components/personal/RemoveGamesDialog.tsx#L100) | Message/fragment | Remove ${remaining.length} ${remaining.length === 1 ? 'game' : 'games'} | RemoveGamesDialog(); remaining.length &gt; 0 &amp;&amp;; removing is false |
+| [src/components/personal/RemoveGamesDialog.tsx:100](../src/components/personal/RemoveGamesDialog.tsx#L100) | Message/fragment | Removing… | RemoveGamesDialog(); remaining.length &gt; 0 &amp;&amp;; removing is true |
 ## src/components/personal/RemoveRankingDialog.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -3845,7 +3862,7 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 | [src/lib/backup-restore.ts:45](../src/lib/backup-restore.ts#L45) | Message/fragment | this is not a supported Play 100 backup. | parseLibraryBackup(); input.app !== 'Play 100' &#124;&#124; (input.formatVersion !== 2 &amp;&amp; input.formatVersion !== 3) is true |
 | [src/lib/backup-restore.ts:47](../src/lib/backup-restore.ts#L47) | Message/fragment | The backup library | library(); when its owning surface/operation is used |
 | [src/lib/backup-restore.ts:48](../src/lib/backup-restore.ts#L48) | Message/fragment | the backup and library versions do not agree. | parseLibraryBackup(); library.version !== input.formatVersion is true |
-| [src/lib/backup-restore.ts:56](../src/lib/backup-restore.ts#L56) | Message/fragment | the backup export date must be an ISO timestamp. | parseLibraryBackup(); typeof input.exportedAt !== 'string' &#124;&#124; !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z&#124;[+-]\d{2}:\d{2})$/.test(input.exportedAt) &#124;&#124; !Number.isFinite(Date.parse(input.exportedAt)) &#124;&#124; new Date(&#96;${input.exportedAt.slice(0, 10)}T00:00:00.000Z&#96;).toISOString().slice(0, 10) !== input.exportedAt.slice(0, 10) is true |
+| [src/lib/backup-restore.ts:56](../src/lib/backup-restore.ts#L56) | Message/fragment | the backup export date is missing or invalid. Export a new backup and try again. | parseLibraryBackup(); typeof input.exportedAt !== 'string' &#124;&#124; !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z&#124;[+-]\d{2}:\d{2})$/.test(input.exportedAt) &#124;&#124; !Number.isFinite(Date.parse(input.exportedAt)) &#124;&#124; new Date(&#96;${input.exportedAt.slice(0, 10)}T00:00:00.000Z&#96;).toISOString().slice(0, 10) !== input.exportedAt.slice(0, 10) is true |
 ## src/lib/catalog-client.ts
 
 | Source | Kind | Copy or expression | Showing condition / owner |
@@ -4720,7 +4737,7 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 | [src/pwa/client.ts:237](../src/pwa/client.ts#L237) | Message/fragment | An update is ready when you choose to apply it. | change(); worker.state === 'redundant' is false; worker.state === 'installed' is true; value.waiting &amp;&amp; navigator.serviceWorker.controller is true |
 | [src/pwa/client.ts:240](../src/pwa/client.ts#L240) | Message output | 'Offline readiness could not be confirmed. Retry from Settings.', cause | change(); worker.state === 'redundant' is false; worker.state === 'installed' is false; worker.state === 'activated' is true |
 | [src/pwa/client.ts:240](../src/pwa/client.ts#L240) | Message/fragment | Offline readiness could not be confirmed. Retry from Settings. | change(); worker.state === 'redundant' is false; worker.state === 'installed' is false; worker.state === 'activated' is true |
-| [src/pwa/client.ts:284](../src/pwa/client.ts#L284) | Message/fragment | Play 100 was added by this browser. | installed(); when its owning surface/operation is used |
+| [src/pwa/client.ts:284](../src/pwa/client.ts#L284) | Message/fragment | Play 100 was added on this device. | installed(); when its owning surface/operation is used |
 | [src/pwa/client.ts:289](../src/pwa/client.ts#L289) | Message output | 'The active offline page version could not be checked. Your page was not reloaded.', cause | checkExisting(); registration &amp;&amp; current(start) is true |
 | [src/pwa/client.ts:289](../src/pwa/client.ts#L289) | Message/fragment | The active offline page version could not be checked. Your page was not reloaded. | checkExisting(); registration &amp;&amp; current(start) is true |
 | [src/pwa/client.ts:321](../src/pwa/client.ts#L321) | Message/fragment | Offline preparation or storage failed. Reconnect, free storage if needed, and retry. | message(); data.status === 'error' is true |
@@ -4750,7 +4767,7 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/pwa/deferred-controller.ts:67](../src/pwa/deferred-controller.ts#L67) | Message/fragment | Play 100 was added by this browser. | captureInstalled(); when its owning surface/operation is used |
+| [src/pwa/deferred-controller.ts:67](../src/pwa/deferred-controller.ts#L67) | Message/fragment | Play 100 was added on this device. | captureInstalled(); when its owning surface/operation is used |
 | [src/pwa/deferred-controller.ts:118](../src/pwa/deferred-controller.ts#L118) | Message/fragment | Offline controls didn't load. | operation(); active &amp;&amp; generation === request is true |
 | [src/pwa/deferred-controller.ts:172](../src/pwa/deferred-controller.ts#L172) | Message/fragment | Install controls are loading. Choose Install again when your browser offers it. | install(); when its owning surface/operation is used |
 | [src/pwa/deferred-controller.ts:193](../src/pwa/deferred-controller.ts#L193) | Message/fragment | This page could not reload. Save your changes before reloading when connected. | failureMessage(); !controller &amp;&amp; state.moduleError is true |

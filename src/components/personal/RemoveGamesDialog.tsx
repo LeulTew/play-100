@@ -23,6 +23,8 @@ export function RemoveGamesDialog({
   const [removing, setRemoving] = useState(false);
   const [failed, setFailed] = useState(false);
   const remaining = records.filter((record) => state.records[record.id]);
+  const remainingIds = new Set(remaining.map((record) => record.id));
+  const rankedCount = state.ranking.filter((entry) => remainingIds.has(entry.id)).length;
   const title = remaining.length === 1 ? 'Remove this game?' : `Remove ${remaining.length} games?`;
   const submit = async () => {
     if (removing || busy || !remaining.length) return;
@@ -49,10 +51,12 @@ export function RemoveGamesDialog({
       <h2 id="remove-games-title">{remaining.length ? title : 'Already removed.'}</h2>
       <p id="remove-games-description">
         {remaining.length === 1
-          ? 'This deletes its saved entry, Play later position, Played and Completed marks, personal rating and note from this browser. The original 100 and its ratings never change.'
+          ? 'This deletes its saved entry, Play later position, Played and Completed marks, personal rating and note on this device. The original 100 and its ratings never change.'
           : remaining.length
-            ? 'This deletes their saved entries, Play later positions, Played and Completed marks, personal ratings and notes from this browser. The original 100 and its ratings never change.'
+            ? 'This deletes their saved entries, Play later positions, Played and Completed marks, personal ratings and notes on this device. The original 100 and its ratings never change.'
             : 'These games are no longer in your private library. No other games will be removed.'}
+        {rankedCount > 0 &&
+          ` This also removes ${rankedCount} ${rankedCount === 1 ? 'game' : 'games'} from your ranking. Games below move up.`}
       </p>
       {mode.scope !== 'guest' && (
         <p className="section-help">

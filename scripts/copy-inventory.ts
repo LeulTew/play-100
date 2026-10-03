@@ -279,6 +279,22 @@ export function renderInventory(entries: CopyEntry[], files: number): string {
     'are preserved. Single-game messages retain the game name and authoritative',
     'transaction feedback; bulk actions retain accurate changed/unchanged counts.',
     '',
+    '### COPY-020 and COPY-021 read-aloud pass (2026-10-03)',
+    '',
+    'Read the touched removal, backup, sharing, installation and Community strings',
+    'in their interaction order, including singular, plural and no-ranked-game cases.',
+    'Removal names the exact number leaving Ranking and explains that games below',
+    'move up, before the existing Keep game/Keep games and backup warning. It does',
+    'not claim a ranking change for an unranked selection. Sharing feedback first',
+    'confirms the saved ranking, then distinguishes the failed status read from',
+    'older-copy removal and names Account > Refresh selected sharing.',
+    'Installation says on this device in both early and loaded-client paths.',
+    'Community keeps its purpose, field label and Find handles action without',
+    'the repeated helper. The backup finding was the phrase ISO timestamp, not a',
+    'displayed date: it now names an invalid export date and asks for a new backup.',
+    'Strict date validation and the existing safe Settings rejection stay unchanged.',
+    'The pass preserves the workbook, privacy meaning, action names and plain voice.',
+    '',
   ];
   let currentFile = '';
   for (const entry of entries) {
