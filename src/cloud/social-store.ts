@@ -213,8 +213,8 @@ export class SocialStore {
   reports(cursor?: QueryDocumentSnapshot<DocumentData>): ReturnType<SocialPublication['reports']> {
     return this.publishing().then((publishing) => publishing.reports(cursor));
   }
-  withdrawReport(id: string): Promise<void> {
-    return this.publishing().then((publishing) => publishing.withdrawReport(id));
+  withdrawReport(id: string, deleting = false): Promise<void> {
+    return this.publishing().then((publishing) => publishing.withdrawReport(id, deleting));
   }
   resolveReport(id: string): Promise<boolean> {
     return this.publishing().then((publishing) => publishing.resolveReport(id));
