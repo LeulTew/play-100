@@ -13,6 +13,7 @@ import { GameDetail } from './GameDetail';
 import { CompletedToggle } from './CompletedToggle';
 import { PlayedToggle } from './PlayedToggle';
 import { DiscoveryCard } from './catalog/DiscoveryCard';
+import RatingsTable from './RatingsTable';
 
 const raw: unknown = JSON.parse(readFileSync(new URL('../../data/collection.json', import.meta.url), 'utf8'));
 const game = parseCollection(raw).games[1];
@@ -70,6 +71,23 @@ const surfaces: [string, () => ReactNode, RegExp[]][] = [
         onRate: vi.fn(async () => true),
       }),
     [/class="button button-lime"/],
+  ],
+  [
+    'ratings table',
+    () =>
+      h(RatingsTable, {
+        games: [game],
+        filters: defaultFilters,
+        progress: { [game.slug]: stored },
+        selecting: false,
+        selected: new Set(),
+        busy: true,
+        onSelect: vi.fn(),
+        onOpen: vi.fn(),
+        onToggle: vi.fn(),
+        onSort: vi.fn(),
+      }),
+    [/aria-label="Play later: /],
   ],
   [
     'discovery card',
@@ -139,6 +157,7 @@ describe('library toggles while the stored state is unknown (A11Y-009)', () => {
     for (const file of [
       './GameCard.tsx',
       './GameDetail.tsx',
+      './RatingsTable.tsx',
       './CompletedToggle.tsx',
       './catalog/DiscoveryCard.tsx',
       './personal/CatalogDetail.tsx',

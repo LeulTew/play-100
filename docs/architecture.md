@@ -30,6 +30,11 @@ step; nested confirmations use the foreground-sheet rule instead. A dismissed
 or replaced sheet cannot close a newer dialog when a restoration completes.
 Cross-document browser navigation remains ordinary navigation.
 
+The ratings table uses the shared library-state toggle attributes too: while the
+active library is unknown, Play later is busy and has no claimed pressed state.
+Once that same library is known, the control exposes its stored value rather
+than treating loading as an unpressed value.
+
 The intended initial heading or safe action has native `autofocus` before
 `showModal()`. A fallback focus call runs only if the browser did not focus it,
 avoiding the former transient Close-button focus followed by heading focus.

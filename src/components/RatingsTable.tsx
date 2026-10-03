@@ -14,6 +14,7 @@ import { useUrlState } from '../hooks/useUrlState';
 import { useNavigationScope } from '../hooks/useNavigationScope';
 import { flushPendingEdits } from '../hooks/useExitSave';
 import { useLibraryMode } from '../lib/library-mode';
+import { pressedState, useLibraryStateKnown } from '../lib/library-state';
 import { focusPendingEditor } from '../lib/dialog-focus';
 import type { MotionOriginHint } from '../motion';
 
@@ -80,6 +81,7 @@ export default function RatingsTable({
 }: RatingsTableProps) {
   const { goToPage } = useUrlState();
   const { scope } = useLibraryMode();
+  const stateKnown = useLibraryStateKnown();
   const { captureFocusGuard } = useNavigationScope(scope);
   const mounted = useRef(true);
   const [navigationError, setNavigationError] = useState('');
@@ -281,7 +283,7 @@ export default function RatingsTable({
                       <button
                         className="icon-button"
                         aria-disabled={busy || undefined}
-                        aria-pressed={Boolean(progress[game.slug]?.later)}
+                        {...pressedState(stateKnown, Boolean(progress[game.slug]?.later))}
                         aria-label={`Play later: ${game.title}`}
                         title="Play later"
                         onClick={() => {

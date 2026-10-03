@@ -3497,37 +3497,37 @@ The pass preserves the workbook, privacy meaning, action names and plain voice.
 
 | Source | Kind | Copy or expression | Showing condition / owner |
 | --- | --- | --- | --- |
-| [src/components/RatingsTable.tsx:104](../src/components/RatingsTable.tsx#L104) | Message/fragment | Your edit has not saved. Correct the highlighted rating or note before leaving. | openRanking(); saved is false |
-| [src/components/RatingsTable.tsx:110](../src/components/RatingsTable.tsx#L110) | Message/fragment | Your edit could not be saved. Keep this page open and retry. | openRanking(); operation rejected or threw; isCurrent() is true |
-| [src/components/RatingsTable.tsx:126](../src/components/RatingsTable.tsx#L126) | Label/help | {scale ? &#96;${label} ${scale}&#96; : label} | sortedHeader(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:140](../src/components/RatingsTable.tsx#L140) | Rendered copy | ${label} ${scale &amp;&amp; &lt;small&gt;{scale}&lt;/small&gt;} | sortedHeader(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:142](../src/components/RatingsTable.tsx#L142) | Rendered copy | ${scale} | sortedHeader(); scale &amp;&amp; |
-| [src/components/RatingsTable.tsx:152](../src/components/RatingsTable.tsx#L152) | Rendered copy | ${author.shortName}'s rank-based workbook ratings are separate from critic scores. — means unavailable. Critic averages include both Metacritic columns. Edit your own ratings in My games → Ranking . | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:155](../src/components/RatingsTable.tsx#L155) | Rendered copy | My games → Ranking | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:172](../src/components/RatingsTable.tsx#L172) | Label/help | Rankings and ratings table; scroll horizontally for all scores | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:192](../src/components/RatingsTable.tsx#L192) | Rendered copy | Select games | body(); selecting &amp;&amp; |
-| [src/components/RatingsTable.tsx:195](../src/components/RatingsTable.tsx#L195) | Message/fragment | Rank | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:196](../src/components/RatingsTable.tsx#L196) | Message/fragment | Game | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:197](../src/components/RatingsTable.tsx#L197) | Message/fragment | Year | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:202](../src/components/RatingsTable.tsx#L202) | Label/help | {label} | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:211](../src/components/RatingsTable.tsx#L211) | Message/fragment | Average | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:227](../src/components/RatingsTable.tsx#L227) | Label/help | {&#96;Select ${game.title}&#96;} | body(); selecting &amp;&amp; |
-| [src/components/RatingsTable.tsx:227](../src/components/RatingsTable.tsx#L227) | Message/fragment | Select ${game.title} | body(); selecting &amp;&amp; |
-| [src/components/RatingsTable.tsx:235](../src/components/RatingsTable.tsx#L235) | Rendered copy | ${game.genre} · ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:241](../src/components/RatingsTable.tsx#L241) | Label/help | {game.authorRating?.rawValue} | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:247](../src/components/RatingsTable.tsx#L247) | Rendered copy | Original author rating unavailable | body(); game.authorRating is false |
-| [src/components/RatingsTable.tsx:256](../src/components/RatingsTable.tsx#L256) | Rendered copy | Unavailable | body(); game.critics[key] === null is true |
-| [src/components/RatingsTable.tsx:268](../src/components/RatingsTable.tsx#L268) | Label/help | {game.title} | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:276](../src/components/RatingsTable.tsx#L276) | Label/help | {game.title} | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:285](../src/components/RatingsTable.tsx#L285) | Label/help | {&#96;Play later: ${game.title}&#96;} | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:285](../src/components/RatingsTable.tsx#L285) | Message/fragment | Play later: ${game.title} | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:286](../src/components/RatingsTable.tsx#L286) | Label/help | Play later | body(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:309](../src/components/RatingsTable.tsx#L309) | Live region | ${navigationError} | body(); navigationError &amp;&amp; |
-| [src/components/RatingsTable.tsx:344](../src/components/RatingsTable.tsx#L344) | Rendered copy | #${String(game.rank).padStart(2, '0')} | RatingsGameLink(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:347](../src/components/RatingsTable.tsx#L347) | Rendered copy | ${game.title} | RatingsGameLink(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:367](../src/components/RatingsTable.tsx#L367) | Label/help | {&#96;${label} / ${scale}&#96;} | TableHeading(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:368](../src/components/RatingsTable.tsx#L368) | Rendered copy | ${label} / ${scale} | TableHeading(); when its owning surface/operation is used |
-| [src/components/RatingsTable.tsx:370](../src/components/RatingsTable.tsx#L370) | Rendered copy | / ${scale} | TableHeading(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:106](../src/components/RatingsTable.tsx#L106) | Message/fragment | Your edit has not saved. Correct the highlighted rating or note before leaving. | openRanking(); saved is false |
+| [src/components/RatingsTable.tsx:112](../src/components/RatingsTable.tsx#L112) | Message/fragment | Your edit could not be saved. Keep this page open and retry. | openRanking(); operation rejected or threw; isCurrent() is true |
+| [src/components/RatingsTable.tsx:128](../src/components/RatingsTable.tsx#L128) | Label/help | {scale ? &#96;${label} ${scale}&#96; : label} | sortedHeader(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:142](../src/components/RatingsTable.tsx#L142) | Rendered copy | ${label} ${scale &amp;&amp; &lt;small&gt;{scale}&lt;/small&gt;} | sortedHeader(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:144](../src/components/RatingsTable.tsx#L144) | Rendered copy | ${scale} | sortedHeader(); scale &amp;&amp; |
+| [src/components/RatingsTable.tsx:154](../src/components/RatingsTable.tsx#L154) | Rendered copy | ${author.shortName}'s rank-based workbook ratings are separate from critic scores. — means unavailable. Critic averages include both Metacritic columns. Edit your own ratings in My games → Ranking . | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:157](../src/components/RatingsTable.tsx#L157) | Rendered copy | My games → Ranking | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:174](../src/components/RatingsTable.tsx#L174) | Label/help | Rankings and ratings table; scroll horizontally for all scores | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:194](../src/components/RatingsTable.tsx#L194) | Rendered copy | Select games | body(); selecting &amp;&amp; |
+| [src/components/RatingsTable.tsx:197](../src/components/RatingsTable.tsx#L197) | Message/fragment | Rank | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:198](../src/components/RatingsTable.tsx#L198) | Message/fragment | Game | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:199](../src/components/RatingsTable.tsx#L199) | Message/fragment | Year | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:204](../src/components/RatingsTable.tsx#L204) | Label/help | {label} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:213](../src/components/RatingsTable.tsx#L213) | Message/fragment | Average | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:229](../src/components/RatingsTable.tsx#L229) | Label/help | {&#96;Select ${game.title}&#96;} | body(); selecting &amp;&amp; |
+| [src/components/RatingsTable.tsx:229](../src/components/RatingsTable.tsx#L229) | Message/fragment | Select ${game.title} | body(); selecting &amp;&amp; |
+| [src/components/RatingsTable.tsx:237](../src/components/RatingsTable.tsx#L237) | Rendered copy | ${game.genre} · ${game.tier === 'core' ? 'Core 50' : 'Essential 50'} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:243](../src/components/RatingsTable.tsx#L243) | Label/help | {game.authorRating?.rawValue} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:249](../src/components/RatingsTable.tsx#L249) | Rendered copy | Original author rating unavailable | body(); game.authorRating is false |
+| [src/components/RatingsTable.tsx:258](../src/components/RatingsTable.tsx#L258) | Rendered copy | Unavailable | body(); game.critics[key] === null is true |
+| [src/components/RatingsTable.tsx:270](../src/components/RatingsTable.tsx#L270) | Label/help | {game.title} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:278](../src/components/RatingsTable.tsx#L278) | Label/help | {game.title} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:287](../src/components/RatingsTable.tsx#L287) | Label/help | {&#96;Play later: ${game.title}&#96;} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:287](../src/components/RatingsTable.tsx#L287) | Message/fragment | Play later: ${game.title} | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:288](../src/components/RatingsTable.tsx#L288) | Label/help | Play later | body(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:311](../src/components/RatingsTable.tsx#L311) | Live region | ${navigationError} | body(); navigationError &amp;&amp; |
+| [src/components/RatingsTable.tsx:346](../src/components/RatingsTable.tsx#L346) | Rendered copy | #${String(game.rank).padStart(2, '0')} | RatingsGameLink(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:349](../src/components/RatingsTable.tsx#L349) | Rendered copy | ${game.title} | RatingsGameLink(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:369](../src/components/RatingsTable.tsx#L369) | Label/help | {&#96;${label} / ${scale}&#96;} | TableHeading(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:370](../src/components/RatingsTable.tsx#L370) | Rendered copy | ${label} / ${scale} | TableHeading(); when its owning surface/operation is used |
+| [src/components/RatingsTable.tsx:372](../src/components/RatingsTable.tsx#L372) | Rendered copy | / ${scale} | TableHeading(); when its owning surface/operation is used |
 ## src/components/scene/CollectionScene.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |

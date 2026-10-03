@@ -353,8 +353,9 @@ for (const cancel of ['Keep', 'Escape', 'Back'] as const) {
     await views(page)
       .getByRole('button', { name: /^Ranking, / })
       .click();
+    const current = await page.evaluate(() => ({ href: location.href, length: history.length }));
     await holdPendingEditor(page);
-    await openRemoval(page);
+    const opener = await openRemoval(page);
     await confirmation(page).getByRole('button', { name: 'Remove from ranking', exact: true }).click();
     await expect(confirmation(page).getByRole('button', { name: 'Checking edits…', exact: true })).toBeDisabled();
     await expect(confirmation(page).getByRole('button', { name: 'Keep ranking', exact: true })).toBeEnabled();
@@ -365,6 +366,11 @@ for (const cancel of ['Keep', 'Escape', 'Back'] as const) {
     await finishPendingEditor(page);
     expect(await readLibrary(page)).toEqual(before);
     if (cancel === 'Back') {
+      await expect(page).toHaveURL(current.href);
+      await expect(views(page).getByRole('button', { name: /^Ranking, / })).toHaveAttribute('aria-current', 'page');
+      await expect(opener).toBeFocused();
+      expect(await page.evaluate(() => history.length)).toBe(current.length);
+      await page.goBack();
       await expect(views(page).getByRole('button', { name: /^Library, / })).toHaveAttribute('aria-current', 'page');
       await page.goForward();
       await expect(row(page)).toBeVisible();
