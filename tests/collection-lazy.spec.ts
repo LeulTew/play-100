@@ -76,9 +76,12 @@ for (const outcome of ['arrives', 'fails'] as const) {
   test(`inline Compare tray stays open when the table chunk ${outcome}`, async ({ page, isMobile }) => {
     await page.setViewportSize({ width: 320, height: 851 });
     await installGuestLibrary(page, emptyPersonalLibrary());
-    await page.evaluate((items) => {
-      localStorage.setItem('play100:compare-tray:v1:guest', JSON.stringify({ version: 1, scope: 'guest', items }));
-    }, libraryRecords.slice(0, 6));
+    await page.evaluate(
+      (items) => {
+        localStorage.setItem('play100:compare-tray:v1:guest', JSON.stringify({ version: 1, scope: 'guest', items }));
+      },
+      libraryRecords.slice(0, 6),
+    );
     const before = await readLibrary(page);
     const pins = await page.evaluate(() => localStorage.getItem('play100:compare-tray:v1:guest'));
     const asset = await extrasAsset();

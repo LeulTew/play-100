@@ -415,10 +415,7 @@ test('the header navigation stays put as the Compare chip comes and goes, yieldi
   try {
     for (const width of widths) {
       await page.setViewportSize({ width, height: 1000 });
-      rest.set(
-        width,
-        await settledHeader('before the chip', width, (bounds) => expect(bounds.fits).toBe(true)),
-      );
+      rest.set(width, await settledHeader('before the chip', width, (bounds) => expect(bounds.fits).toBe(true)));
     }
     await page
       .locator('.game-card')
