@@ -59,8 +59,12 @@ export async function saveSettings(
   await runTransaction(store.db, async (tx) => {
     const snap = await tx.get(ref);
     const current = activeSettings(snap.exists() ? parseFriendSettings(snap.data()) : null);
+    const same = current.enabled === input.enabled && current.selectedIds.join('|') === selectedIds.join('|');
+    // Exactly what this request writes from `expected`: its own commit, applied although the client was told it failed,
+    // so the SDK ran the transaction again (docs/intermittents.md, REL-13). It ends as that commit did.
+    if (same && current.epoch === expected.epoch + 1 && current.revision === expected.revision + 1) return;
     expectedSettings(current, expected);
-    if (current.enabled === input.enabled && current.selectedIds.join('|') === selectedIds.join('|')) return;
+    if (same) return;
     tx.update(ref, {
       enabled: input.enabled,
       selection: selectedIds.join('|'),

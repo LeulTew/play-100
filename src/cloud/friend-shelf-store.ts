@@ -178,19 +178,22 @@ export class FriendShelfStore {
         tx.get(this.ref('syncHeads', uid)),
         tx.get(headRef),
       ]);
-      const current = expectedConfig(snapshot.exists() ? parseFriendShelfConfig(snapshot.data()) : null, expected);
+      const value = active(snapshot.exists() ? parseFriendShelfConfig(snapshot.data()) : null);
+      const same =
+        value.enabled === input.enabled &&
+        value.consentSyncEpoch === input.consentSyncEpoch &&
+        value.selectedIds.join('|') === selectedIds.join('|');
+      // Exactly what this request writes from `expected`: its own commit, applied although the client was told it
+      // failed, so the SDK ran the transaction again (docs/intermittents.md, REL-13). It ends as that commit did.
+      if (same && value.epoch === expected.epoch + 1 && value.revision === expected.revision + 1) return;
+      const current = expectedConfig(value, expected);
       if (input.enabled) {
         const source = sync.exists() ? parseHead(sync.data()) : null;
         if (!source?.enabled || source.deleted || input.consentSyncEpoch !== source.epoch)
           throw new FriendShelfConsentError();
       } else if (input.consentSyncEpoch !== null)
         throw new FriendStoreError('invalid', 'Stopped sharing must clear its saving consent.');
-      if (
-        current.enabled === input.enabled &&
-        current.consentSyncEpoch === input.consentSyncEpoch &&
-        current.selectedIds.join('|') === selectedIds.join('|')
-      )
-        return;
+      if (same) return;
       guard();
       tx.update(ref, {
         enabled: input.enabled,

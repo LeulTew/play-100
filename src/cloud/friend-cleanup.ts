@@ -30,7 +30,7 @@ import { releaseIndexedPayload } from './generation-cleanup';
 import { quotaRef, quotaSupported, readQuotaSlots, releaseQuotaSlot } from './account-quota';
 import type { SlotQuotaKind } from './account-quota';
 import type { FriendStore } from './friend-store';
-import { conflict, online } from './friend-store-core';
+import { online } from './friend-store-core';
 
 // Exporting a member's friend data and deleting it with the account, which FriendStore's methods of the same names
 // run, and the shared-copy cleanup behind cleanupSharing and pruneSharing. A call to another store method goes through
@@ -136,7 +136,9 @@ export async function cleanupGenerations(store: FriendStore, uid: string, preser
           'Sharing settings changed during cleanup. Refresh the page, then try again.',
         );
       const currentIds = parseFriendRegistry(current.data());
-      if (!currentIds.includes(id)) conflict();
+      // Only this step removes an id, together with its generation: another tab's cleanup, or this transaction's own
+      // commit, applied although the client was told it failed, so the SDK ran it again (REL-13). As the shelf does.
+      if (!currentIds.includes(id)) return;
       tx.delete(ref);
       tx.update(registryRef, {
         ids: currentIds.filter((value) => value !== id),
