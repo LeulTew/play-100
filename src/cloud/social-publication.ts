@@ -411,11 +411,16 @@ export class SocialPublication {
     });
     return { reports, cursor: result.size === 20 ? result.docs.at(-1) : undefined };
   }
-  async withdrawReport(id: string): Promise<void> {
+  async withdrawReport(id: string, deleting = false): Promise<void> {
     await runTransaction(this.db, async (tx) => {
       const ref = doc(this.db, 'reports', id);
       const report = await tx.get(ref);
-      if (!report.exists()) throw new Error('This report is no longer available.');
+      if (!report.exists()) {
+        // Deleting the reporter's profile needs only the report gone, as it is when the SDK ran this transaction again
+        // after its own commit applied although the client was told it failed (docs/intermittents.md, REL-13).
+        if (deleting) return;
+        throw new Error('This report is no longer available.');
+      }
       const data: JsonObject = report.data();
       // The reports rules only admit a document whose reporterUid is the signed-in uid.
       if (data.counted === true)
@@ -479,12 +484,14 @@ export class SocialPublication {
       }
       await runTransaction(this.db, async (tx) => {
         const registry = quotaSupported ? await tx.get(registryRef) : null;
+        const stored = await tx.get(item.ref);
         if (registry?.exists()) {
           const value = publicationRegistry(registry.data());
           if (value.ids.includes(item.id))
             tx.update(registryRef, { ids: value.ids.filter((id) => id !== item.id), revision: value.revision + 1 });
         }
-        tx.delete(item.ref);
+        // A second run of this transaction's own applied commit finds the generation already deleted (REL-13).
+        if (stored.exists()) tx.delete(item.ref);
       });
       cleaned += 1;
     }
@@ -517,7 +524,7 @@ export class SocialPublication {
     }
     const ownReports = await getDocs(query(collection(this.db, 'reports'), where('reporterUid', '==', uid), limit(20)));
     if (ownReports.size) {
-      for (const report of ownReports.docs) await this.store.withdrawReport(report.id);
+      for (const report of ownReports.docs) await this.store.withdrawReport(report.id, true);
       if (ownReports.size === 20) throw new Error('Some reports are still stored. Choose Finish deleting to continue.');
     }
     const quota = quotaRef(this.db, uid, 'reports');

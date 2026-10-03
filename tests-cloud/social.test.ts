@@ -31,6 +31,7 @@ import { SocialStore } from '../src/cloud/social-store';
 import { CloudStore } from '../src/cloud/cloud-store';
 import { ensureAccountActivity } from '../src/cloud/account-lifecycle';
 import type { AvatarValue, PublicEntry } from '../src/lib/community';
+import { reportDocumentId } from '../src/lib/community';
 import type { RunTransaction } from './fixtures/modular-firestore';
 
 type Registry = Record<string, unknown> & { ids: string[]; revision: number };
@@ -732,5 +733,61 @@ describe('a deleting unpublish run again after its commit applied', () => {
       'This publication changed. Reload before unpublishing.',
     );
     expect(await owner.social.ownProfile(owner.uid)).toMatchObject({ published: true, epoch: stale.epoch + 1 });
+  });
+});
+
+// REL-13 (docs/intermittents.md): every step of a profile deletion commits and then runs again, as the SDK runs a
+// transaction whose applied commit it was told failed.
+describe('a profile deletion run again after its commits applied', () => {
+  async function runEachAgainAfterCommit() {
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    const replay: RunTransaction = async (db, operation, options) => {
+      await actual.runTransaction(db, operation, options);
+      return actual.runTransaction(db, operation, options);
+    };
+    vi.mocked<RunTransaction>(runTransaction).mockImplementation(replay);
+  }
+  async function reportExists(id: string): Promise<boolean> {
+    let exists = false;
+    await environment.withSecurityRulesDisabled(async (context) => {
+      exists = (await context.firestore().doc(`reports/${id}`).get()).exists;
+    });
+    return exists;
+  }
+  async function reported() {
+    const owner = await client();
+    const target = await client();
+    await target.social.publish(target.uid, publication('reported_target'), control);
+    await owner.social.report(owner.uid, target.uid, 'This profile needs review.');
+    return { owner, id: reportDocumentId(target.uid, owner.uid) };
+  }
+  it('deletes a withdrawn public copy once and finishes', async () => {
+    const owner = await client();
+    const profile = await owner.social.publish(owner.uid, publication('deleted_once'), control);
+    await owner.social.unpublish(owner.uid, await owner.social.control(owner.uid), true);
+    await runEachAgainAfterCommit();
+    await owner.social.deleteProfile(owner.uid);
+    expect(await owner.social.ownProfile(owner.uid)).toBeNull();
+    expect(await handleOwner(profile.handle)).toBeUndefined();
+  });
+  it("withdraws the account's own report once and finishes", async () => {
+    const { owner, id } = await reported();
+    await owner.social.unpublish(owner.uid, await owner.social.control(owner.uid), true);
+    await runEachAgainAfterCommit();
+    await owner.social.deleteProfile(owner.uid);
+    expect(await reportExists(id)).toBe(false);
+  });
+  it('still reports a report that is no longer available outside a deletion', async () => {
+    const { owner, id } = await reported();
+    await owner.social.withdrawReport(id);
+    await expect(owner.social.withdrawReport(id)).rejects.toThrow('This report is no longer available.');
+  });
+  it('still keeps the generation of a live public profile when every cleanup step runs again', async () => {
+    const owner = await client();
+    const profile = await owner.social.publish(owner.uid, publication('kept_live'), control);
+    await runEachAgainAfterCommit();
+    expect(await owner.social.cleanup(owner.uid, true)).toBe(0);
+    const live = await owner.social.ownProfile(owner.uid);
+    expect(live).toMatchObject({ published: true, generation: profile.generation });
   });
 });
