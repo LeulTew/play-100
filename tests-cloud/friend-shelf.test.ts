@@ -925,3 +925,48 @@ describe('shelf revocation, source CAS and bounded recovery', () => {
     }
   });
 });
+
+// REL-13 (docs/intermittents.md): a shelf setting whose commit applied although the client was told it failed, so the
+// SDK ran the transaction again and read the change it had just made.
+describe('a shelf setting run again after its commit applied', () => {
+  async function runAgainAfterCommit() {
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    const runs = { count: 0 };
+    const replay: RunTransaction = async (db, operation, options) => {
+      const counted = (tx: Transaction) => {
+        runs.count += 1;
+        return operation(tx);
+      };
+      await actual.runTransaction(db, counted, options);
+      return actual.runTransaction(db, counted, options);
+    };
+    vi.mocked<RunTransaction>(runTransaction).mockImplementationOnce(replay);
+    return runs;
+  }
+  async function current(a: Client) {
+    return (await a.store.config(a.uid)) ?? (await a.store.initialize(a.uid));
+  }
+  const on = { enabled: true, selectedIds: [entry.id], consentSyncEpoch: 1 };
+  const off = { enabled: false, selectedIds: [] as string[], consentSyncEpoch: null };
+  // Stopping is the legacy online-copy deletion's step; sharing is the same change in the other direction.
+  it.each([off, on])('saves the shelf once and ends as its own commit did (enabled: $enabled)', async (input) => {
+    const a = await client();
+    if (!input.enabled) await a.store.saveConfig(a.uid, on, await current(a));
+    const expected = await current(a);
+    const runs = await runAgainAfterCommit();
+    const saved = await a.store.saveConfig(a.uid, input, expected);
+    expect(runs.count).toBe(2);
+    expect(saved).toMatchObject({ ...input, epoch: expected.epoch + 1, revision: expected.revision + 1 });
+  });
+  it('still refuses a shelf setting another tab saved after it was read, even the same one', async () => {
+    const a = await client();
+    const expected = await current(a);
+    const other = await a.store.saveConfig(a.uid, on, expected);
+    const stopped = await a.store.saveConfig(a.uid, off, other);
+    await expect(a.store.saveConfig(a.uid, on, expected)).rejects.toMatchObject({ code: 'conflict' });
+    expect(await a.store.config(a.uid)).toEqual(stopped);
+    const again = await a.store.saveConfig(a.uid, on, stopped);
+    await expect(a.store.saveConfig(a.uid, on, expected)).rejects.toMatchObject({ code: 'conflict' });
+    expect(await a.store.config(a.uid)).toEqual(again);
+  });
+});

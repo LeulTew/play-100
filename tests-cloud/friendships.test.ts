@@ -1637,3 +1637,73 @@ describe('private groups, export and resumable account deletion', () => {
     expect((await b.store.respond(b.uid, a.uid, 'remove', pair.epoch)).state).toBe('removed');
   });
 });
+
+// REL-13 (docs/intermittents.md): sharing steps whose commit applied although the client was told it failed, so the
+// SDK ran the transaction again and read the change it had just made.
+describe('ranking sharing steps run again after their commit applied', () => {
+  // The next transaction, or with `every` each one, commits and then runs again.
+  async function runAgainAfterCommit(every = false) {
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    const runs = { count: 0 };
+    const replay: RunTransaction = async (db, operation, options) => {
+      const counted = (tx: Transaction) => {
+        runs.count += 1;
+        return operation(tx);
+      };
+      await actual.runTransaction(db, counted, options);
+      return actual.runTransaction(db, counted, options);
+    };
+    if (every) vi.mocked<RunTransaction>(runTransaction).mockImplementation(replay);
+    else vi.mocked<RunTransaction>(runTransaction).mockImplementationOnce(replay);
+    return runs;
+  }
+  const on = { enabled: true, selectedIds: [entry.id] };
+  const off = { enabled: false, selectedIds: [] as string[] };
+  // Stopping is the legacy online-copy deletion's step; enabling is the same change in the other direction.
+  it.each([off, on])('saves settings once and ends as its own commit did (enabled: $enabled)', async (input) => {
+    const a = await client();
+    if (!input.enabled) await a.store.saveSettings(a.uid, on, await settings(a));
+    const expected = await settings(a);
+    const runs = await runAgainAfterCommit();
+    const saved = await a.store.saveSettings(a.uid, input, expected);
+    expect(runs.count).toBe(2);
+    expect(saved).toMatchObject({ ...input, epoch: expected.epoch + 1, revision: expected.revision + 1 });
+  });
+  it('still refuses settings another tab saved after they were read, even the same ones', async () => {
+    const a = await client();
+    const expected = await settings(a);
+    const other = await a.store.saveSettings(a.uid, on, expected);
+    const stopped = await a.store.saveSettings(a.uid, off, other);
+    await expect(a.store.saveSettings(a.uid, on, expected)).rejects.toMatchObject({ code: 'conflict' });
+    expect(await settings(a)).toEqual(stopped);
+    const again = await a.store.saveSettings(a.uid, on, stopped);
+    await expect(a.store.saveSettings(a.uid, on, expected)).rejects.toMatchObject({ code: 'conflict' });
+    expect(await settings(a)).toEqual(again);
+  });
+  it('removes a stopped generation once when every cleanup step runs again', async () => {
+    const a = await client();
+    const generation = (await share(a)).head.current!.generation;
+    await a.store.saveSettings(a.uid, off, await settings(a));
+    const generationRef = doc(a.db, 'friendShares', a.uid, 'generations', generation);
+    const registry = doc(a.db, 'friendShareRegistry', a.uid);
+    const before = (await getDocFromServer(registry)).data() as Registry;
+    await runAgainAfterCommit(true);
+    expect(await a.store.cleanupSharing(a.uid)).toBe(1);
+    expect((await getDocFromServer(generationRef)).exists()).toBe(false);
+    expect((await getDocFromServer(registry)).data()).toMatchObject({
+      ids: before.ids.filter((id) => id !== generation),
+      revision: before.revision + 1,
+    });
+  });
+  it('still keeps the published generation while sharing is on when every cleanup step runs again', async () => {
+    const a = await client();
+    const generation = (await share(a)).head.current!.generation;
+    const generationRef = doc(a.db, 'friendShares', a.uid, 'generations', generation);
+    const registry = doc(a.db, 'friendShareRegistry', a.uid);
+    const before = (await getDocFromServer(registry)).data();
+    await runAgainAfterCommit(true);
+    expect(await a.store.cleanupSharing(a.uid)).toBe(0);
+    expect((await getDocFromServer(generationRef)).exists()).toBe(true);
+    expect((await getDocFromServer(registry)).data()).toEqual(before);
+  });
+});
