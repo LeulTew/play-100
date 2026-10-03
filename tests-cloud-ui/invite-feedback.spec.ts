@@ -259,6 +259,12 @@ for (const exit of ['close', 'navigate'] as const)
     await page.getByRole('button', { name: 'Invite someone', exact: true }).click();
     await expect.poll(() => page.evaluate(() => window.inviteGate?.committed)).toBe(true);
     if (exit === 'navigate') {
+      // Back first dismisses the open invite dialog and stays on Friends (the page keeps its history entry); the next
+      // Back navigates while preparation is still held.
+      const friends = page.url();
+      await page.goBack();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(page).toHaveURL(friends);
       await page.goBack();
       await expect(page).toHaveURL(/\/account$/);
     } else {
