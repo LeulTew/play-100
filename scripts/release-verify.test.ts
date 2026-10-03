@@ -254,6 +254,11 @@ function fakeDeployment(overrides: Record<string, Answer> = {}) {
       },
       body: '<!doctype html>',
     };
+    const helperScript = (): Answer => ({
+      status: 200,
+      headers: { ...helperScripts, 'content-type': 'text/javascript; charset=utf-8', vary: 'accept-encoding' },
+      body: '/*! @license Firebase */',
+    });
   };
   const answers: Record<string, () => Answer> = {
     'GET /': () => ({ status: 200, headers: { ...policy, 'content-type': 'text/html' }, body: html }),
@@ -275,11 +280,9 @@ function fakeDeployment(overrides: Record<string, Answer> = {}) {
       headers: { ...policy, 'content-type': 'text/html; charset=utf-8' },
       body: '<!doctype html>',
     }),
-    'GET /__/auth/handler.js': () => ({
-      status: 200,
-      headers: { ...helperScripts, 'content-type': 'text/javascript; charset=utf-8', vary: 'accept-encoding' },
-      body: '/*! @license Firebase */',
-    }),
+    'GET /__/auth/handler.js': helperScript,
+    'GET /__/auth/iframe.js': helperScript,
+    'GET /__/auth/experiments.js': helperScript,
   };
   return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : input);
@@ -328,9 +331,30 @@ describe('deployed release verification of the auth helper paths', () => {
         '/__/auth/handler.js 200 JavaScript',
         ...Object.keys(helperScripts).map((name) => `/__/auth/handler.js header ${name}`),
         '/__/auth/handler.js without main document headers',
+        '/__/auth/experiments.js 200 JavaScript',
+        '/__/auth/experiments.js header x-content-type-options',
+        '/__/auth/iframe.js header x-content-type-options',
       ]),
     );
     expect(names).not.toContain('/__/auth/handler.js header vercel-cdn-cache-control');
+  });
+
+  it.each(['handler', 'iframe', 'experiments'])('rejects missing or wrong nosniff on %s.js', async (name) => {
+    for (const value of [null, 'invalid']) {
+      const headers: Record<string, string> = { ...helperScripts, 'content-type': 'text/javascript' };
+      if (value === null) delete headers['x-content-type-options'];
+      else headers['x-content-type-options'] = value;
+      vi.stubGlobal('fetch', fakeDeployment({ [`GET /__/auth/${name}.js`]: { status: 200, headers } }));
+      const receipt = await verifyDeployment({ url: 'https://candidate.example.test' }, config);
+      expect(failing(receipt)).toContain(`/__/auth/${name}.js header x-content-type-options`);
+    }
+  });
+
+  it('refuses a configuration that would accept a non-nosniff script header', () => {
+    const changed = structuredClone(config);
+    const rule = changed.headers.find((group) => group.source === '/__/auth/(handler|iframe|experiments)\\.js')!;
+    rule.headers.find((header) => header.key === 'X-Content-Type-Options')!.value = 'invalid';
+    expect(() => expectedHelperScriptHeaders(changed)).toThrow('must declare X-Content-Type-Options: nosniff');
   });
 
   it.each([

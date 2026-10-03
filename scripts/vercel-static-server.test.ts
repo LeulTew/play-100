@@ -62,6 +62,8 @@ describe('the local Vercel emulation', () => {
     const document = routeHeaders(repository, '/');
     expect(document['content-security-policy']).toBeTruthy();
     expect(routeHeaders(repository, '/__/auth/handler')['content-security-policy']).toBeUndefined();
+    for (const name of ['handler', 'iframe', 'experiments'])
+      expect(routeHeaders(repository, `/__/auth/${name}.js`)['x-content-type-options']).toBe('nosniff');
     expect(routeHeaders(repository, '/assets/app-abc.js')['cache-control']).toContain('immutable');
     const layered = parseDeployment({
       headers: [

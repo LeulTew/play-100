@@ -48,6 +48,13 @@ incorrectly required the newly prepared worker to control the already-open
 document. The corrected smoke waits for activation and checks control after
 navigation instead; it does not change the worker or force it to claim clients.
 
+The separate [`pwa-offline-csp.spec.ts`](../tests/pwa-offline-csp.spec.ts) runs
+on desktop and mobile against an offline build with the deployment's real
+headers. After UI preparation and an offline reload, it requires a
+worker-served collection, identical network/cached/served CSP headers, and a
+blocked inline script with an enforcing security-policy violation and no side
+effect. This proof does not substitute for the physical Safari offline check.
+
 User-facing instructions describe public files and storage limits, not workers
 or an app shell. They still exclude private/account data, online-only pages,
 sign-in details, online game search results, films and workbooks from offline preparation.
