@@ -13,7 +13,7 @@ import { scheduleIdlePrefetch } from '../../lib/idle-prefetch';
 import { createMemoizedModule } from '../../lib/memoized-module';
 import type { AboutDialog } from '../AboutDialog';
 import { Dialog } from '../Dialog';
-import { DialogLayerContext } from '../dialog-layer';
+import { DialogLayerContext, DialogRouteHistoryContext } from '../dialog-layer';
 import type { GameDetail } from '../GameDetail';
 import { Icon } from '../Icon';
 import { MenuDialog } from '../MenuDialog';
@@ -187,92 +187,94 @@ export function DialogHost({
   return (
     <>
       {detailOpen && (
-        <DialogBoundary
-          key={game?.key ?? catalog?.key ?? `${scope}:detail`}
-          onClose={onCloseGame}
-          onFailure={failed('Game details')}
-        >
-          {game && <GameDialog input={game} />}
-          {catalog && (
-            <ChunkBoundary
-              key={catalog.key}
-              fallback={<DetailLoadFailure onClose={onCloseGame} getOpener={getGameOpener} />}
-            >
-              <Suspense fallback={<PendingCatalogDialog onClose={onCloseGame} getOpener={getGameOpener} />}>
-                <CatalogDetail key={catalog.key} {...catalog.props} />
-              </Suspense>
-            </ChunkBoundary>
-          )}
-          {metadataFailure && (
-            <Dialog
-              open
-              titleId="catalog-parser-error-title"
-              onClose={onCloseGame}
-              getOpener={getGameOpener}
-              className="info-dialog"
-            >
-              <h2 id="catalog-parser-error-title" data-autofocus tabIndex={-1}>
-                Game details
-              </h2>
-              <ChunkRecovery message="The catalog tools didn't load." onKeepEditing={onCloseGame} />
-            </Dialog>
-          )}
-          {loadingGame && (
-            <Dialog
-              open
-              titleId="loading-game-title"
-              onClose={onCloseGame}
-              getOpener={getGameOpener}
-              className="info-dialog"
-            >
-              <h2 id="loading-game-title" data-autofocus tabIndex={-1}>
-                Opening game…
-              </h2>
-              <p role="status">Looking up its public catalog metadata.</p>
-            </Dialog>
-          )}
-          {canonicalError && (
-            <Dialog
-              open
-              titleId="canonical-game-error-title"
-              onClose={onCloseGame}
-              getOpener={getGameOpener}
-              className="info-dialog"
-            >
-              <h2 id="canonical-game-error-title" data-autofocus tabIndex={-1}>
-                The original game could not load.
-              </h2>
-              <p>{canonicalError.message} Your saved records have not changed.</p>
-              <button className="button button-dark" onClick={canonicalError.retry}>
-                Reload The 100
-              </button>
-            </Dialog>
-          )}
-          {missingGame && (
-            <Dialog
-              open
-              titleId="missing-game-title"
-              onClose={onCloseGame}
-              getOpener={getGameOpener}
-              className="info-dialog"
-            >
-              <h2 id="missing-game-title" data-autofocus tabIndex={-1}>
-                {page === 'collection'
-                  ? "That game isn't in this collection."
-                  : "That game isn't in the active library."}
-              </h2>
-              <p>
-                {page === 'collection'
-                  ? 'This link may be old or incomplete. All 100 games are still here.'
-                  : 'Guest and account libraries stay separate. Open the correct account, import your backup, or add this game from Discover.'}
-              </p>
-              <button className="button button-dark" onClick={onCloseGame}>
-                Back to the collection
-                <Icon name="arrow" />
-              </button>
-            </Dialog>
-          )}
-        </DialogBoundary>
+        <DialogRouteHistoryContext value>
+          <DialogBoundary
+            key={game?.key ?? catalog?.key ?? `${scope}:detail`}
+            onClose={onCloseGame}
+            onFailure={failed('Game details')}
+          >
+            {game && <GameDialog input={game} />}
+            {catalog && (
+              <ChunkBoundary
+                key={catalog.key}
+                fallback={<DetailLoadFailure onClose={onCloseGame} getOpener={getGameOpener} />}
+              >
+                <Suspense fallback={<PendingCatalogDialog onClose={onCloseGame} getOpener={getGameOpener} />}>
+                  <CatalogDetail key={catalog.key} {...catalog.props} />
+                </Suspense>
+              </ChunkBoundary>
+            )}
+            {metadataFailure && (
+              <Dialog
+                open
+                titleId="catalog-parser-error-title"
+                onClose={onCloseGame}
+                getOpener={getGameOpener}
+                className="info-dialog"
+              >
+                <h2 id="catalog-parser-error-title" data-autofocus tabIndex={-1}>
+                  Game details
+                </h2>
+                <ChunkRecovery message="The catalog tools didn't load." onKeepEditing={onCloseGame} />
+              </Dialog>
+            )}
+            {loadingGame && (
+              <Dialog
+                open
+                titleId="loading-game-title"
+                onClose={onCloseGame}
+                getOpener={getGameOpener}
+                className="info-dialog"
+              >
+                <h2 id="loading-game-title" data-autofocus tabIndex={-1}>
+                  Opening game…
+                </h2>
+                <p role="status">Looking up its public catalog metadata.</p>
+              </Dialog>
+            )}
+            {canonicalError && (
+              <Dialog
+                open
+                titleId="canonical-game-error-title"
+                onClose={onCloseGame}
+                getOpener={getGameOpener}
+                className="info-dialog"
+              >
+                <h2 id="canonical-game-error-title" data-autofocus tabIndex={-1}>
+                  The original game could not load.
+                </h2>
+                <p>{canonicalError.message} Your saved records have not changed.</p>
+                <button className="button button-dark" onClick={canonicalError.retry}>
+                  Reload The 100
+                </button>
+              </Dialog>
+            )}
+            {missingGame && (
+              <Dialog
+                open
+                titleId="missing-game-title"
+                onClose={onCloseGame}
+                getOpener={getGameOpener}
+                className="info-dialog"
+              >
+                <h2 id="missing-game-title" data-autofocus tabIndex={-1}>
+                  {page === 'collection'
+                    ? "That game isn't in this collection."
+                    : "That game isn't in the active library."}
+                </h2>
+                <p>
+                  {page === 'collection'
+                    ? 'This link may be old or incomplete. All 100 games are still here.'
+                    : 'Guest and account libraries stay separate. Open the correct account, import your backup, or add this game from Discover.'}
+                </p>
+                <button className="button button-dark" onClick={onCloseGame}>
+                  Back to the collection
+                  <Icon name="arrow" />
+                </button>
+              </Dialog>
+            )}
+          </DialogBoundary>
+        </DialogRouteHistoryContext>
       )}
       <DialogLayerContext value={1}>
         {menu && (

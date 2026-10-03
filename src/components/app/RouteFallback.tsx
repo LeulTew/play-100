@@ -5,7 +5,12 @@ import './route-fallback.css';
 
 export type RouteFallbackProps = { route: AppPage } & (
   | { kind: 'public-page' | 'cloud-page' | 'private-library' }
-  | { kind: 'account-sheet'; onClose: () => void; getReturnFocus: ComponentProps<typeof Dialog>['getReturnFocus'] }
+  | {
+      kind: 'account-sheet';
+      onClose: () => void;
+      getReturnFocus: ComponentProps<typeof Dialog>['getReturnFocus'];
+      getOpener?: ComponentProps<typeof Dialog>['getOpener'];
+    }
 );
 
 const titles: Record<AppPage, string> = {
@@ -140,6 +145,7 @@ export function RouteFallback(props: RouteFallbackProps) {
         titleId="loading-account-title"
         onClose={props.onClose}
         getReturnFocus={props.getReturnFocus}
+        getOpener={props.getOpener}
         className="info-dialog"
       >
         <h2 id="loading-account-title" data-autofocus tabIndex={-1}>

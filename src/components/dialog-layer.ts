@@ -1,6 +1,7 @@
 import { createContext } from 'react';
 
 export const DialogLayerContext = createContext(0);
+export const DialogRouteHistoryContext = createContext(false);
 
 const layers: { dialog: HTMLDialogElement; priority: number }[] = [];
 

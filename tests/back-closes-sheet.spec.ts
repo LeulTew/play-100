@@ -29,7 +29,10 @@ const sheets: Sheet[] = [
     name: 'Compare tray',
     open: async (page) => {
       if ((await page.locator('.compare-tray-expand').count()) === 0)
-        await page.getByRole('button', { name: /^Pin for comparison:/ }).first().click();
+        await page
+          .getByRole('button', { name: /^Pin for comparison:/ })
+          .first()
+          .click();
       await page.getByRole('button', { name: '1 game in Compare tray', exact: true }).click();
       return page.getByRole('dialog', { name: 'Compare tray', exact: true });
     },
@@ -115,6 +118,37 @@ test('a detail consumes only its own URL entry and remains reachable through For
   await expect(detail).toHaveCount(0);
   await expect(page).toHaveURL(current);
   await expect(opener).toBeFocused();
+});
+
+test('Forward closes Menu without consuming the forward page or creating a duplicate entry', async ({
+  page,
+  isMobile,
+}) => {
+  const navigation = page.getByRole('navigation', {
+    name: isMobile ? 'Mobile navigation' : 'Main navigation',
+    exact: true,
+  });
+  const previous = page.url();
+  await navigation.getByRole('link', { name: 'Discover', exact: true }).click();
+  await expect(page).toHaveURL((url) => url.pathname === '/discover');
+  const next = page.url();
+  await page.goBack();
+  await expect(page).toHaveURL(previous);
+  const length = await page.evaluate(() => history.length);
+  const opener = page.getByRole('button', { name: 'Menu', exact: true });
+  await opener.click();
+  const menu = page.getByRole('dialog', { name: 'Menu', exact: true });
+  await expect(menu).toBeVisible();
+  await page.goForward();
+  await expect(menu).toHaveCount(0);
+  await expect(page).toHaveURL(previous);
+  await expect(opener).toBeFocused();
+  expect(await page.evaluate(() => history.length)).toBe(length);
+  await page.goForward();
+  await expect(page).toHaveURL(next);
+  await page.goBack();
+  await expect(page).toHaveURL(previous);
+  expect(await page.evaluate(() => history.length)).toBe(length);
 });
 
 test('a Settings deep link still opens', async ({ page }) => {

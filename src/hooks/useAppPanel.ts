@@ -30,6 +30,7 @@ function readyPanelFromUrl(): AppPanel {
 export function useAppPanel(scope: string, opening: boolean) {
   const [panel, commit] = useState<AppPanel>(readyPanelFromUrl);
   const panelOpener = useRef<HTMLElement | null>(null);
+  const accountOpener = useRef<HTMLElement | null>(null);
   const getPanelOpener = useCallback(() => panelOpener.current, []);
   const [message, setMessage] = useState({ text: '', error: false });
   const [panelFailure, setPanelFailure] = useState<'about' | 'settings' | null>(null);
@@ -96,7 +97,14 @@ export function useAppPanel(scope: string, opening: boolean) {
   );
   const setPanel = useCallback(
     (next: AppPanel, opener?: HTMLElement) => {
-      if (next && !panel) panelOpener.current = opener ?? null;
+      if (next && !panel) {
+        const focused = document.activeElement;
+        panelOpener.current =
+          opener ??
+          (next === 'account' ? accountOpener.current : null) ??
+          (focused instanceof HTMLElement && focused !== document.body ? focused : null);
+      }
+      accountOpener.current = null;
       setPanelFromMenu(next === 'menu' || Boolean(next && panel && panelFromMenu));
       urlIntentActive.current = false;
       clearPanelIntent();
@@ -123,6 +131,10 @@ export function useAppPanel(scope: string, opening: boolean) {
     // Intent to open a dialog: the Menu buttons, the menu itself, or the footer's About and Effects buttons.
     const intent = (event: Event) => {
       const target = event.target;
+      if (event.type === 'pointerdown' || event.type === 'focusin') {
+        const account = target instanceof Element ? target.closest<HTMLElement>('.account-nav') : null;
+        if (account) accountOpener.current = account;
+      }
       if (
         target instanceof Element &&
         target.closest('.menu-nav, .mobile-nav button[aria-haspopup="dialog"], .menu-dialog, .site-footer button')
