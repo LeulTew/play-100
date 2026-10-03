@@ -351,6 +351,7 @@ test('the header navigation stays put as the Compare chip comes and goes, yieldi
       const actions = element.querySelector('.header-actions')!.getBoundingClientRect();
       const style = getComputedStyle(element);
       return {
+        fonts: document.fonts.status,
         links: [...element.querySelectorAll('.desktop-nav a')].map((link) => link.getBoundingClientRect().left),
         // A wrapped label, in the navigation or the actions, makes its control taller.
         heights: [...element.querySelectorAll('.desktop-nav a, .header-actions > :not(.compare-tray-anchor)')].map(
@@ -364,48 +365,78 @@ test('the header navigation stays put as the Compare chip comes and goes, yieldi
           document.documentElement.scrollWidth <= innerWidth,
       };
     });
-  const rest = new Map<number, Awaited<ReturnType<typeof measure>>>();
-  for (const width of widths) {
-    await page.setViewportSize({ width, height: 1000 });
-    rest.set(width, await measure());
-  }
+  type Header = Awaited<ReturnType<typeof measure>>;
+  const rest = new Map<number, Header>();
+  const samples: { state: string; width: number; initial: Header; settled?: Header }[] = [];
+  const settledHeader = async (state: string, width: number, check: (bounds: Header) => void): Promise<Header> => {
+    const sample: (typeof samples)[number] = { state, width, initial: await measure() };
+    samples.push(sample);
+    // Resizing can revalidate fonts. A startup fonts.ready and one geometry read do not cover the new viewport.
+    await expect(async () => {
+      await page.evaluate(() => document.fonts.ready);
+      const first = await measure();
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+      const second = await measure();
+      expect(second.fonts).toBe('loaded');
+      expect(second, 'the header has settled across frames').toEqual(first);
+      check(second);
+      sample.settled = second;
+    }).toPass({ timeout: 10_000 });
+    if (!sample.settled) throw new Error('The header did not produce a settled measurement.');
+    return sample.settled;
+  };
   // UI-008: the chip's slot used to push the centred navigation 27.5px left, and back when Table view took the tray.
   const expectHeader = async (state: string, chip: boolean) => {
     for (const width of widths) {
       await page.setViewportSize({ width, height: 1000 });
       const before = rest.get(width)!;
-      const now = await measure();
       const at = `${state} at ${width}px`;
-      expect(now.fits, `header contents ${at}`).toBe(true);
-      now.heights.forEach((height, index) =>
-        expect(Math.abs(height - before.heights[index]!), `control ${index} height ${at}`).toBeLessThanOrEqual(0.5),
-      );
-      // The chip's slot is its 46px anchor and the actions' 9px gap, and header items then keep the chip gap apart.
-      expect(Math.abs(before.actions - now.actions - (chip ? 55 : 0)), `chip slot ${at}`).toBeLessThanOrEqual(0.5);
-      const gap = chipGap(width);
-      if (chip) expect(now.gap, `chip gap ${at}`).toBe(gap);
-      // The resting navigation keeps its place wherever that slot and gap fit beside it. Elsewhere it yields only the
-      // shortfall, which leaves it the chip gap from the actions.
-      const shortfall = chip ? Math.max(0, 55 + gap - before.room) : 0;
-      if (roomy.includes(width)) expect(shortfall, `room for the chip ${at}`).toBe(0);
-      if (shortfall > 0) expect(Math.abs(now.room - gap), `gap to the actions ${at}`).toBeLessThanOrEqual(0.5);
-      expect(now.links, `navigation links ${at}`).toHaveLength(before.links.length);
-      now.links.forEach((left, index) =>
-        expect(Math.abs(before.links[index]! - shortfall - left), `link ${index} ${at}`).toBeLessThanOrEqual(0.5),
-      );
+      await settledHeader(state, width, (now) => {
+        expect(now.fits, `header contents ${at}`).toBe(true);
+        now.heights.forEach((height, index) =>
+          expect(Math.abs(height - before.heights[index]!), `control ${index} height ${at}`).toBeLessThanOrEqual(0.5),
+        );
+        // The chip's slot is its 46px anchor and the actions' 9px gap, and header items then keep the chip gap apart.
+        expect(Math.abs(before.actions - now.actions - (chip ? 55 : 0)), `chip slot ${at}`).toBeLessThanOrEqual(0.5);
+        const gap = chipGap(width);
+        if (chip) expect(now.gap, `chip gap ${at}`).toBe(gap);
+        // The resting navigation keeps its place wherever that slot and gap fit beside it. Elsewhere it yields only the
+        // shortfall, which leaves it the chip gap from the actions.
+        const shortfall = chip ? Math.max(0, 55 + gap - before.room) : 0;
+        if (roomy.includes(width)) expect(shortfall, `room for the chip ${at}`).toBe(0);
+        if (shortfall > 0) expect(Math.abs(now.room - gap), `gap to the actions ${at}`).toBeLessThanOrEqual(0.5);
+        expect(now.links, `navigation links ${at}`).toHaveLength(before.links.length);
+        now.links.forEach((left, index) =>
+          expect(Math.abs(before.links[index]! - shortfall - left), `link ${index} ${at}`).toBeLessThanOrEqual(0.5),
+        );
+      });
     }
   };
-  await page
-    .locator('.game-card')
-    .first()
-    .getByRole('button', { name: /^Pin for comparison:/ })
-    .click();
-  await expect(header).toHaveAttribute('data-compare-chip', '');
-  await expectHeader('with the chip', true);
-  await page.getByRole('button', { name: 'Ratings table view', exact: true }).click();
-  await expect(page.locator('.ratings-tray-strip .compare-tray-dock')).toHaveCount(1);
-  await expect(header).not.toHaveAttribute('data-compare-chip');
-  await expectHeader('after Table view moves the tray', false);
+  try {
+    for (const width of widths) {
+      await page.setViewportSize({ width, height: 1000 });
+      rest.set(
+        width,
+        await settledHeader('before the chip', width, (bounds) => expect(bounds.fits).toBe(true)),
+      );
+    }
+    await page
+      .locator('.game-card')
+      .first()
+      .getByRole('button', { name: /^Pin for comparison:/ })
+      .click();
+    await expect(header).toHaveAttribute('data-compare-chip', '');
+    await expectHeader('with the chip', true);
+    await page.getByRole('button', { name: 'Ratings table view', exact: true }).click();
+    await expect(page.locator('.ratings-tray-strip .compare-tray-dock')).toHaveCount(1);
+    await expect(header).not.toHaveAttribute('data-compare-chip');
+    await expectHeader('after Table view moves the tray', false);
+  } finally {
+    await test.info().attach('header-settling.json', {
+      body: JSON.stringify(samples, null, 2),
+      contentType: 'application/json',
+    });
+  }
 });
 
 for (const narrow of [false, true]) {

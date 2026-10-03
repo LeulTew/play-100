@@ -91,7 +91,7 @@ export function DeferredCollection({
   }, [Loaded, onReady]);
   const fallback =
     input.kind === 'table' ? (
-      <TableFallback {...input.props} />
+      <TableFallback {...input.props} embedded />
     ) : input.kind === 'extended' ? (
       <ExtendedFallback
         {...input.props}
@@ -125,7 +125,7 @@ export function DeferredCollection({
       ) : input.kind === 'extended' ? (
         <Loaded kind="extended" props={{ ...input.props, embedded: true }} />
       ) : (
-        <Loaded {...input} />
+        <Loaded kind="table" props={{ ...input.props, embedded: true }} />
       )}
     </ChunkBoundary>
   ) : (
@@ -175,7 +175,10 @@ export function DeferredCollection({
           {body}
         </section>
       ) : (
-        body
+        <div className="ratings-mode" aria-busy={(!Loaded && !failed) || undefined}>
+          {body}
+          {input.props.comparisonTray && <div className="ratings-tray-strip">{input.props.comparisonTray}</div>}
+        </div>
       )}
     </div>
   );

@@ -14,6 +14,7 @@ export function TableFallback({
   progress,
   getCompareRecord,
   savedCopies,
+  embedded = false,
 }: ComponentProps<typeof RatingsTable>) {
   const columns = [
     { label: 'Rank', key: 'rank', scale: null },
@@ -23,8 +24,8 @@ export function TableFallback({
     ...criticColumns.map((column) => ({ ...column, scale: `/ ${column.scale}` })),
     { label: 'Average', key: 'score', scale: '/ 100' },
   ];
-  return (
-    <div className="ratings-mode" aria-busy="true">
+  const body = (
+    <>
       <p className="sr-only" role="status">
         Loading ratings table…
       </p>
@@ -117,7 +118,14 @@ export function TableFallback({
           </tbody>
         </table>
       </div>
-      {comparisonTray && <div className="ratings-tray-strip">{comparisonTray}</div>}
+      {!embedded && comparisonTray && <div className="ratings-tray-strip">{comparisonTray}</div>}
+    </>
+  );
+  return embedded ? (
+    body
+  ) : (
+    <div className="ratings-mode" aria-busy="true">
+      {body}
     </div>
   );
 }
