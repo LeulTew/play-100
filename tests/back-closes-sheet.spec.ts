@@ -3,7 +3,7 @@ import type { Locator, Page } from '@playwright/test';
 import { emptyCatalogs } from './catalog-helpers';
 import { installGuestLibrary, libraryFixture, libraryRecords } from './library-pagination-helpers';
 
-// UX-027: browser Back must not leave a sheet open over the page it navigated to.
+// UX-039: dismissing a sheet must not consume the page's own Back/Forward entry.
 type Sheet = { name: string; open: (page: Page) => Promise<Locator> };
 
 async function fromMenu(page: Page, item: string, dialog: string) {
@@ -16,15 +16,20 @@ async function fromMenu(page: Page, item: string, dialog: string) {
 }
 
 const sheets: Sheet[] = [
+  {
+    name: 'Menu',
+    open: async (page) => {
+      await page.getByRole('button', { name: 'Menu', exact: true }).click();
+      return page.getByRole('dialog', { name: 'Menu', exact: true });
+    },
+  },
   { name: 'About', open: (page) => fromMenu(page, 'About & credits', 'About & credits') },
   { name: 'Settings', open: (page) => fromMenu(page, 'Settings & backups', 'Settings & backups') },
   {
     name: 'Compare tray',
     open: async (page) => {
-      await page
-        .getByRole('button', { name: `Pin for comparison: ${libraryRecords[0]!.title}`, exact: true })
-        .first()
-        .click();
+      if ((await page.locator('.compare-tray-expand').count()) === 0)
+        await page.getByRole('button', { name: /^Pin for comparison:/ }).first().click();
       await page.getByRole('button', { name: '1 game in Compare tray', exact: true }).click();
       return page.getByRole('dialog', { name: 'Compare tray', exact: true });
     },
@@ -46,29 +51,71 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const sheet of sheets) {
-  test(`Back closes ${sheet.name} instead of leaving it over the previous page`, async ({ page, isMobile }) => {
+  test(`Back closes ${sheet.name} without consuming its page history or opener`, async ({ page, isMobile }) => {
     const navigation = page.getByRole('navigation', {
       name: isMobile ? 'Mobile navigation' : 'Main navigation',
       exact: true,
     });
     // In-app navigations, so Back is a same-document popstate rather than a reload.
+    await expect(page).toHaveURL((url) => url.pathname === '/my-games');
+    const previous = page.url();
     await navigation.getByRole('link', { name: 'Discover', exact: true }).click();
     await expect(page).toHaveURL((url) => url.pathname === '/discover');
-    const previous = page.url();
-    await navigation.getByRole('link', { name: 'My games', exact: true }).click();
-    await expect(page).toHaveURL((url) => url.pathname === '/my-games');
-    const dialog = await sheet.open(page);
-    await expect(dialog).toBeVisible();
+    const current = page.url();
+    const historyLength = await page.evaluate(() => history.length);
+    for (const dismiss of ['Back', 'Escape', 'Close button'] as const) {
+      const dialog = await sheet.open(page);
+      await expect(dialog).toBeVisible();
+      const opener =
+        sheet.name === 'Sign in'
+          ? page.locator('.account-nav')
+          : sheet.name === 'Compare tray'
+            ? page.locator('.compare-tray-expand')
+            : page.getByRole('button', { name: 'Menu', exact: true });
+      const openedLength = await page.evaluate(() => history.length);
+      if (dismiss === 'Back') await page.goBack();
+      else if (dismiss === 'Escape') await page.keyboard.press('Escape');
+      else await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(page.locator('dialog[open]')).toHaveCount(0);
+      await expect(page).toHaveURL(current);
+      await expect(opener).toBeFocused();
+      expect(await page.evaluate(() => history.length)).toBe(openedLength);
+      expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
+    }
+    expect(await page.evaluate(() => history.length)).toBe(historyLength);
+    // No disposable sheet entry is left behind: one Back reaches the actual previous route.
     await page.goBack();
     await expect(page).toHaveURL(previous);
-    await expect(dialog).toHaveCount(0);
-    await expect(page.locator('dialog[open]')).toHaveCount(0);
-    expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
     await page.goForward();
-    await expect(page).toHaveURL((url) => url.pathname === '/my-games');
-    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(current);
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+    expect(await page.evaluate(() => history.length)).toBe(historyLength);
   });
 }
+
+test('a detail consumes only its own URL entry and remains reachable through Forward', async ({ page }) => {
+  await page.goto('/?catalogs=off');
+  const current = page.url();
+  const opener = page.locator(`[data-game="${libraryRecords[0]!.id}"] .game-link`);
+  await opener.click();
+  const detail = page.getByRole('dialog', { name: libraryRecords[0]!.title, exact: true });
+  await expect(detail).toBeVisible();
+  const opened = page.url();
+  const length = await page.evaluate(() => history.length);
+  await page.goBack();
+  await expect(detail).toHaveCount(0);
+  await expect(page).toHaveURL(current);
+  await expect(opener).toBeFocused();
+  expect(await page.evaluate(() => history.length)).toBe(length);
+  await page.goForward();
+  await expect(page).toHaveURL(opened);
+  await expect(detail).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(detail).toHaveCount(0);
+  await expect(page).toHaveURL(current);
+  await expect(opener).toBeFocused();
+});
 
 test('a Settings deep link still opens', async ({ page }) => {
   await page.goto('/?catalogs=off&info=settings');
