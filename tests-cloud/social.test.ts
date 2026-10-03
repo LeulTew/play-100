@@ -783,13 +783,14 @@ describe('a profile deletion run again after its commits applied', () => {
     expect(await reportExists(id)).toBe(false);
   });
   it('still reports a report that is no longer available outside a deletion', async () => {
-    const { id } = await reported();
+    const { owner, id } = await reported();
     const moderator = await client();
     await environment.withSecurityRulesDisabled(async (context) => {
       await context.firestore().doc('_owner/config').set({ uid: moderator.uid, email: moderator.email });
     });
     expect(await moderator.social.resolveReport(id)).toBe(true);
-    await expect(moderator.social.withdrawReport(id)).rejects.toThrow('This report is no longer available.');
+    // Only the reporter may read its own missing report (firestore.rules, reports get), so only it reaches this refusal.
+    await expect(owner.social.withdrawReport(id)).rejects.toThrow('This report is no longer available.');
   });
   it('still keeps the generation of a live public profile when every cleanup step runs again', async () => {
     const owner = await client();
