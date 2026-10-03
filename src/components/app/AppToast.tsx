@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useNotice } from '../../hooks/useNotice';
 import { visibleMenuTrigger } from '../../lib/dialog-focus';
+import { ROOT_FLAGS, useRootFlag } from '../../lib/root-flag';
 import { Icon } from '../Icon';
 import type { AppModel } from './app-model';
 
@@ -19,9 +20,12 @@ export function AppToast({ app, trayError, onDismissTrayError, panelRecovery }: 
   // Tray errors use the existing polite provider status; the toast supplies their visible copy.
   const currentNotice = trayError || (!selectedGame && selectedRecord && !onlineOpening ? '' : visibleNotice);
   const toastRecovery = !panel && !manualLink && !selectedSlug && panelRecovery;
+  const visible = Boolean(currentNotice || toastRecovery);
+  // The visible toast marks <html> for the scroll padding and the tray beside it (root-flag.ts).
+  useRootFlag('html', ROOT_FLAGS.toast, visible);
   return (
     <div
-      className={`toast ${currentNotice || toastRecovery ? 'toast-visible' : ''}`}
+      className={`toast ${visible ? 'toast-visible' : ''}`}
       role={toastRecovery || trayError ? undefined : 'status'}
       aria-live={toastRecovery || trayError ? undefined : 'polite'}
       aria-atomic="true"

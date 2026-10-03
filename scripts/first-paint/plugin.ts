@@ -430,8 +430,8 @@ export async function criticalAppCss(appCss: string, root: string): Promise<stri
   assertInlineSafe('style', appCss);
   if (!root.startsWith(ROOT_OPEN + SHELL_OPEN))
     throw new Error(`The shell markup must start with ${ROOT_OPEN}${SHELL_OPEN}.`);
-  // Matching stays inside the shell and the failure notice: after pseudo-classes are stripped,
-  // selectors such as html:has(.toast-visible) would otherwise match the throwaway document itself.
+  // Matching stays inside the shell and the failure notice: after pseudo-classes are stripped, a
+  // selector such as :root:has(.x) would otherwise match the throwaway document itself.
   // Bare html, body and :root rules are always kept. beasties matches a selector with a combinator
   // only below its container (css-select reads .app-error a as :scope .app-error a), and the
   // notice's rules start at the notice itself, so its container is a wrapper that exists only in

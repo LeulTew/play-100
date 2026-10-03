@@ -160,6 +160,11 @@ What changed for those phones (R24):
   It renders all rows together so skipped siblings cannot inflate a grid row, and
   checks authored plain lengths independently of modern Chromium's implicit `auto`.
 - **Lighter paint where it costs most.** A constrained device draws game covers without their blurred shadow.
+- **No root `:has()` rules.** Chromium 106 rematches `html:has()` and `body:has()` rules across the document on every
+  insertion. In Chromium 106.0.5249 traces of the visit at 6× CPU, they made up half to four-fifths of the style time of
+  the landing's second pass and of opening a game's details. The compare chip, the visible toast and the tray's reserve
+  instead set an attribute on `<html>` or `<body>` while they show ([`root-flag.ts`](../src/lib/root-flag.ts)), and a
+  unit test keeps such rules out of every stylesheet.
 - **Game details on older browsers.** On the Test Lab phone a game card's link opened nothing. Its click handler had
   prevented the link's own navigation, and the detail's URL came out unchanged, because the app built queries with
   `URLSearchParams.size`. Browsers gained that only in Chrome 113, Firefox 112 and Safari 17, above the floor in the
