@@ -1158,8 +1158,13 @@ production does. Plain `curl` GET and HEAD requests to production (Release 7,
   emulation G12-SEC2 used. It does not send the two directives addressed to its
   own CDN, `Vercel-CDN-Cache-Control` and `x-vercel-enable-rewrite-caching`.
 
-`release:verify` now checks both paths on every candidate and production
-deployment, against the rules in `vercel.json`.
+`release:verify` checks the unknown path and all three helper scripts
+(`handler.js`, `iframe.js`, `experiments.js`) on every candidate and production
+deployment, against the rules in `vercel.json`. Each script must return
+JavaScript and `X-Content-Type-Options: nosniff`; a missing header or different
+value fails verification, and the expected configuration must itself declare
+`nosniff`. A local emulator's upstream-error response is not evidence of the
+headers on a deployed, successfully rewritten helper script.
 
 The application uses password reset/verification, not email-link sign-in:
 `sendSignInLinkToEmail` and `isSignInWithEmailLink` are absent, and the unused
@@ -1308,6 +1313,14 @@ changes the worker/core identity. Cookies, auth-template policy and arbitrary
 private headers are never copied into that policy. The worker verifies its
 policy digest before installation and serves it on cached shell and offline
 fallback documents instead of trusting whichever headers a fetch returned.
+
+`tests/pwa-offline-csp.spec.ts` exercises that boundary on both desktop and
+mobile in the offline-build partition. It serves the build with the actual
+`vercel.json` headers, prepares through Settings, disconnects the browser and
+reloads. The response must come from the worker; its CSP and the cached
+`/index.html` CSP must equal the original network policy. An injected inline
+script must emit an enforcing `script-src-elem` violation without executing its
+side effect. No route interception supplies the offline response or its policy.
 
 Each ready core records its own document policy. A retained old HTML response
 keeps that old policy rather than a newer CSP containing incompatible critical

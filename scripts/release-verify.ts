@@ -140,6 +140,8 @@ export function expectedHelperScriptHeaders(config: unknown): Record<string, str
   const result = Object.fromEntries(Object.entries(declared).filter(([name]) => !vercelOnlyHeaders.has(name)));
   if (['x-content-type-options', 'x-frame-options', 'cache-control'].some((name) => !result[name]))
     throw new Error('A required auth helper script header is missing.');
+  if (result['x-content-type-options'] !== 'nosniff')
+    throw new Error('Auth helper scripts must declare X-Content-Type-Options: nosniff.');
   return result;
 }
 
@@ -476,19 +478,21 @@ export async function verifyDeployment(options: VerifyOptions, config: unknown, 
     sha256: unknownAuth ? digest(unknownAuth.body) : null,
   });
   if (unknownAuth) checks.push(...compareHeaders(unknownAuth.headers, expected, '/__/auth/unknown'));
-  const helperScript = await get('/__/auth/handler.js', '/__/auth/handler.js transport');
-  record(
-    '/__/auth/handler.js 200 JavaScript',
-    helperScript?.status === 200 &&
-      /^(?:text|application)\/javascript\b/i.test(helperScript.headers.get('content-type') ?? ''),
-    { status: helperScript?.status ?? null, bytes: helperScript?.body.length ?? 0 },
-  );
-  if (helperScript) {
-    checks.push(...compareHeaders(helperScript.headers, helperScriptHeaders, '/__/auth/handler.js'));
+  for (const pathname of ['/__/auth/handler.js', '/__/auth/iframe.js', '/__/auth/experiments.js']) {
+    const helperScript = await get(pathname, `${pathname} transport`);
     record(
-      '/__/auth/handler.js without main document headers',
-      !helperScript.headers.has('cross-origin-opener-policy') && !helperScript.headers.has('reporting-endpoints'),
+      `${pathname} 200 JavaScript`,
+      helperScript?.status === 200 &&
+        /^(?:text|application)\/javascript\b/i.test(helperScript.headers.get('content-type') ?? ''),
+      { status: helperScript?.status ?? null, bytes: helperScript?.body.length ?? 0 },
     );
+    if (helperScript) {
+      checks.push(...compareHeaders(helperScript.headers, helperScriptHeaders, pathname));
+      record(
+        `${pathname} without main document headers`,
+        !helperScript.headers.has('cross-origin-opener-policy') && !helperScript.headers.has('reporting-endpoints'),
+      );
+    }
   }
   for (const pathname of ['/__/auth/handler', '/api/catalog']) {
     const result = await get(pathname, `${pathname} POST transport`, 'POST');
