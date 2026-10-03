@@ -254,12 +254,12 @@ function fakeDeployment(overrides: Record<string, Answer> = {}) {
       },
       body: '<!doctype html>',
     };
-    const helperScript = (): Answer => ({
-      status: 200,
-      headers: { ...helperScripts, 'content-type': 'text/javascript; charset=utf-8', vary: 'accept-encoding' },
-      body: '/*! @license Firebase */',
-    });
   };
+  const helperScript = (): Answer => ({
+    status: 200,
+    headers: { ...helperScripts, 'content-type': 'text/javascript; charset=utf-8', vary: 'accept-encoding' },
+    body: '/*! @license Firebase */',
+  });
   const answers: Record<string, () => Answer> = {
     'GET /': () => ({ status: 200, headers: { ...policy, 'content-type': 'text/html' }, body: html }),
     'GET /.well-known/security.txt': () => ({ status: 200, headers: { 'content-type': 'text/plain' }, body: 'x' }),
@@ -351,9 +351,17 @@ describe('deployed release verification of the auth helper paths', () => {
   });
 
   it('refuses a configuration that would accept a non-nosniff script header', () => {
-    const changed = structuredClone(config);
-    const rule = changed.headers.find((group) => group.source === '/__/auth/(handler|iframe|experiments)\\.js')!;
-    rule.headers.find((header) => header.key === 'X-Content-Type-Options')!.value = 'invalid';
+    const changed = {
+      headers: [
+        {
+          source: '/__/auth/(handler|iframe|experiments)\\.js',
+          headers: Object.entries(helperScripts).map(([key, value]) => ({
+            key,
+            value: key === 'x-content-type-options' ? 'invalid' : value,
+          })),
+        },
+      ],
+    };
     expect(() => expectedHelperScriptHeaders(changed)).toThrow('must declare X-Content-Type-Options: nosniff');
   });
 
