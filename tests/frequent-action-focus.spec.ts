@@ -541,10 +541,15 @@ test('bulk feedback counts only changed memberships and single toggles name thei
   await page.getByRole('button', { name: 'Done selecting', exact: true }).click();
   await page.goto('/?catalogs=off');
   const later = page.locator(`[data-game="${game.id}"]`).getByRole('button', { name: `Play later: ${game.title}` });
+  // A cold navigation reads the library again, and the toggle ignores activation until it has (GameCard).
+  await expect(later).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(later).toHaveAttribute('aria-pressed', 'true');
   await later.press('Enter');
   await expect(page.locator('.toast-visible')).toContainText(`${game.title} removed from Play later.`);
+  await expect(later).toHaveAttribute('aria-pressed', 'false');
   await later.press('Enter');
   await expect(page.locator('.toast-visible')).toContainText(`${game.title} added to Play later.`);
+  await expect(later).toHaveAttribute('aria-pressed', 'true');
 });
 
 for (const [position, rejected, moveFocus] of [
