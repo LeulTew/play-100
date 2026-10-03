@@ -159,7 +159,12 @@ What changed for those phones (R24):
   in both browser projects, requiring each estimate to be within 5% of its median.
   It renders all rows together so skipped siblings cannot inflate a grid row, and
   checks authored plain lengths independently of modern Chromium's implicit `auto`.
-- **Lighter paint where it costs most.** A constrained device draws game covers without their blurred shadow.
+- **Lighter paint where it costs most.** A constrained device draws game covers upright and without their blurred
+  shadow, and leaves out the faint drawing behind a cover
+  ([`constrained-paint.test.ts`](../src/styles/constrained-paint.test.ts)). It draws the collection still's sleeves,
+  prints and numbering without the still's ground shadow, faint rules and print motifs
+  ([`constrained-still.test.ts`](../src/components/scene/constrained-still.test.ts)): the WebView rasters on the thread
+  that also draws the app's frames, and on the Test Lab phone the whole drawing's first raster held it for 1.2–1.8 s.
 - **No root `:has()` rules.** Chromium 106 rematches `html:has()` and `body:has()` rules across the document on every
   insertion. In Chromium 106.0.5249 traces of the visit at 6× CPU, they made up half to four-fifths of the style time of
   the landing's second pass and of opening a game's details. The compare chip, the visible toast and the tray's reserve
