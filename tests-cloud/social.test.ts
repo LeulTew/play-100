@@ -772,15 +772,24 @@ describe('a profile deletion run again after its commits applied', () => {
   });
   it("withdraws the account's own report once and finishes", async () => {
     const { owner, id } = await reported();
+    // As in online-copy deletion: saving is on, the public copy is withdrawn, then the online copy is deleted.
+    await owner.social.saveMember(owner.uid, 'Report deletion fixture', avatar);
+    const cloud = new CloudStore(owner.db, owner.uid);
+    const head = await cloud.enable(null);
     await owner.social.unpublish(owner.uid, await owner.social.control(owner.uid), true);
+    await cloud.revoke(head, true);
     await runEachAgainAfterCommit();
     await owner.social.deleteProfile(owner.uid);
     expect(await reportExists(id)).toBe(false);
   });
   it('still reports a report that is no longer available outside a deletion', async () => {
-    const { owner, id } = await reported();
-    await owner.social.withdrawReport(id);
-    await expect(owner.social.withdrawReport(id)).rejects.toThrow('This report is no longer available.');
+    const { id } = await reported();
+    const moderator = await client();
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc('_owner/config').set({ uid: moderator.uid, email: moderator.email });
+    });
+    expect(await moderator.social.resolveReport(id)).toBe(true);
+    await expect(moderator.social.withdrawReport(id)).rejects.toThrow('This report is no longer available.');
   });
   it('still keeps the generation of a live public profile when every cleanup step runs again', async () => {
     const owner = await client();
