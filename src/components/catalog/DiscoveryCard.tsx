@@ -8,6 +8,7 @@ import type { MotionOriginHint, PublicMotionVisual } from '../../motion';
 import { Icon } from '../Icon';
 import { PlayedToggle } from '../PlayedToggle';
 import { CompletedToggle } from '../CompletedToggle';
+import { useLibraryPressedState } from '../../lib/library-state';
 import { PersonalRatingInput } from '../personal/PersonalRatingInput';
 import type { Game } from '../../lib/types';
 import { GameCover } from '../GameCover';
@@ -68,6 +69,7 @@ export function DiscoveryCard({
   const [failedSrc, setFailedSrc] = useState('');
   const saved = Boolean(state.records[actionRecord.id]);
   const progress = state.progress[actionRecord.id];
+  const laterPressed = useLibraryPressedState(Boolean(progress?.later));
   const ranking = state.ranking.find((entry) => entry.id === actionRecord.id);
   const preview = (event: MouseEvent<HTMLButtonElement>) => {
     if (event.defaultPrevented || compare.consumeClick(event) || !onPreview) return;
@@ -215,7 +217,7 @@ export function DiscoveryCard({
               className="button button-outline"
               aria-disabled={busy || undefined}
               aria-label={`Play later: ${record.title}`}
-              aria-pressed={Boolean(progress?.later)}
+              {...laterPressed}
               onClick={() => {
                 if (!busy) void onAction({ type: 'toggle-progress', record: actionRecord, key: 'later' });
               }}

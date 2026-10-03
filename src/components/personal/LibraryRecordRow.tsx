@@ -5,6 +5,7 @@ import type { LibraryPageProps } from './LibraryPage';
 import { Icon } from '../Icon';
 import { PlayedToggle } from '../PlayedToggle';
 import { CompletedToggle } from '../CompletedToggle';
+import { pressedState, useLibraryStateKnown } from '../../lib/library-state';
 import { CompareDragSource } from '../compare-tray/CompareDragSource';
 import { ComparePinButton } from '../compare-tray/ComparePinButton';
 import { RecordIdentity } from './RecordIdentity';
@@ -45,6 +46,7 @@ export function LibraryRecordRow({
   removeFromQueue: (record: LibraryRecord, trigger: HTMLElement) => Promise<void>;
 }) {
   const rankedLink = useRef<HTMLAnchorElement>(null);
+  const stateKnown = useLibraryStateKnown();
   const rankFocus = useRef<ReturnType<typeof captureControlFocus> | null>(null);
   useLayoutEffect(
     () => () => {
@@ -122,7 +124,7 @@ export function LibraryRecordRow({
               <button
                 className="icon-button"
                 aria-disabled={busy || undefined}
-                aria-pressed={Boolean(state.progress[record.id]?.later)}
+                {...pressedState(stateKnown, Boolean(state.progress[record.id]?.later))}
                 aria-label={`Play later: ${record.title}`}
                 title="Play later"
                 onClick={() => {

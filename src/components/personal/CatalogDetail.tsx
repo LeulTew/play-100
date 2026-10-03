@@ -7,6 +7,7 @@ import { Dialog } from '../Dialog';
 import { visibleGameTrigger } from '../../lib/dialog-focus';
 import { Icon } from '../Icon';
 import { PlayedToggle } from '../PlayedToggle';
+import { pressedState, useLibraryStateKnown } from '../../lib/library-state';
 import { GameArtwork, GameArtworkCredit } from '../games/GameArtwork';
 import { PersonalRatingInput } from './PersonalRatingInput';
 import { author } from '../../lib/author';
@@ -66,6 +67,7 @@ export default function CatalogDetail({
     };
   }, []);
   const blocked = busy || result === 'pending';
+  const stateKnown = useLibraryStateKnown();
   const enrichment = useCatalogEnrichment(record.id, publicLookup);
   const externalArtwork = artwork ? null : (enrichment.data?.artwork ?? null);
   const displayedArtwork = artwork ?? externalArtwork;
@@ -186,7 +188,7 @@ export default function CatalogDetail({
         <button
           className={`button ${progress?.later ? 'button-lime' : 'button-dark'}`}
           aria-disabled={blocked || undefined}
-          aria-pressed={Boolean(progress?.later)}
+          {...pressedState(stateKnown, Boolean(progress?.later))}
           onClick={() => {
             void mutate({ type: 'toggle-progress', record, key: 'later' });
           }}
@@ -197,7 +199,7 @@ export default function CatalogDetail({
         <button
           className={`button ${progress?.completed ? 'button-lime' : 'button-outline'}`}
           aria-disabled={blocked || undefined}
-          aria-pressed={Boolean(progress?.completed)}
+          {...pressedState(stateKnown, Boolean(progress?.completed))}
           onClick={() => {
             void mutate({ type: 'set-progress', records: [record], key: 'completed', value: !progress?.completed });
           }}

@@ -9,6 +9,7 @@ import { PlayedToggle } from './PlayedToggle';
 import { author, authorRatingText } from '../lib/author';
 import { PersonalRatingInput } from './personal/PersonalRatingInput';
 import { useLibraryMode } from '../lib/library-mode';
+import { pressedState, useLibraryStateKnown } from '../lib/library-state';
 import { flushPendingEdits } from '../hooks/useExitSave';
 import { useNavigationScope } from '../hooks/useNavigationScope';
 import { focusPendingEditor, visibleGameTrigger } from '../lib/dialog-focus';
@@ -60,6 +61,7 @@ export function GameDetail({
   getOpener,
 }: GameDetailProps) {
   const mode = useLibraryMode();
+  const stateKnown = useLibraryStateKnown();
   const topRef = useRef<HTMLDivElement>(null);
   const artworkRef = useRef<HTMLDivElement>(null);
   const lastSlug = useRef(game.slug);
@@ -183,7 +185,7 @@ export function GameDetail({
               <button
                 className={`button ${state?.later ? 'button-lime' : 'button-dark'}`}
                 aria-disabled={busy || undefined}
-                aria-pressed={Boolean(state?.later)}
+                {...pressedState(stateKnown, Boolean(state?.later))}
                 onClick={() => {
                   if (!busy) onToggle(game.slug, 'later');
                 }}
@@ -194,7 +196,7 @@ export function GameDetail({
               <button
                 className={`button ${state?.completed ? 'button-lime' : 'button-outline'}`}
                 aria-disabled={busy || undefined}
-                aria-pressed={Boolean(state?.completed)}
+                {...pressedState(stateKnown, Boolean(state?.completed))}
                 onClick={() => {
                   if (!busy) onToggle(game.slug, 'completed', !state?.completed);
                 }}

@@ -8,6 +8,7 @@ import { GameCover } from './GameCover';
 import { Icon } from './Icon';
 import { PlayedToggle } from './PlayedToggle';
 import { CompletedToggle } from './CompletedToggle';
+import { useLibraryPressedState } from '../lib/library-state';
 import { author, authorRatingText } from '../lib/author';
 import { useMotionRuntime } from '../motion';
 import type { MotionOriginHint } from '../motion';
@@ -51,6 +52,7 @@ export const GameCard = memo(function GameCard({
   const motion = useMotionRuntime();
   const sourceRef = useRef<HTMLLIElement>(null);
   const compareDrag = useCompareDragSource({ record: compareRecord, sourceRef });
+  const laterPressed = useLibraryPressedState(Boolean(state?.later));
   return (
     <li
       ref={sourceRef}
@@ -147,7 +149,7 @@ export const GameCard = memo(function GameCard({
       )}
       <button
         className={`save-game icon-button ${state?.later ? 'is-saved' : ''}`}
-        aria-pressed={Boolean(state?.later)}
+        {...laterPressed}
         aria-label={`Play later: ${game.title}`}
         title="Play later"
         aria-disabled={busy || undefined}
