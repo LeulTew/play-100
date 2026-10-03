@@ -87,6 +87,9 @@
     },
     "get-uri": {
       "basic-ftp": "^6.2.1"
+    },
+    "firebase-tools": {
+      "chokidar": "^4.0.3"
     }
   },
   "engines": {

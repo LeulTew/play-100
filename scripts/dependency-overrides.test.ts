@@ -56,4 +56,10 @@ describe('dependency advisories fixed by overrides', () => {
     expect(found.length).toBeGreaterThan(0);
     expect(found.filter((entry) => !atLeast(parts(entry), [6, 2, 1]))).toEqual([]);
   });
+
+  it('resolves no braces, which GHSA-vfj7-8cjw-p6xm covers in every version (<= 3.0.3, no patch)', () => {
+    // firebase-tools' chokidar 3 was the only path; its override to chokidar 4 drops the dependency.
+    expect(versions('braces')).toEqual([]);
+    expect(versions('chokidar').filter((entry) => !atLeast(parts(entry), [4, 0, 3]))).toEqual([]);
+  });
 });

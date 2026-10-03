@@ -1226,6 +1226,20 @@ allows it, as protection against FTP bounce attacks. The code runs only if the
 emulator tooling fetches a proxy auto-configuration file from an `ftp://` URL.
 Remove the override once get-uri depends on a patched basic-ftp.
 
+A fifth scoped override closes braces GHSA-vfj7-8cjw-p6xm (high, published
+2026-09-18: stack exhaustion from deeply nested brace patterns). The advisory
+covers every braces release (`<= 3.0.3`, no patched version), so the only fix is
+to stop depending on it. braces is dev-only and reached only through
+firebase-tools 15.31.0's `chokidar@^3.6.0` (`anymatch` and `fill-range`), so
+`firebase-tools` gets `chokidar@^4.0.3`, which drops glob matching and depends
+only on readdirp. firebase-tools watches single files with chokidar: the
+Firestore rules file in our emulator (and the Database and Storage rules
+emulators, which Play 100 doesn't run), with `persistent` and `ignoreInitial`,
+both kept in 4.x. Only the Functions emulator, which Play 100 doesn't use,
+passes glob `ignored` patterns. `cloud-rules` and the cloud-UI suites start the
+Firestore emulator through this path. Remove the override once firebase-tools
+depends on chokidar 4 itself.
+
 **Install scripts (R9).** `package.json` `allowScripts` records the reviewed
 dependency lifecycle scripts at their exact locked versions. Only npm 12 and
 later enforce it by blocking scripts that are not approved. The recorded
