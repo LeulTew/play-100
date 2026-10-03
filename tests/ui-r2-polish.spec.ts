@@ -41,12 +41,12 @@ async function verifyAuthorGeometry(block: Locator) {
         if (ancestor.overflowX !== 'visible') unclipped &&= bounds.left >= rect.left && bounds.right <= rect.right;
         if (ancestor.overflowY !== 'visible') unclipped &&= bounds.top >= rect.top && bounds.bottom <= rect.bottom;
       }
-      return { width: box.width, height: box.height, ring, unclipped };
+      return { width: box.width, height: box.height, ring, bounds, unclipped };
     });
     expect(geometry.width).toBe(44);
     expect(geometry.height).toBe(44);
     expect(geometry.ring).toBeGreaterThan(0);
-    expect(geometry.unclipped).toBe(true);
+    expect(geometry.unclipped, JSON.stringify(geometry)).toBe(true);
   }
 }
 
@@ -55,6 +55,7 @@ for (const width of [320, 393, 1024, 1280]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('/?catalogs=off');
     await expect(page.locator('.game-card')).toHaveCount(24);
+    if (width <= 760) await page.locator('.collection-filters > summary').click();
     await page.getByText('Exact source genre', { exact: true }).click();
     await page.evaluate(() => document.fonts.ready);
     const geometry = await page.locator('label[for="exact-genre-filter"]').evaluate((label) => {
@@ -73,6 +74,7 @@ for (const width of [320, 393, 1024, 1280]) {
     expect(geometry.gap).toBeLessThanOrEqual(7);
     expect(geometry.selectHeight).toBeGreaterThanOrEqual(44);
     await page.goto('/discover?catalogs=off');
+    if (width <= 760) await page.locator('.browse-filters > summary').click();
     await page.getByText('Exact source genre', { exact: true }).first().click();
     await page.getByText('Search options & sources', { exact: true }).click();
     const wrapped = page.locator('.discovery-help label:has(input, select)');
@@ -91,7 +93,10 @@ for (const width of [320, 393, 1024, 1280]) {
     await verifyAuthorGeometry(page.locator('.author-footer'));
     await page.getByRole('button', { name: 'Menu', exact: true }).click();
     await verifyAuthorGeometry(page.locator('.menu-author'));
-    await page.getByRole('button', { name: 'About & credits', exact: true }).click();
+    await page
+      .getByRole('dialog', { name: 'Menu', exact: true })
+      .getByRole('button', { name: 'About & credits', exact: true })
+      .click();
     await verifyAuthorGeometry(page.locator('dialog[open] .author-block'));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
