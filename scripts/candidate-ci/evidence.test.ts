@@ -131,6 +131,18 @@ describe('outcome', () => {
     expect(outcome({ run: whole, conclusion: 'success', counts: skips })).toBe('failed');
     expect(outcome({ run: grepped, conclusion: 'success', counts: skips })).toBe('failed');
   });
+
+  it('keeps the designed skips of a whole Playwright suite, but not of a targeted or counted one', () => {
+    const skips = { passed: 1512, failed: 0, skipped: 104 };
+    const whole = runFor({ id: 'e2e-prod-full', suite: 'e2e-prod' });
+    const targeted = runFor({ id: 'menu', suite: 'e2e-dev', specs: ['tests/menu.spec.ts'] });
+    const counted = runFor({ id: 'films', suite: 'e2e-prod', expectedPassed: 1512 });
+    expect(outcome({ run: whole, conclusion: 'success', counts: skips })).toBe('passed');
+    expect(outcome({ run: whole, conclusion: 'success', counts: { ...skips, failed: 1 } })).toBe('failed');
+    expect(outcome({ run: whole, conclusion: 'success', counts: { ...skips, passed: 0 } })).toBe('failed');
+    expect(outcome({ run: targeted, conclusion: 'success', counts: skips })).toBe('failed');
+    expect(outcome({ run: counted, conclusion: 'success', counts: skips })).toBe('failed');
+  });
 });
 
 describe('buildIndex', () => {

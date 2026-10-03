@@ -200,17 +200,25 @@ export type Outcome = 'passed' | 'failed';
  * The entry's outcome: the run must have succeeded, reported no failures and no skips (when it counts any), and
  * matched the entry's expected passes. A filtered-out spec would otherwise pass with nothing run. Vitest reports a
  * `-t` filter's deselected tests as skipped, so a grep-filtered `cloud-rules` entry tolerates skips; it still needs a
- * pass, and `expectedPassed` pins the count.
+ * pass, and `expectedPassed` pins the count. A whole Playwright suite with no pinned count keeps its designed skips
+ * (desktop-only cases on the mobile project and the like), as the release gate's whole partitions do.
  */
 export function outcome(item: Pick<Collected, 'run' | 'conclusion' | 'counts'>): Outcome {
   const { counts, conclusion, run } = item;
   if (conclusion !== 'success') return 'failed';
   if (!counts) return 'passed';
   const filteredSkips = run.entry.suite === 'cloud-rules' && run.entry.grep !== '';
-  if (counts.failed || (counts.skipped && !filteredSkips) || !counts.passed) return 'failed';
+  const designedSkips =
+    WHOLE_SUITE_SKIPS.includes(run.entry.suite) &&
+    run.entry.specs.length === 0 &&
+    run.entry.grep === '' &&
+    run.entry.expectedPassed === null;
+  if (counts.failed || (counts.skipped && !filteredSkips && !designedSkips) || !counts.passed) return 'failed';
   if (run.entry.expectedPassed !== null && counts.passed !== run.entry.expectedPassed) return 'failed';
   return 'passed';
 }
+
+const WHOLE_SUITE_SKIPS: readonly string[] = ['e2e-prod', 'e2e-dev', 'e2e-offline', 'cloud-ui'];
 
 export interface LeanRow {
   check: string;
