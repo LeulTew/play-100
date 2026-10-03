@@ -173,7 +173,8 @@ export function gatePlan(): GateStep[] {
       tool: 'playwright',
       args: ['test', '--config', 'playwright.floor.config.ts'],
       report: 'playwright',
-      expectedPassed: 15,
+      // floor-smoke's 5 tests on three engines, floor-offline's 3 on Firefox and the old Chromium, and 2 on WebKit.
+      expectedPassed: 23,
     },
     { name: 'apb2', profile: 'configured', tool: 'npm', args: ['run', APB2_GATE_SCRIPT] },
     {

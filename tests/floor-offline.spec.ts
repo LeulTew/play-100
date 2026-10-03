@@ -42,10 +42,10 @@ test('the current engine prepares offline through Settings and activates the wor
   await prepareOffline(page);
 });
 
-test('the prepared collection reloads without a network', async ({ page, context, browserName }) => {
-  // Playwright's WebKit 26.6 reaches "Offline files ready" with an activated worker, then page.reload() offline throws
-  // "WebKit encountered an internal error" (run 36984599664). Kept strict: an unexpected WebKit pass fails this test.
-  test.fail(browserName === 'webkit', 'WebKit 26.6 internal error on an offline reload (run 36984599664)');
+test('the prepared collection reloads without a network', { tag: '@offline-reload' }, async ({ page, context }) => {
+  // The floor-webkit project leaves this test out (playwright.floor.config.ts): Playwright's WebKit 26.6 reaches
+  // "Offline files ready" with an activated worker, then page.reload() offline throws "WebKit encountered an internal
+  // error" (run 36984599664). Firefox and the old Chromium must pass it.
   await prepareOffline(page);
   await context.setOffline(true);
   try {

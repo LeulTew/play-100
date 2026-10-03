@@ -107,7 +107,7 @@ describe('candidate release gate planning', () => {
     const floor = plan.find((step) => step.name === 'floor-smoke')!;
     expect(floor).toMatchObject({
       args: ['test', '--config', 'playwright.floor.config.ts'],
-      expectedPassed: 15,
+      expectedPassed: 23,
     });
     expect(reporterArgs(floor, 'evidence').filter((arg) => arg.startsWith('--project='))).toEqual([
       '--project=floor-firefox',

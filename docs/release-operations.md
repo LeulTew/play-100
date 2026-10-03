@@ -962,7 +962,11 @@ flows an older engine breaks first on Firefox, WebKit and, when
 README floor (Chrome 94). Each test also removes `URLSearchParams.prototype.size`.
 It covers a game detail opened through its link (`?game=`), Discover filters and
 paging keeping the query, the My games tabs, the outdated-browser boot notice and,
-on a configured build, the Google sign-in return path. It is never part of
+on a configured build, the Google sign-in return path. The offline floor
+(`tests/floor-offline.spec.ts`, REL-12) runs in the same config with service
+workers allowed: preparation through Settings, an offline reload of the prepared
+collection (left out of the WebKit project; see [PWA](pwa.md)) and the exact
+upgrade guidance on an engine that ignores the module option. Neither is part of
 `test:e2e`. Install the two engines once, then run it against this same build
 (`PLAY100_TEST_BUILD` unset or `production`):
 
@@ -977,7 +981,7 @@ Remove-Item Env:PLAYWRIGHT_JSON_OUTPUT_NAME, Env:PLAY100_FLOOR_CHROMIUM -ErrorAc
 
 Without `PLAY100_FLOOR_CHROMIUM` this standalone command runs only
 `floor-firefox` and `floor-webkit`. That is partial coverage, not the full
-`release:gate` floor partition, which requires all three engines and all 15
+`release:gate` floor partition, which requires all three engines and all 23
 configured cases with no skips.
 
 For cloud-UI use three terminals in this **same checkout**. Terminal A:

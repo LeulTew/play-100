@@ -36,10 +36,12 @@ state with an activated worker, but its offline `page.reload()` failed with
 receipt or a real Safari/iOS test. The full floor run was **20 passed, 1 failed,
 0 skipped, 0 retries**. The WebKit reload remains an open validation gap, with
 its screenshot and trace retained in the run artifact. The offline reload is now
-its own test, and on WebKit it is marked as an expected failure
-(`test.fail`). It stays strict: if WebKit ever passes it, the suite reports the
-unexpected pass, and Firefox and Chromium 106 must still pass it. Preparation,
-worker activation and the simulated old engine stay strict on all three engines.
+its own test, tagged `@offline-reload`, and the floor-webkit project leaves it
+out (`grepInvert` in `playwright.floor.config.ts`), because the release gate
+takes no skipped or expected-to-fail tests. Firefox and Chromium 106 must still
+pass it. Preparation, worker activation and the simulated old engine stay strict
+on all three engines, so a floor pass is 23 cases: floor-smoke's 5 on three
+engines, and floor-offline's 3 on Firefox and Chromium 106 and 2 on WebKit.
 Real Safari offline is unverified here; the physical-device checks own it. The original attempt,
 [run 36983931439](https://github.com/LeulTew/play-100/actions/runs/36983931439),
 incorrectly required the newly prepared worker to control the already-open

@@ -4,7 +4,7 @@
   "entries": [
     { "id": "checks", "suite": "checks", "purpose": "Static checks and unit/browser units" },
     { "id": "csp-refresh", "suite": "csp-refresh", "purpose": "Configured build CSP and budgets refresh" },
-    { "id": "floor", "suite": "floor", "lean": "floor-smoke", "purpose": "Floor engines smoke (15 per pass)" },
+    { "id": "floor", "suite": "floor", "lean": "floor-smoke", "purpose": "Floor engines smoke and offline floor (23 per pass)" },
     { "id": "lighthouse", "suite": "lighthouse", "purpose": "Lighthouse mobile and desktop, 3 runs each, DejaVu and tall-fallback cells" },
     { "id": "e2e-prod-full", "suite": "e2e-prod", "project": "both", "lean": "e2e-production", "purpose": "Whole production suite (includes the films case the gate partitions out)" },
     {
