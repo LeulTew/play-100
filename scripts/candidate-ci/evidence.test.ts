@@ -107,10 +107,10 @@ describe('counts', () => {
 
 describe('outcome', () => {
   const ok = { passed: 3, failed: 0, skipped: 0 };
-  it('needs a successful run with passes and nothing failed or skipped', () => {
+  it('needs a successful run with passes and nothing failed', () => {
     expect(outcome({ run: focus, conclusion: 'success', counts: ok })).toBe('passed');
     expect(outcome({ run: focus, conclusion: 'failure', counts: ok })).toBe('failed');
-    expect(outcome({ run: focus, conclusion: 'success', counts: { ...ok, skipped: 1 } })).toBe('failed');
+    expect(outcome({ run: focus, conclusion: 'success', counts: { ...ok, failed: 1 } })).toBe('failed');
     expect(outcome({ run: focus, conclusion: 'success', counts: { ...ok, passed: 0 } })).toBe('failed');
     expect(outcome({ run: focus, conclusion: 'success', counts: null })).toBe('passed');
   });
@@ -121,26 +121,27 @@ describe('outcome', () => {
     expect(outcome({ run: films, conclusion: 'success', counts: ok })).toBe('failed');
   });
 
-  it('tolerates the skips of a grep-filtered cloud-rules entry only', () => {
+  it('tolerates Vitest skips only in a grep-filtered cloud-rules entry', () => {
     const skips = { passed: 1, failed: 0, skipped: 41 };
     const filtered = runFor({ id: 'rules', suite: 'cloud-rules', grep: 'converges' });
     const whole = runFor({ id: 'rules-all', suite: 'cloud-rules' });
+    // Playwright's --grep runs only the matching tests, so a grep-filtered Playwright entry's skips are designed ones.
     const grepped = runFor({ id: 'prod', suite: 'e2e-prod', grep: 'x' });
     expect(outcome({ run: filtered, conclusion: 'success', counts: skips })).toBe('passed');
     expect(outcome({ run: filtered, conclusion: 'success', counts: { ...skips, passed: 0 } })).toBe('failed');
     expect(outcome({ run: whole, conclusion: 'success', counts: skips })).toBe('failed');
-    expect(outcome({ run: grepped, conclusion: 'success', counts: skips })).toBe('failed');
+    expect(outcome({ run: grepped, conclusion: 'success', counts: skips })).toBe('passed');
   });
 
-  it('keeps the designed skips of a whole Playwright suite, but not of a targeted or counted one', () => {
-    const skips = { passed: 1512, failed: 0, skipped: 104 };
+  it('keeps the designed skips of a Playwright entry unless it pins an exact count', () => {
+    const skips = { passed: 940, failed: 0, skipped: 40 };
     const whole = runFor({ id: 'e2e-prod-full', suite: 'e2e-prod' });
-    const targeted = runFor({ id: 'menu', suite: 'e2e-dev', specs: ['tests/menu.spec.ts'] });
-    const counted = runFor({ id: 'films', suite: 'e2e-prod', expectedPassed: 1512 });
+    const targeted = runFor({ id: 'tray-mobile', suite: 'e2e-prod', specs: ['tests/a.spec.ts'], project: 'mobile' });
+    const counted = runFor({ id: 'films', suite: 'e2e-prod', expectedPassed: 940 });
     expect(outcome({ run: whole, conclusion: 'success', counts: skips })).toBe('passed');
+    expect(outcome({ run: targeted, conclusion: 'success', counts: skips })).toBe('passed');
     expect(outcome({ run: whole, conclusion: 'success', counts: { ...skips, failed: 1 } })).toBe('failed');
-    expect(outcome({ run: whole, conclusion: 'success', counts: { ...skips, passed: 0 } })).toBe('failed');
-    expect(outcome({ run: targeted, conclusion: 'success', counts: skips })).toBe('failed');
+    expect(outcome({ run: targeted, conclusion: 'success', counts: { ...skips, passed: 0 } })).toBe('failed');
     expect(outcome({ run: counted, conclusion: 'success', counts: skips })).toBe('failed');
   });
 });

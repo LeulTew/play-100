@@ -1295,9 +1295,13 @@ stops collection. It then writes:
 
 - `summary.md` and `summary.json`: entry, suite, project, spec, repeat, passed,
   failed, skipped, result and run URL. An entry passes only if its run
-  succeeded, it passed at least one test, nothing failed or was skipped, and the
-  count equals `expectedPassed` when set. Vitest counts the tests a `-t` filter
-  deselects as skipped, so a `cloud-rules` entry with `grep` tolerates skips.
+  succeeded, it passed at least one test, nothing failed, and the count equals
+  `expectedPassed` when set. Skips depend on the runner. Playwright never reports
+  deselected tests, so its skips are the specs' own designed `test.skip`
+  conditions (desktop-only cases on the mobile project and the like); they are
+  kept, as the release gate's partitions keep them, unless the entry sets
+  `expectedPassed`. Vitest counts the tests a `-t` filter deselects as skipped,
+  so of the Vitest entries only a `cloud-rules` entry with `grep` tolerates skips.
   Playwright's `flaky` counts as failed;
   `lighthouse` has no counts and passes on the run's conclusion. Hidden files
   (Playwright's `test-results/.last-run.json`) are not uploaded or digested.
