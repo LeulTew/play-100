@@ -40,8 +40,14 @@ describe('constrained still', () => {
     expect(full.filter((tag) => tag.startsWith('<ellipse')).length).toBeGreaterThan(0);
     expect(lean.filter((tag) => tag.startsWith('<ellipse'))).toEqual([]);
     for (const motif of new Set(FOLIO_DESIGNS.map((design) => design.motif))) {
-      expect(full.some((tag) => MOTIFS[motif].test(tag)), motif).toBe(true);
-      expect(lean.some((tag) => MOTIFS[motif].test(tag)), motif).toBe(false);
+      expect(
+        full.some((tag) => MOTIFS[motif].test(tag)),
+        motif,
+      ).toBe(true);
+      expect(
+        lean.some((tag) => MOTIFS[motif].test(tag)),
+        motif,
+      ).toBe(false);
     }
     for (const glyph of P100_GLYPHS) {
       const shape = `d="${glyphPath(glyph)}"`;
