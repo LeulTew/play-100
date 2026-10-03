@@ -25,10 +25,6 @@
   pointer-events: none;
 }
 
-.artifact-still {
-  display: block;
-}
-
 .artifact-still-sleeve {
   transform-origin: 0 0;
 }
