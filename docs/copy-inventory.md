@@ -551,8 +551,8 @@ transaction feedback; bulk actions retain accurate changed/unchanged counts.
 | [src/cloud/cloud-store.ts:752](../src/cloud/cloud-store.ts#L752) | Error/validation | The signed-in account changed. Return to the same account before continuing. | cleanup(); options.isCurrent?.() === false is true |
 | [src/cloud/cloud-store.ts:757](../src/cloud/cloud-store.ts#L757) | Error/validation | Online saving changed. Refresh the page before continuing. | cleanup(); deletionEpoch !== null is true; !head.exists() &#124;&#124; !head.data().deleted &#124;&#124; head.data().epoch !== deletionEpoch is true |
 | [src/cloud/cloud-store.ts:760](../src/cloud/cloud-store.ts#L760) | Error/validation | A saved copy changed. Refresh the page before continuing. | cleanup(); retained.has(id) is true |
-| [src/cloud/cloud-store.ts:779](../src/cloud/cloud-store.ts#L779) | Error/validation | The account or online saving state changed. Refresh the page before continuing. | cleanup(); deletionEpoch !== null is true; options.isCurrent?.() === false &#124;&#124; !head.exists() &#124;&#124; !head.data().deleted &#124;&#124; head.data().epoch !== deletionEpoch is true |
-| [src/cloud/cloud-store.ts:784](../src/cloud/cloud-store.ts#L784) | Error/validation | There's more to delete. Choose Finish deleting to continue. | cleanup(); deletionEpoch !== null is true; registry.exists() is true; !isUnknownArray(ids) &#124;&#124; ids.length is true |
+| [src/cloud/cloud-store.ts:782](../src/cloud/cloud-store.ts#L782) | Error/validation | The account or online saving state changed. Refresh the page before continuing. | cleanup(); deletionEpoch !== null is true; options.isCurrent?.() === false &#124;&#124; !head.exists() &#124;&#124; !head.data().deleted &#124;&#124; head.data().epoch !== deletionEpoch is true |
+| [src/cloud/cloud-store.ts:787](../src/cloud/cloud-store.ts#L787) | Error/validation | There's more to delete. Choose Finish deleting to continue. | cleanup(); deletionEpoch !== null is true; registry.exists() is true; !isUnknownArray(ids) &#124;&#124; ids.length is true |
 ## src/cloud/CommunityPage.tsx
 
 | Source | Kind | Copy or expression | Showing condition / owner |

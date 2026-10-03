@@ -399,3 +399,42 @@ describe('real Auth and Firestore snapshot transactions', () => {
     expect((await store.upload(state, head)).revision).toBe(head.revision);
   });
 });
+
+// REL-13 (docs/intermittents.md): every cleanup step commits and then runs again, as the SDK runs a transaction whose
+// applied commit it was told failed.
+describe('online copy cleanup steps run again after their commit applied', () => {
+  async function runEachAgainAfterCommit() {
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    const replay: RunTransaction = async (db, operation, options) => {
+      await actual.runTransaction(db, operation, options);
+      return actual.runTransaction(db, operation, options);
+    };
+    vi.mocked<RunTransaction>(runTransaction).mockImplementation(replay);
+  }
+  async function saved() {
+    const fixture = await client();
+    const library = applyPersonalAction(emptyPersonalLibrary(), { type: 'rate-game', record: game, score: 8 });
+    const head = await fixture.store.upload(library, await fixture.store.enable(null));
+    const generation = head.current?.generation;
+    if (!generation) throw new Error('Missing uploaded generation.');
+    const generationRef = doc(fixture.db, 'accounts', fixture.user.uid, 'generations', generation);
+    const registry = doc(fixture.db, 'accounts', fixture.user.uid, 'metadata', 'registry');
+    return { ...fixture, head, generationRef, registry };
+  }
+  it('deletes the online copy once and finishes', async () => {
+    const { store, head, generationRef, registry } = await saved();
+    const deleting = await store.revoke(head, true);
+    await runEachAgainAfterCommit();
+    expect(await store.cleanup(true, { expectedDeletionEpoch: deleting.epoch })).toBe(1);
+    expect((await getDocFromServer(generationRef)).exists()).toBe(false);
+    expect((await getDocFromServer(registry)).exists()).toBe(false);
+  });
+  it('still keeps the current generation of a copy that is saving', async () => {
+    const { store, generationRef, registry } = await saved();
+    const before = (await getDocFromServer(registry)).data();
+    await runEachAgainAfterCommit();
+    expect(await store.cleanup()).toBe(0);
+    expect((await getDocFromServer(generationRef)).exists()).toBe(true);
+    expect((await getDocFromServer(registry)).data()).toEqual(before);
+  });
+});

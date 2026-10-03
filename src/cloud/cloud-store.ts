@@ -756,8 +756,11 @@ export class CloudStore {
           if (!head.exists() || !head.data().deleted || head.data().epoch !== deletionEpoch)
             throw new Error('Online saving changed. Refresh the page before continuing.');
         }
-        const current = await tx.get(this.registryRef());
+        const [current, gen] = await Promise.all([tx.get(this.registryRef()), tx.get(this.generationRef(id))]);
         if (retained.has(id)) throw new Error('A saved copy changed. Refresh the page before continuing.');
+        // Gone from both: this transaction's own commit, applied although the client was told it failed, so the SDK ran
+        // it again (docs/intermittents.md, REL-13), or another tab's cleanup of the same generation.
+        if (!gen.exists() && !(current.exists() && (current.data().ids as string[]).includes(id))) return;
         if (current.exists())
           tx.update(this.registryRef(), {
             ids: (current.data().ids as string[]).filter((value) => value !== id),
