@@ -290,8 +290,11 @@ export class SocialPublication {
       const profileRef = doc(this.db, 'publicProfiles', uid);
       const [snap, profile] = await Promise.all([tx.get(controlRef), tx.get(profileRef)]);
       const current = snap.exists() ? parseControl(snap.data()) : { epoch: 0, hidden: false, deleted: false };
-      if (current.epoch !== expected.epoch) throw new Error('This publication changed. Reload before unpublishing.');
+      // Deletion needs only the public copy withdrawn, at whatever epoch. That includes this transaction's own commit,
+      // applied although the client was told it failed, so the SDK ran the transaction again (REL-13 in
+      // docs/intermittents.md).
       if (deleting && current.deleted && (!profile.exists() || !profile.data().published)) return;
+      if (current.epoch !== expected.epoch) throw new Error('This publication changed. Reload before unpublishing.');
       tx.set(controlRef, { ...current, epoch: current.epoch + 1, deleted: deleting });
       if (profile.exists())
         tx.update(profileRef, {

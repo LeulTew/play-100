@@ -20,17 +20,26 @@ import {
   getFirestore,
   limit,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import type { Firestore, Transaction, TransactionOptions } from 'firebase/firestore';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SocialStore } from '../src/cloud/social-store';
 import { CloudStore } from '../src/cloud/cloud-store';
 import { ensureAccountActivity } from '../src/cloud/account-lifecycle';
 import type { AvatarValue, PublicEntry } from '../src/lib/community';
+import type { RunTransaction } from './fixtures/modular-firestore';
 
 type Registry = Record<string, unknown> & { ids: string[]; revision: number };
+
+// Only the deleting-unpublish cases below replace a transaction; every other call runs the SDK's own.
+vi.mock('firebase/firestore', async (original) => {
+  const actual = await original<typeof import('firebase/firestore')>();
+  return { ...actual, runTransaction: vi.fn(actual.runTransaction) };
+});
 
 let environment: RulesTestEnvironment;
 const apps: FirebaseApp[] = [];
@@ -57,6 +66,8 @@ beforeAll(async () => {
   });
 });
 beforeEach(async () => {
+  const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+  vi.mocked<RunTransaction>(runTransaction).mockReset().mockImplementation(actual.runTransaction);
   await environment.clearFirestore();
   await environment.withSecurityRulesDisabled(async (context) => {
     await context.firestore().doc('_owner/config').set({ uid: 'creator-uid', email: 'owner@example.test' });
@@ -668,5 +679,58 @@ describe('consented public snapshots, handle claims and moderation', () => {
       resume?.();
       if (cleaning) await cleaning;
     }
+  });
+});
+
+// REL-13 (docs/intermittents.md): the emulator applied a deleting unpublish's commit but answered ALREADY_EXISTS, which
+// the SDK retries, so the transaction ran again and read its own withdrawal. Any client told that an applied commit
+// failed with a retryable code runs the transaction again the same way.
+describe('a deleting unpublish run again after its commit applied', () => {
+  async function runAgainAfterCommit() {
+    const actual = await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore');
+    const runs = { count: 0 };
+    vi.mocked<RunTransaction>(runTransaction).mockImplementationOnce(
+      async <T>(db: Firestore, operation: (tx: Transaction) => Promise<T>, options?: TransactionOptions) => {
+        const counted = (tx: Transaction) => {
+          runs.count += 1;
+          return operation(tx);
+        };
+        await actual.runTransaction(db, counted, options);
+        return actual.runTransaction(db, counted, options);
+      },
+    );
+    return runs;
+  }
+  it('withdraws an account that never published once and finishes', async () => {
+    const owner = await client();
+    const before = await owner.social.control(owner.uid);
+    const runs = await runAgainAfterCommit();
+    await owner.social.unpublish(owner.uid, before, true);
+    expect(runs.count).toBe(2);
+    expect(await owner.social.control(owner.uid)).toEqual({ epoch: before.epoch + 1, hidden: false, deleted: true });
+    expect(await owner.social.ownProfile(owner.uid)).toBeNull();
+  });
+  it('withdraws a live publication once and finishes', async () => {
+    const owner = await client();
+    await owner.social.publish(owner.uid, publication('withdrawn_once'), control);
+    const before = await owner.social.control(owner.uid);
+    const runs = await runAgainAfterCommit();
+    await owner.social.unpublish(owner.uid, before, true);
+    expect(runs.count).toBe(2);
+    expect(await owner.social.control(owner.uid)).toEqual({ epoch: before.epoch + 1, hidden: false, deleted: true });
+    expect(await owner.social.ownProfile(owner.uid)).toMatchObject({
+      published: false,
+      listed: false,
+      epoch: before.epoch + 1,
+    });
+  });
+  it('still refuses a publication that changed after it was read', async () => {
+    const owner = await client();
+    const stale = await owner.social.control(owner.uid);
+    await owner.social.publish(owner.uid, publication('changed_since'), stale);
+    await expect(owner.social.unpublish(owner.uid, stale, true)).rejects.toThrow(
+      'This publication changed. Reload before unpublishing.',
+    );
+    expect(await owner.social.ownProfile(owner.uid)).toMatchObject({ published: true, epoch: stale.epoch + 1 });
   });
 });
