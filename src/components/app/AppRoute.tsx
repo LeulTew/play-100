@@ -36,6 +36,7 @@ export function AppRoute({
   const { page, panel, commands, libraryScope, games, library, libraryBusy, filters, capabilities, collection } = app;
   const { online, cloudPage, showOnline, privateLoading, personalPage, gamesView } = app;
   const { publicHandle, invitation, signInPurpose, guestLibrary, getSignInReturnFocus, allRecords } = app;
+  const { getPanelOpener } = app;
   const { openGame, openProfile, updateFilters, changeGamesView, effectiveMotion, motionPending } = app;
   const { openCollection, preview, previewFromDiscover } = motion;
   const friendSharing = online?.friendSharing;
@@ -55,6 +56,7 @@ export function AppRoute({
                     kind: 'account-sheet',
                     onClose: commands.closeAccountSheet,
                     getReturnFocus: getSignInReturnFocus,
+                    getOpener: getPanelOpener,
                   }
                 : null,
             props: {
@@ -70,6 +72,7 @@ export function AppRoute({
               onBridge: commands.onBridge,
               onCloseSheet: commands.closeAccountSheet,
               getSignInReturnFocus,
+              getSignInOpener: getPanelOpener,
               onNavigate: commands.navigate,
               onProfile: openProfile,
               onOpenRecord: preview,
@@ -86,6 +89,7 @@ export function AppRoute({
       panel,
       commands,
       getSignInReturnFocus,
+      getPanelOpener,
       publicHandle,
       invitation,
       signInPurpose,

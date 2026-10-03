@@ -5,7 +5,8 @@ import { visibleFocusTarget, visibleMenuTrigger } from '../lib/dialog-focus';
 import { useMotionController } from '../motion/useMotion';
 import type { DialogMotionHandle, DialogMotionOptions } from '../motion/types';
 import { showLockedDialog } from './dialog-lifecycle';
-import { DialogLayerContext, foregroundDialog, registerDialogLayer } from './dialog-layer';
+import { DialogLayerContext, DialogRouteHistoryContext, foregroundDialog, registerDialogLayer } from './dialog-layer';
+import { registerSheetBack } from '../lib/sheet-history';
 
 function runDialogMotion(work: () => void) {
   try {
@@ -46,6 +47,7 @@ export function Dialog({
   const visual = useRef<DialogMotionHandle | null>(null);
   const controller = useMotionController();
   const layer = useContext(DialogLayerContext);
+  const routeHistory = useContext(DialogRouteHistoryContext);
   const latestMotion = useRef(motion);
   const motionDisabled = motion === false;
   const returnFocus = useRef(getReturnFocus);
@@ -74,6 +76,12 @@ export function Dialog({
     const focusTarget = dialog.querySelector<HTMLElement>('[data-autofocus]');
     const unlock = showLockedDialog(dialog, focusTarget);
     const releaseLayer = registerDialogLayer(dialog, layer, previousFocus);
+    const releaseHistory = routeHistory
+      ? () => {}
+      : registerSheetBack({
+          current: () => dialog.isConnected && dialog.open && foregroundDialog() === dialog,
+          close: () => close.current(),
+        });
     runDialogMotion(() => {
       if (inner.current)
         visual.current = controller.openDialog(dialog, inner.current, slot.current, latestMotion.current);
@@ -112,6 +120,7 @@ export function Dialog({
                 ),
               ].find(canReturnTo) ?? visibleMenuTrigger());
       }
+      releaseHistory();
       releaseLayer();
       dialog.close();
       unlock();
@@ -136,7 +145,7 @@ export function Dialog({
       controller.forgetDialog(dialog);
       runDialogMotion(() => ending?.closed());
     };
-  }, [open, controller, layer]);
+  }, [open, controller, layer, routeHistory]);
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog || !open) return;
@@ -159,40 +168,42 @@ export function Dialog({
     };
   }, [open]);
   return (
-    <dialog
-      ref={ref}
-      className={`dialog ${className}`}
-      aria-labelledby={titleId}
-      aria-describedby={descriptionId}
-      data-motion-owned={motion !== undefined ? 'true' : undefined}
-      onKeyDown={(event) => {
-        if (
-          event.key !== 'Escape' ||
-          event.defaultPrevented ||
-          event.nativeEvent.isComposing ||
-          foregroundDialog() !== event.currentTarget
-        )
-          return;
-        // Programmatic modal stacks can share a native close-watcher group; cancel the key, not each close request.
-        event.preventDefault();
-        event.stopPropagation();
-        if (!event.repeat) onClose();
-      }}
-      onCancel={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onClose();
-      }}
-    >
-      <div className="dialog-inner" ref={inner}>
-        <div className="dialog-close-rail">
-          <button className="icon-button dialog-close" onClick={onClose} aria-label="Close dialog">
-            <Icon name="close" />
-          </button>
+    <DialogRouteHistoryContext value={false}>
+      <dialog
+        ref={ref}
+        className={`dialog ${className}`}
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        data-motion-owned={motion !== undefined ? 'true' : undefined}
+        onKeyDown={(event) => {
+          if (
+            event.key !== 'Escape' ||
+            event.defaultPrevented ||
+            event.nativeEvent.isComposing ||
+            foregroundDialog() !== event.currentTarget
+          )
+            return;
+          // Programmatic modal stacks can share a native close-watcher group; cancel the key, not each close request.
+          event.preventDefault();
+          event.stopPropagation();
+          if (!event.repeat) onClose();
+        }}
+        onCancel={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onClose();
+        }}
+      >
+        <div className="dialog-inner" ref={inner}>
+          <div className="dialog-close-rail">
+            <button className="icon-button dialog-close" onClick={onClose} aria-label="Close dialog">
+              <Icon name="close" />
+            </button>
+          </div>
+          {children}
         </div>
-        {children}
-      </div>
-      {motion && <div ref={slot} className="dialog-motion-slot" data-motion-host="dialog" aria-hidden="true" inert />}
-    </dialog>
+        {motion && <div ref={slot} className="dialog-motion-slot" data-motion-host="dialog" aria-hidden="true" inert />}
+      </dialog>
+    </DialogRouteHistoryContext>
   );
 }

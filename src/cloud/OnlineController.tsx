@@ -51,6 +51,7 @@ export default function OnlineController({
   onBridge,
   onCloseSheet,
   getSignInReturnFocus,
+  getSignInOpener,
   onNavigate,
   onProfile,
   onOpenRecord,
@@ -76,6 +77,7 @@ export default function OnlineController({
   onCloseSheet: () => void;
   onNavigate: (page: AppPage) => void;
   getSignInReturnFocus?: (authenticated?: boolean) => HTMLElement | null;
+  getSignInOpener?: () => HTMLElement | null;
   onProfile: (handle: string) => void;
   onOpenRecord: (record: LibraryRecord, authority?: PreviewAuthority) => void;
   onShare: (title: string, url: string) => void;
@@ -325,6 +327,7 @@ export default function OnlineController({
           className="info-dialog signin-dialog"
           onClose={closeSignin}
           getReturnFocus={() => getSignInReturnFocus?.(Boolean(identityRef.current)) ?? null}
+          getOpener={getSignInOpener}
           motion={{ preset: 'dialog', enterMs: 160 }}
         >
           <h2 id="account-signin-title" data-autofocus tabIndex={-1}>

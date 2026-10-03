@@ -11,6 +11,7 @@ import {
 import type { MyGamesTab } from '../lib/my-games-navigation';
 import { pageDestination } from '../lib/page-navigation';
 import { isRecord, type JsonObject } from '../lib/guards';
+import { prepareSheetHistory } from '../lib/sheet-history';
 
 const NAVIGATION_EVENT = 'play100:navigate';
 
@@ -21,6 +22,7 @@ function historyState(): JsonObject {
 }
 
 function subscribe(listener: () => void): () => void {
+  prepareSheetHistory();
   window.addEventListener('popstate', listener);
   window.addEventListener(NAVIGATION_EVENT, listener);
   return () => {
