@@ -50,7 +50,7 @@ jobs:
           npx tsx scripts/ios-safari-smoke/plan.ts
       - name: Record served target build identity
         run: npx tsx scripts/ios-safari-smoke/identity.ts
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: ios-simulator-inventory
@@ -154,7 +154,7 @@ jobs:
         run: scripts/ios-safari-smoke/node_modules/.bin/tsx scripts/ios-safari-smoke/redact.ts ios-safari-artifacts
       - name: Upload screenshots, results and diagnostics
         if: always() && (steps.exercise.outcome == 'skipped' || steps.redact.outcome == 'success')
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ios-safari-${{ matrix.label }}
           path: |
