@@ -112,7 +112,7 @@ jobs:
           [[ "$REQUEST_ID" =~ ^[A-Za-z0-9._-]{0,64}$ ]] || { echo "request must be at most 64 of [A-Za-z0-9._-]"; exit 1; }
 
       - name: Check out the candidate
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.sha }}
           path: candidate
@@ -121,7 +121,7 @@ jobs:
           persist-credentials: false
 
       - name: Check out the CI tooling
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.workflow_sha }}
           path: _ci
