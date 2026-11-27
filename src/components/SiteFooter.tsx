@@ -20,6 +20,14 @@ export function SiteFooter({
           Source code
           <Icon name="up-right" width="15" height="15" />
         </a>
+        <a href="https://where-u-stand.vercel.app" target="_blank" rel="noopener noreferrer">
+          Where u stand?
+          <Icon name="up-right" width="15" height="15" />
+        </a>
+        <a href="https://kitefew.vercel.app" target="_blank" rel="noopener noreferrer">
+          Kitefew
+          <Icon name="up-right" width="15" height="15" />
+        </a>
         <a href="/downloads/Play-100-Collection.xlsx" download>
           Enhanced spreadsheet
         </a>

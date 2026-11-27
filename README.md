@@ -17,7 +17,8 @@ deliberately published public snapshots. No analytics or Supabase is used.
 **Original Excel:** https://play-100-collection.vercel.app/downloads/AAA_games_u_have_to_play_list_top_100.xlsx  
 **My games:** https://play-100-collection.vercel.app/my-games <br />
 **Personal rankings:** https://play-100-collection.vercel.app/my-games?tab=ranking <br />
-**Discover:** https://play-100-collection.vercel.app/discover
+**Discover:** https://play-100-collection.vercel.app/discover <br />
+**More games by me:** [I wanna know where u stand?](https://where-u-stand.vercel.app) ([source](https://github.com/LeulTew/stance)) · [Kitefew](https://kitefew.vercel.app) ([source](https://github.com/LeulTew/Kitefew))
 **Account:** https://play-100-collection.vercel.app/account
 **Friends:** https://play-100-collection.vercel.app/friends  
 **Compare:** https://play-100-collection.vercel.app/compare  
